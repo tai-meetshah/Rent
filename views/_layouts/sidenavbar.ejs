@@ -50,31 +50,20 @@
                                   <span class="menu-title <%= url == '/' ? 'theme-text' : 'black-text' %>">Dashboard</span>
                                 </a>
                               </li>
-                              <li class="bold <%= url.startsWith('/sub-admin') ? 'active' : '' %>">
-                                <a class="waves-effect waves-cyan" href="/sub-admin/list">
-                                  <i class="material-icons <%= url == '/sub-admin' ? 'theme-text' : 'black-text' %>">face</i>
-                                  <span class="menu-title <%= url == '/sub-admin' ? 'theme-text' : 'black-text' %>">Subadmin</span>
-                                </a>
-                              </li>
+                            
                               <li class="bold <%= url.startsWith('/user') ? 'active' : '' %>">
                                 <a class="waves-effect waves-cyan" href="/user">
                                   <i class="material-icons <%= url.startsWith('/user') ? 'theme-text' : 'black-text' %> ">wc</i>
                                   <span class="menu-title <%= url.startsWith('/user') ? 'theme-text' : 'black-text' %> ">Users</span>
                                 </a>
                               </li>
-                              <li class="bold <%= url.startsWith('/vendor') ? 'active' : '' %>">
-                                <a class="waves-effect waves-cyan" href="/vendor">
-                                  <i class="material-icons <%= url.startsWith('/vendor') ? 'theme-text' : 'black-text' %> ">people</i>
-                                  <span class="menu-title <%= url.startsWith('/vendor') ? 'theme-text' : 'black-text' %> ">Vendors</span>
-                                </a>
-                              </li>
 
-                              <li class="bold <%= url.startsWith('/discount') ? 'active' : '' %>">
+                              <!-- <li class="bold <%= url.startsWith('/discount') ? 'active' : '' %>">
                                 <a class="waves-effect waves-cyan" href="/discount">
                                   <i class="material-icons <%= url.startsWith('/discount') ? 'theme-text' : 'black-text' %> ">card_giftcard</i>
                                   <span class="menu-title <%= url.startsWith('/discount') ? 'theme-text' : 'black-text' %> ">Vendor Discounts</span>
                                 </a>
-                              </li>
+                              </li> -->
 
                               <li class="bold <%= url.startsWith('/banner') ? 'active' : '' %>">
                                 <a class="waves-effect waves-cyan" href="/banner">
@@ -124,32 +113,6 @@
                                 </ul>
                               </li>
 
-                              <li class="bold <%= url.startsWith('/cms') ? 'active' : '' %>">
-                                <a class="dropdown-menu waves-effect waves-cyan" data-target="cmsDropdown">
-                                  <i class="material-icons <%= url.startsWith('/cms') ? 'theme-text' : 'black-text' %> ">settings</i>
-                                  <span>
-                                    <span class="dropdown-title <%= url.startsWith('/cms') ? 'theme-text' : 'black-text' %>">Color Setup</span>
-                                    <i class="material-icons right <%= url.startsWith('/cms') ? 'theme-text' : 'black-text' %>" style="font-size:18px !important">keyboard_arrow_down</i>
-                                  </span>
-                                </a>
-                                <ul class="dropdown-content dropdown-horizontal-list" id="cmsDropdown">
-                                  <li>
-                                    <a href="/cms/faq" class="<%= url.startsWith('/cms/faq') ? 'active' : '' %>">
-                                      <span>FAQ's</span>
-                                    </a>
-                                  </li>
-                                  <li>
-                                    <a href="/cms/privacy" class="<%= url.startsWith('/cms/privacy') ? 'active' : '' %>">
-                                      <span>Privacy Policy</span>
-                                    </a>
-                                  </li>
-                                  <li>
-                                    <a href="/cms/term" class="<%= url.startsWith('/cms/term') ? 'active' : '' %>">
-                                      <span>Terms and conditions</span>
-                                    </a>
-                                  </li>
-                                </ul>
-                              </li>
                           </ul>
                       </div>
                       <!-- </center> -->

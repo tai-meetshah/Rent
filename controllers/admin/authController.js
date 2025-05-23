@@ -7,8 +7,6 @@ const generateCode = require('../../utils/generateCode');
 const Admin = require('../../models/adminModel');
 const OTP = require('../../models/adminOtpModel');
 const User = require('../../models/userModel');
-const Vendor = require('../../models/vendorModel');
-const moduleModel = require('../../models/moduleModel');
 const adminModel = require('../../models/adminModel');
 
 exports.checkAdmin = async (req, res, next) => {
@@ -97,7 +95,7 @@ exports.checkPermission = (moduleKey, action) => {
 exports.getDashboard = async (req, res) => {
     var data = {};
     data.user = await User.find({ isDelete: false }).count();
-    data.vendor = await Vendor.find({ isDelete: false }).count();
+    // data.vendor = await Vendor.find({ isDelete: false }).count();
     res.render('index', { data });
 };
 
@@ -298,128 +296,5 @@ exports.postChangePass = async (req, res) => {
             req.flash('red', error.message);
         }
         return res.redirect(req.originalUrl);
-    }
-};
-
-/* SUB ADMIN ROUTES */
-
-exports.getSubAdminList = async (req, res) => {
-    const subadmin = await adminModel
-        .find({ role: 'A' })
-        .sort({ createdAt: -1 });
-
-    res.render('subadmin', { subadmin });
-};
-
-exports.getSubAdmin = async (req, res) => {
-    const modules = await moduleModel.find();
-    res.render('subadmin_add', { modules });
-};
-
-exports.postSubAdmin = async (req, res) => {
-    try {
-        const { name, email, password, permissions } = req.body;
-
-        const isExists = await adminModel.findOne({ email });
-        if (isExists) {
-            req.flash('red', 'This email address already registered!');
-            return res.redirect('/sub-admin/list');
-        }
-
-        // Convert permissions into required format
-        const formattedPermissions = [
-            ...Object.values(permissions).map(perm => ({
-                key: perm.module,
-                module: perm.moduleName,
-                isView: perm.isView === 'true',
-                isAdd: perm.isAdd === 'true',
-                isEdit: perm.isEdit === 'true',
-                isDelete: perm.isDelete === 'true',
-            })),
-            {
-                key: 'subadmin',
-                module: 'Sub Admin',
-                isView: false,
-                isAdd: false,
-                isEdit: false,
-                isDelete: false,
-            },
-        ];
-
-        // Create a new admin/sub-admin
-        const newAdmin = new adminModel({
-            name,
-            email,
-            password,
-            role: 'A',
-            permission: formattedPermissions,
-        });
-
-        await newAdmin.save();
-        req.flash('green', 'Sub Admin added successfully.');
-        res.redirect('/sub-admin/list');
-    } catch (error) {
-        req.flash('red', 'Something went wrong!');
-        res.redirect('/sub-admin/list');
-    }
-};
-
-exports.changeAdminStatus = async (req, res) => {
-    try {
-        const user = await adminModel.findById(req.params.id);
-
-        user.isActive = req.params.status;
-
-        await user.save();
-
-        req.flash('green', 'Status changed successfully.');
-        res.redirect('/sub-admin/list');
-    } catch (error) {
-        if (error.name === 'CastError' || error.name === 'TypeError')
-            req.flash('red', 'User not found!');
-        else req.flash('red', error.message);
-        res.redirect('/sub-admin/list');
-    }
-};
-
-exports.getEditSubAdmin = async (req, res) => {
-    const admin = await adminModel.findById(req.params.id);
-    res.render('subadmin_edit', { admin });
-};
-
-exports.postEditSubAdmin = async (req, res) => {
-    try {
-        const { name, email, password, permissions } = req.body;
-
-        // if(isExists){
-        //     req.flash('red', 'This email address already registered!');
-        //     return res.redirect("/sub-admin/list");
-        // }
-
-        const admin = await adminModel.findById(req.params.id);
-
-        // Convert permissions into required format
-        const formattedPermissions = Object.values(permissions).map(perm => ({
-            key: perm.module,
-            module: perm.moduleName,
-            isView: perm.isView === 'true',
-            isAdd: perm.isAdd === 'true',
-            isEdit: perm.isEdit === 'true',
-            isDelete: perm.isDelete === 'true',
-        }));
-
-        // Create a new admin/sub-admin
-        admin.name = name;
-        admin.email = email;
-        admin.password = password;
-        admin.permission = formattedPermissions;
-
-        await admin.save();
-
-        req.flash('green', 'Sub Admin updated successfully.');
-        res.redirect('/sub-admin/list');
-    } catch (error) {
-        req.flash('red', 'Something went wrong!');
-        res.redirect('/sub-admin/list');
     }
 };

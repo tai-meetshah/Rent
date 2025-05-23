@@ -1,0 +1,138 @@
+{
+  "validation": {
+    "fname": "Please provide a first name.",
+    "lname": "Please provide a last name.",
+    "phone": "Please provide a phone number.",
+    "phoneInvalid": "The phone number is invalid.",
+    "email": "Please provide an email.",
+    "emailPhone": "Please provide an email and phone number.",
+    "emailInvalid": "Please provide a valid email.",
+    "password": "Please provide a password.",
+    "passwordInvalid": "The password should be at least 4 characters long.",
+    "passwordConfirm": "Please confirm your password.",
+    "passwordNotSame": "Passwords do not match!",
+    "location": "Please provide a location.",
+    "latitude": "Please provide a latitude.",
+    "longitude": "Please provide a longitude.",
+    "address": "Please provide address.",
+    "alreadyRegisteredEmail": "Email is already registerd.",
+    "alreadyRegisteredPhone": "This mobile number is already registerd."
+  },
+  "phone": {
+    "notRegistered": "Please provide the registered mobile number.",
+    "notRegisteredEmail": "Please provide the registered email.",
+    "verify": "Please verify the mobile number."
+  },
+  "address": {
+    "added": "Address added successfully.",
+    "edited": "Address edited successfully.",
+    "selected": "Address selected successfully.",
+    "deleted": "Address deleted successfully.",
+    "notFound": "Address not found."
+  },
+  "otp": {
+    "sent": "OTP sent to your mobile number.",
+    "fail": "Oops! Invalid OTP.",
+    "verified": "OTP verified.",
+    "sentemail": "OTP sent to your email address."
+  },
+  "token": {
+    "invalid": "Invalid token.",
+    "expired": "Token expired. Verify phone again."
+  },
+  "auth": {
+    "registered": "Profile created successfully.",
+    "verifyMobile": "Mobile number verified",
+    "login": "Login successful.",
+    "provideToken": "Please provide an authentication token.",
+    "pleaseLogin": "Please login first.",
+    "blocked": "Sorry! You are blocked. Please contact Admin.",
+    "updated": "Profile has been updated successfully",
+    "credentials": "Invalid mobile number or password!",
+    "vcredentials": "Invalid email address or password!",
+    "deleted": "This account has been deleted.",
+    "deleted_success": "Account has been deleted.",
+    "signup_pending": "Please first complete signup process.",
+    "pendingApproved": "Admin hasn't approved your account yet! Please contact to admin."
+  },
+  "changePass": {
+    "pass": "Please provide a password.",
+    "wrongPass": "Your current password is incorrect.",
+    "samePass": "New password cannot be the same as the current password.",
+    "updated": "Password changed successfully.."
+  },
+  "passwordUpdated": "Password updated. Try logging in.",
+  "rating": {
+    "login": "Please log in to add your rating.",
+    "own": "You cannot rate your own business.",
+    "added": "Rating added successfully.",
+    "updated": "Rating updated successfully."
+  },
+  "social": {
+    "google": "Please log in with Google.",
+    "facebook": "Please log in with Facebook.",
+    "apple": "Please log in with Apple.",
+    "phone": "Please log in with phone number.",
+    "invalidGoogle": "Invalid Google ID.",
+    "invalidFacebook": "Invalid Facebook ID.",
+    "invalidApple": "Invalid Apple ID."
+  },
+  "updated": "Profile updated successfully.",
+  "deletedPicture": "Profile picture removed.",
+  "deleted": "Profile deleted successfully.",
+  "locationEdited": "Location edited successfully.",
+  "internal": "Internal server error.",
+
+  "fav": {
+    "add": "Favourite added successfully",
+    "remove": "Favourite removed successful"
+  },
+
+  "staff": {
+    "add": "Staff member added successfully.",
+    "update": "Staff member updated successfully.",
+    "delete": "Staff member deleted successfully.",
+    "credentials": "Invalid email address or password!"
+  },
+  "branch": {
+    "add": "Branch added successfully.",
+    "update": "Branch updated successfully.",
+    "delete": "Branch deleted successfully."
+  },
+  "cat": {
+    "add": "Category added successfully.",
+    "update": "Category updated successfully.",
+    "delete": "Category deleted successfully."
+  },
+  "item": {
+    "add": "Menu item added successfully.",
+    "update": "Menu item updated successfully.",
+    "delete": "Menu item deleted successfully."
+  },
+  "addMenu": "Menu added successfully.",
+  "removeMenu": "Menu removed successfully.",
+  "wrongPasscode": "Current passcode is invalid!",
+  "success": "Success",
+
+  "review": {
+    "add": "Review added successfully."
+  },
+  "discount": {
+    "add": "Discount added successfully.",
+    "update": "Discount updated successfully.",
+    "delete": "Discount deleted successfully.",
+    "code": "Discount is required.",
+    "discount": "Discount percentage is required.",
+    "discountInvalid": "Discount percentage should be between 0 and 100.",
+    "expireDate": "Expire date is required.",
+    "expireDateInvalid": "Expiration date must be in the future.",
+    "invalid": "Please enter a valid Discount.",
+    "expired": "Discount has expired.",
+    "limit": "You have reached the maximum usage limit for this Discount.",
+    "applied": "Discount '{{code}}' applied successfully.",
+    "min_bill_not_met": "Discount cannot be applied. Minimum bill amount not met."
+  },
+  "redeem": {
+    "invalidQr": "Invalid QR Code, please try again!."
+  }
+}

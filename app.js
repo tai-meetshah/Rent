@@ -111,7 +111,7 @@ app.use(function (req, res, next) {
 app.use('/', require('./routes/admin/authRoutes'));
 app.use('/user', require('./routes/admin/userRoutes'));
 app.use('/banner', require('./routes/admin/bannerRoutes'));
-app.use('/category', require('./routes/admin/categoryRoutes'));
+// app.use('/category', require('./routes/admin/categoryRoutes'));
 app.use('/cms', require('./routes/admin/cmsRoutes'));
 
 // 404 admin

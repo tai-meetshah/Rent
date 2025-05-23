@@ -31,8 +31,12 @@ WE WILL RELEASE FUTURE UPDATES SO IN ORDER TO NOT OVERWRITE YOUR STYLES IT'S BET
     max-height: 95px;
 }
 
-.theme-text{
+/* .theme-text{
     color: #158944 !important;
+} */
+.theme-text {
+    /* color: #009fd6 !important; */
+    color: #0081ae !important;
 }
 .theme-warn-text{
     color: #E82729 !important;
