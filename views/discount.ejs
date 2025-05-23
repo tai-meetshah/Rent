@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+    <%- include('_layouts/head') %>
+
+    <title>Discount List | <%= title %></title>
+
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/extensions/responsive/css/responsive.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/select.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+
+    <style>
+        table tr td,th{
+            text-align: center;
+        }
+    </style>
+</head>
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+    <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+        <div class="row">
+
+            <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+                <div class="container">
+                    <div class="row">
+                        <%- include('messages', { messages: messages }) %>
+                        <div class="col s12 m6 l6">
+                            <h6 class="breadcrumbs-title"><span>Manage Vendors</span></h6>
+                        </div>
+                        <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                            <ol class="breadcrumbs mb-0">
+                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                </li>
+                                <li class="breadcrumb-item active">Vendor Discount's
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="col s12">
+                <div class="container">
+                    <div class="section section-data-tables">
+                        <!-- Page Length Options -->
+                        <div class="row">
+                            <div class="col s12">
+                                <div class="card">
+                                    <div class="card-content">
+                                        <div class="row">
+                                            <div class="col s12 overflow">
+                                                <table id="page-length-option" class="display">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Sr</th>
+                                                            <th>Vendor Business Name</th>
+                                                            <th>Title</th>
+                                                            <th>Bill Amount</th>
+                                                            <th>Discount</th>
+                                                            <th>Expiry Date</th>
+                                                            <th>Status</th>
+                                                            <th data-orderable="false">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <% for( let i=0; i < discounts.length; i++ ) { %>
+                                                        <tr>
+                                                            <td><%= i+1 %></td>
+                                                            <td><%= discounts[i].vendor.businessName %></td>
+                                                            <td><%= discounts[i].title %></td>
+                                                            <td>BHD <%= discounts[i].minBillAmount %></td>
+                                                            <td><%= discounts[i].discountValue %> <%= discounts[i].discountType == 'Fixed' ? 'BHD' : '%' %></td>
+                                                            <td><%= discounts[i].expiryDate%></td>
+                                                            <td>
+                                                                <% if (discounts[i].adminApprovedStatus == 'Pending') { %>
+                                                                    <a href="/discount/change-status/<%= discounts[i]._id %>/Approved" style="background-color: rgb(212, 240, 216);padding: 5px 10px 5px 10px;color: green;border-radius: 5px;cursor: pointer;" onclick="return confirm('Are you sure want to Approve this discount?');">Approve</a>
+                                                                    &nbsp;
+                                                                    <a  href="/discount/change-status/<%= discounts[i]._id %>/Rejected" style="background-color: rgb(240, 212, 212);padding: 5px 10px 5px 10px;color: red;border-radius: 5px;cursor: pointer;" onclick="return confirm('Are you sure want to Reject this discount?');">Reject</a>
+                                                                <% } else { %>
+                                                                    <a style="background-color: <%= discounts[i].adminApprovedStatus == 'Approved' ? 'rgb(212, 240, 212)' : 'rgb(240, 212, 212)' %>;padding: 5px 10px 5px 10px;color: <%= discounts[i].adminApprovedStatus == 'Approved' ? 'green' : 'red' %>; border-radius: 5px;"><%= discounts[i].adminApprovedStatus %></a>
+                                                                <% } %>
+                                                            </td>
+                                                            <td>
+                                                                <a data-id="<%= discounts[i]._id %>" class="view-discount" style="cursor: pointer;"><i class="material-icons">visibility</i></a>
+                                                            </td>
+                                                        </tr>
+                                                        <% } %>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="content-overlay"></div>
+                <!-- Modal Structure -->
+                <div class="modal fade" id="discountModal" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalTitle">Discount Details</h5>
+                        </div>
+                        <div class="modal-body" id="modalBody"> </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary modal-action modal-close">Close</button>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+  
+            </div>
+        </div>
+    </div>
+    <!-- END: Page Main-->
+
+    <%- include('_layouts/commonJs') %>
+    <script src="/app-assets/vendors/data-tables/js/jquery.dataTables.min.js"></script>
+    <script src="/app-assets/js/scripts/data-tables.js"></script>
+    <script src="/app-assets/js/scripts/advance-ui-modals.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          document.querySelectorAll('.view-discount').forEach(icon => {
+            icon.addEventListener('click', function() {
+              const discountId = this.getAttribute('data-id');
+              
+              // Use the discountId to fetch and populate the modal
+              const discount = <%- JSON.stringify(discounts) %>.find(d => d._id === discountId);
+              
+              if (discount) {
+                document.getElementById('modalTitle').innerText = `Details for ${discount.title}`;
+                document.getElementById('modalBody').innerHTML = `
+                  <p><strong>Business Name :</strong> ${discount.vendor.businessName}</p>
+                  <p>
+                    <strong>Min Bill Amount :</strong> BHD ${discount.minBillAmount}
+                    &nbsp;&nbsp;
+                    <strong>Discount :</strong> ${discount.discountValue} ${discount.discountType === 'Fixed' ? 'BHD' : '%'}
+                </p>
+                 
+                <p>
+                    <strong>Total Number of Counts :</strong> ${discount.totalUserCount} 
+                    &nbsp;&nbsp;
+                    <strong>Customer Type :</strong> ${discount.customerType}
+                </p>
+                  <p></p>
+                  <p><strong>Expiry Date :</strong> ${discount.expiryDate}</p>
+                  <p><strong>Admin Status :</strong> ${discount.adminApprovedStatus}</p>
+                  <p><strong>Description :</strong> ${discount.description}</p>
+                `;
+                // Show the modal
+                $('#discountModal').modal('open');
+              }
+            });
+          });
+        });
+    </script>
+      
+</body>
+
+</html>

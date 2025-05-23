@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+    <%- include('_layouts/head') %>
+    <title>Terms & Condition | <%= title %></title>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/css/dropify.min.css">
+</head>
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+    <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+        <div class="row">
+            <div id="breadcrumbs-wrapper" >
+                <!-- Search for small screen-->
+                <div class="container">
+                    <div class="row">
+                        <div class="col s12 m6 l6">
+                            <h5 class="breadcrumbs-title"><span>Terms & Condition</span></h5>
+                        </div>
+                        <div class="col s12 m6 l6 right-align-md">
+                            <ol class="breadcrumbs mb-0">
+                                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                                <li class="breadcrumb-item active">Terms & Condition</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col s12">
+                <div class="container">
+                    <div class="section section-data-tables">
+                        <div class="row">
+                            <div class="col s12">
+                                <div class="card">
+                                    <div class="card-content">
+                                        <div class="row">
+                                            <div class="col s12">
+                                                <%- include('messages', { messages: messages }) %>
+                                                <form method="POST" onsubmit="validate()" id="form" action="/cms/term">
+                                                    <h4 class="card-title">English</h4>
+                                                    <div class="input-field">
+                                                        <input placeholder="Title" id="EnTitle" name="EnTitle" type="text" value="<%= page.en.title %>">
+                                                        <small>
+                                                            <div id="EnTitleErr" class="error"></div>
+                                                        </small>
+                                                        <label for="EnTitle">Title</label>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        Content
+                                                        <textarea name="EnContent" class="form-control ta" id="ta1" cols="30" rows="10" placeholder="content"> <%= page.en.content %> </textarea>
+                                                    </div>
+                                                    <h4 class="card-title mt-2">Arabic</h4>
+                                                    <div class="input-field">
+                                                        <input placeholder="Title" id="ArTitle" name="ArTitle" type="text" value="<%= page.ar.title %>">
+                                                        <small>
+                                                            <div id="ArTitleErr" class="error"></div>
+                                                        </small>
+                                                        <label for="ArTitle">Title</label>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        Content
+                                                        <textarea name="ArContent" class="form-control ta" id="ta2" cols="30" rows="10" placeholder="content"> <%= page.ar.content %> </textarea>
+                                                    </div>
+
+                                                    <button type="submit" id="submitBtn" class="btn purple mt-2">Submit</button>
+                                                    <a onclick="history.back()" class="btn btn-danger ml-1 mt-2">Cancel</a>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="content-overlay"></div>
+            </div>
+        </div>
+    </div>
+    <!-- END: Page Main-->
+
+    <script>
+        const form = document.getElementById('form');
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+        })
+
+        function validate() {
+
+            const EnTitleValue = document.getElementById('EnTitle').value.trim();
+            const ArTitleValue = document.getElementById('ArTitle').value.trim();
+
+            if (EnTitleValue == '') {
+                return setError('EnTitleErr', 'Please enter title.');
+            } else {
+                document.getElementById('EnTitleErr').innerText = '';
+            }
+
+            if (ArTitleValue == '') {
+                return setError('ArTitleErr', 'Please enter title.');
+            } else {
+                document.getElementById('ArTitleErr').innerText = '';
+            }
+
+            document.getElementById('submitBtn').disabled = true;
+            form.submit();
+        }
+
+        function setError(elementId, error) {
+            const element = document.getElementById(elementId)
+            element.innerText = error;
+            element.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+        }
+    </script>
+    <%- include('_layouts/commonJs') %>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/js/dropify.min.js"></script>
+    <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>
+    <!-- ===== ckeditor JavaScript ===== -->
+    <script src="//cdn.ckeditor.com/4.7.1/standard/ckeditor.js"></script>
+    <script>
+        $(function() {
+            const elements = $('textarea.ta').get();
+            Object.keys(elements).forEach(i => {
+                CKEDITOR.replace(elements[i].id, {
+                    filebrowserUploadUrl: '/upload',
+                    format_tags: 'p;h1;h2;h3;h4;h5;h6',
+                    versionCheck: false
+                });
+            });
+
+            if ($("[data-fancybox]").length) {
+                $("[data-fancybox]").fancybox();
+            }
+        });
+    </script>
+</body>
+
+</html>

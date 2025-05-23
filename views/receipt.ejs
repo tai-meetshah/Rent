@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Receipt</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .section {
+      border-bottom: 1px dashed #000;
+      padding: 10px 0;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .bold {
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <h2><%= receiptData.cafeName %></h2>
+
+  <div class="section">
+    <div class="row">
+      <span>Date</span>
+      <span><%= receiptData.date %></span>
+    </div>
+  </div>
+
+  <div class="section">
+    <% receiptData.items.forEach(item => { %>
+    <div class="row">
+      <span><%= item.name %></span>
+      <span><%= item.qty %> <%= item.price.toFixed(2) %></span>
+    </div>
+    <% }); %>
+  </div>
+
+  <div class="section">
+    <div class="row">
+      <span>Points Redeemed</span>
+      <span><%= receiptData.pointsRedeemed %></span>
+    </div>
+    <div class="row">
+      <span>Points Redeemed Amount</span>
+      <span><%= receiptData.redeemedAmount.toFixed(2) %></span>
+    </div>
+    <div class="row">
+      <span>Discount</span>
+      <span><%= receiptData.discount.toFixed(2) %></span>
+    </div>
+    <div class="row bold">
+      <span>Total</span>
+      <span><%= receiptData.total.toFixed(2) %></span>
+    </div>
+  </div>
+
+  <div class="section">
+    <p><strong>Laani Saudi Details</strong></p>
+    <div class="row">
+      <span>Laani Saudi Card No</span>
+      <span><%= receiptData.laniCardNo %></span>
+    </div>
+    <div class="row">
+      <span>Points earned</span>
+      <span><%= receiptData.pointsEarned %></span>
+    </div>
+    <div class="row">
+      <span>Total Balance</span>
+      <span><%= receiptData.totalBalance %></span>
+    </div>
+  </div>
+
+  <p style="text-align: center;">You have received <%= receiptData.pointsEarned %> points on this purchase.</p>
+</body>
+
+</html>

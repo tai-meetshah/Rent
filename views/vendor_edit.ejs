@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+  <%- include('_layouts/head') %>
+  <title> Vendor Edit | <%= title %></title>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+  <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/css/dropify.min.css">
+</head>
+<!-- <style>
+  .select-country {
+    max-width: 250px;
+    margin-right: 10px;
+    overflow-y: auto;
+  }
+
+  /* Limit the height of the dropdown list */
+  .select-country option {
+    display: block;
+  }
+
+  /* This affects the dropdown list itself */
+  .select-country:focus {
+    max-height: 200px;
+    /* Adjust this height to show ~6 options */
+    overflow-y: auto;
+  }
+</style> -->
+
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+  <%- include('_layouts/sidenavbar') %>
+
+  <!-- BEGIN: Page Main-->
+  <div id="main">
+    <div class="row">
+      <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+        <!-- Search for small screen-->
+        <div class="container">
+          <div class="row">
+            <div class="col s12 m6 l6">
+              <h6 class="breadcrumbs-title"><span>Edit Vendor</span></h6>
+            </div>
+            <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+              <ol class="breadcrumbs mb-0">
+                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                </li>
+                <li class="breadcrumb-item"><a href="/vendor">Vendor</a>
+                </li>
+                <li class="breadcrumb-item active">Edit Vendor
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container pl-2 pr-2">
+      <div class="card">
+        <div class="row">
+          <div class="col s12">
+            <div id="basic-form" class=" card-default scrollspy">
+              <div class="card-content">
+                <form method="POST" action="/vendor/edit-vendor/<%= vendor._id %>" class="formValidate0" id="formValidate0" enctype="multipart/form-data">
+
+                  <div class="input-field col s12 m6">
+                    <label for="language" style="margin-top: -25px;font-size: 11px;">Language</label>
+                    <select class="error validate" id="language" name="language">
+                      <option value="" disabled selected>Choose language</option>
+                      <option value="en" <%= vendor.language === 'en' ? 'selected' : '' %>>English</option>
+                      <option value="ar" <%= vendor.language === 'ar' ? 'selected' : '' %>>Arabic</option>
+                    </select>
+                    <div class="error-message" id="languageError"></div>
+                  </div>
+
+                  <div class="input-field col s12 m6">
+                    <label for="businessType" style="margin-top: -25px;font-size: 11px;">Business Type</label>
+                    <select id="businessType" name="businessType" class="error validate">
+                      <% categories.forEach(cat => { %>
+                      <option value="<%= cat._id %>" <%= vendor.businessType.toString() === cat._id.toString() ? 'selected' : '' %>><%= cat.en.name %></option>
+                      <% }) %>
+                    </select>
+                    <div class="error-message" id="businessTypeError"></div>
+                  </div>
+
+                  <div class="input-field col s12 m6">
+                    <label for="email">Email</label>
+                    <input class="validate" id="email" name="email" type="text" value="<%= vendor.email %>">
+                    <div class="error-message" id="emailError"></div>
+                  </div>
+
+                  <div class="input-field col s12 m6">
+                    <label for="password">password</label>
+                    <input class="validate" id="password" name="password" type="text">
+                    <div class="error-message" id="passwordError"></div>
+                  </div>
+
+                  <div class="input-field col s12 m6">
+                    <label for="businessName">Business Name</label>
+                    <input class="validate" id="businessName" name="businessName" type="text" value="<%= vendor.businessName %>">
+                    <div class="error-message" id="businessNameError"></div>
+                  </div>
+
+                  <!-- <div class="input-field col s12 m6">
+                    <!-- <label for="businessMobile">Business Mobile</label> -->
+                    <div style="display: flex; align-items: center;">
+
+                      <select id="countryCode" name="countryCode" class="select-country" style="max-width: 150px; margin-right: 5px;">
+                        <% countryCodes.forEach(function(country) { %>
+                        <option value="<%= country.calling_code %>" <%= vendor.businessMobile.startsWith(country.calling_code) ? 'selected' : '' %>>
+                          <%= country.country %> +(<%= country.calling_code %>)
+                        </option>
+                        <% }); %>
+                      </select>
+
+                      <input class="validate" id="businessMobile" name="businessMobile" type="text" value="<%= vendor.businessMobile.replace(/^\+\d+\s*/, '') %>" placeholder="Enter mobile number">
+                    </div>
+                    <div class="error-message" id="businessMobileError"></div>
+                  </div> -->
+
+                  <div class="row">
+                    <div class="input-field col s12 m6">
+                      <p>Upload a business logo</p>
+                      <input type="file" id="businessLogo" name="businessLogo" accept=".jpeg, .jpg, .png" class="dropify-event" data-default-file="<%= process.env.IMAGE_URL %><%= vendor.businessLogo %>" />
+                      <span class="error-message" id="businessLogoError"></span>
+                    </div>
+
+                    <div class="input-field col s12 m6">
+                      <p>Upload a business license</p>
+                      <input type="file" id="businessLicense" name="businessLicense" accept=".jpeg, .jpg, .png" class="dropify-event" data-default-file="<%= process.env.IMAGE_URL %><%= vendor.businessLicense %>" />
+                      <span class="error-message" id="businessLicenseError"></span>
+                    </div>
+                  </div>
+
+
+                  <div class="row">
+                    <div class="col s12 display-flex justify-content-end">
+                      <button class="btn btn-edit" type="submit" name="action">Submit</button>
+                      &nbsp;&nbsp;&nbsp;
+                      <a type="button" class="btn btn-delete" href="/category">Cancel</a>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- END: Page Main-->
+
+  <%- include('_layouts/commonJs') %>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/js/dropify.min.js"></script>
+  <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>
+
+
+  <script>
+    $(document).ready(function() {
+      function showError(fieldId, message) {
+        $('#' + fieldId).addClass('error-field');
+        $('#' + fieldId + 'Error').text(message);
+      }
+
+      function clearError(fieldId) {
+        $('#' + fieldId).removeClass('error-field');
+        $('#' + fieldId + 'Error').text('');
+      }
+
+      function validateSelect(fieldId, message) {
+        const value = $('#' + fieldId).val();
+        if (!value) {
+          showError(fieldId, message);
+          return false;
+        } else {
+          clearError(fieldId);
+          return true;
+        }
+      }
+
+      function validateText(fieldId, message) {
+        const value = $('#' + fieldId).val().trim();
+        if (!value) {
+          showError(fieldId, message);
+          return false;
+        } else {
+          clearError(fieldId);
+          return true;
+        }
+      }
+
+      function validatePW(fieldId, message) {
+        const value = $('#' + fieldId).val().trim();
+        if (!value) {
+          showError(fieldId, message);
+          return false;
+        } else if (value.length < 6) {
+          showError(fieldId, message);
+          return false;
+        } else {
+          clearError(fieldId);
+          return true;
+        }
+      }
+
+      function validateEmail(fieldId) {
+        const email = $('#' + fieldId).val().trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) {
+          showError(fieldId, 'Email is required.');
+          return false;
+        } else if (!emailRegex.test(email)) {
+          showError(fieldId, 'Please enter a valid email.');
+          return false;
+        } else {
+          clearError(fieldId);
+          return true;
+        }
+      }
+
+      $('#formValidate0').on('submit', function(e) {
+        let valid = true;
+
+        valid &= validateSelect('language', 'Please select a language.');
+        valid &= validateSelect('businessType', 'Please select a business type.');
+        valid &= validateEmail('email');
+        // valid &= validatePW('password', 'Password should be atleast 6 characters long.');
+        valid &= validateText('businessName', 'Business name is required.');
+        valid &= validateText('businessMobile', 'Business mobile is required.');
+
+        if (!valid) {
+          e.preventDefault();
+          $('html, body').animate({
+            scrollTop: $('.error-message:contains("Please"), .error-message:contains("required"), .error-message:contains("valid")').first().offset().top - 50
+          }, 500);
+        }
+      });
+
+      // Real-time validation on change/input
+      $('#language').on('change', () => validateSelect('language', 'Please select a language.'));
+      $('#businessType').on('change', () => validateSelect('businessType', 'Please select a business type.'));
+      $('#email').on('input', () => validateEmail('email'));
+      $('#password').on('input', () => validateText('password', 'Password is required.'));
+      $('#businessName').on('input', () => validateText('businessName', 'Business name is required.'));
+      $('#businessMobile').on('input', () => validateText('businessMobile', 'Business mobile is required.'));
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+</body>
+
+</html>

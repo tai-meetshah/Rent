@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+    <%- include('_layouts/head') %>
+    <title>Sub Admin Add | <%= title %></title>
+
+</head>
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+    <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+        <div class="row">
+            <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+                <!-- Search for small screen-->
+                <div class="container">
+                    <div class="row">
+                        <div class="col s12 m6 l6">
+                            <h6 class="breadcrumbs-title"><span>Add Sub Admin</span></h6>
+                        </div>
+                        <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                            <ol class="breadcrumbs mb-0">
+                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                </li>
+                                <li class="breadcrumb-item"><a href="/sub-admin/list">Sub Admin</a>
+                                </li>
+                                <li class="breadcrumb-item active">Add Sub Admin
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container pl-2 pr-2">
+            <div class="card">
+                <div class="row">
+                    <div class="col s12">
+                        <div id="basic-form" class=" card-default scrollspy">
+                            <div class="card-content">
+                                <form method="POST" action="/sub-admin/add" class="formValidate0" id="formValidate0">
+
+                                    <div class="input-field col s12 m4">
+                                        <label for="name">Name</label>
+                                        <input class="validate" id="name" name="name" type="text" required>
+                                        <div class="error-message" id="nameError"></div>
+                                    </div>
+
+                                    <div class="input-field col s12 m4">
+                                        <label for="email">Email Address</label>
+                                        <input class="validate" id="email" name="email" type="email" required>
+                                        <div class="error-message" id="emailError"></div>
+                                    </div>
+
+                                    <div class="input-field col s12 m4">
+                                        <label for="password">Password</label>
+                                        <input class="validate" id="password" name="password" type="text" required>
+                                        <div class="error-message" id="passwordError"></div>
+                                    </div>
+
+                                    <div class="input-field col s12">
+                                        <h6>Set Permision</h6>
+                                        <div class="row" style="padding: 0%;">
+                                            <div class="col s4">
+                                                <h6><b>Module Name</b></h6>
+                                            </div>
+                                            <div class="col s2">
+                                                <h6><b>Can View</b></h6>
+                                            </div>
+                                            <div class="col s2">
+                                                <h6><b>Can Add</b></h6>
+                                            </div>
+                                            <div class="col s2">
+                                                <h6><b>Can Edit</b></h6>
+                                            </div>
+                                            <div class="col s2">
+                                                <h6><b>Can Delete</b></h6>
+                                            </div>
+                                        </div>
+                                        <div class="row" style="padding: 0%;">
+                                            <hr/>
+                                        </div>
+                                        <% for( let i=0; i < modules.length; i++ ) { %>
+                                            <div class="row" style="padding: 0%; margin-top: 24px;">
+                                                <div class="col s4">
+                                                    <h6><b><%= modules[i].name %></b></h6>
+                                                </div>
+                                                <div class="col s2">
+                                                    <div class="switch">
+                                                        <div class="switch">
+                                                            <label>
+                                                              <input type="checkbox" name="permissions[<%= i %>][isView]" value="true">
+                                                              <span class="lever"></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col s2">
+                                                    <div class="switch">
+                                                        <div class="switch">
+                                                            <label>
+                                                              <input type="checkbox" name="permissions[<%= i %>][isAdd]" value="true">
+                                                              <span class="lever"></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col s2">
+                                                    <div class="switch">
+                                                        <div class="switch">
+                                                            <label>
+                                                              <input type="checkbox" name="permissions[<%= i %>][isEdit]" value="true">
+                                                              <span class="lever"></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col s2">
+                                                    <div class="switch">
+                                                        <div class="switch">
+                                                            <label>
+                                                              <input type="checkbox" name="permissions[<%= i %>][isDelete]" value="true">
+                                                              <span class="lever"></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <input type="hidden" name="permissions[<%= i %>][module]" value="<%= modules[i].route %>">
+                                                <input type="hidden" name="permissions[<%= i %>][moduleName]" value="<%= modules[i].name %>">
+                                                <div class="col s12">
+                                                    <hr/>
+                                                </div>
+                                            </div>
+                                        <% } %>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col s12 display-flex justify-content-end">
+                                            <button class="btn btn-edit" type="submit" name="action">Submit</button>
+                                            &nbsp;&nbsp;&nbsp;
+                                            <a type="button" class="btn btn-delete" href="/sub-admin">Cancel</a>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <!-- END: Page Main-->
+
+    <%- include('_layouts/commonJs') %>
+
+    <script>
+        $(document).ready(function() {
+
+            function validateQuestion() {
+                const value = $('#question').val().trim();
+                if (!value) {
+                    $('#question').addClass('error-field');
+                    $('#questionError').text('Please enter a question (English).');
+                    return false;
+                } else {
+                    $('#question').removeClass('error-field');
+                    $('#questionError').text('');
+                    return true;
+                }
+            }
+            function validateAnswer() {
+                const value = $('#answer').val().trim();
+                if (!value) {
+                    $('#answer').addClass('error-field');
+                    $('#answerError').text('Please enter a answer (English).');
+                    return false;
+                } else {
+                    $('#answer').removeClass('error-field');
+                    $('#answerError').text('');
+                    return true;
+                }
+            }
+
+            $('#question').on('input', function() {
+                validateQuestion();
+                if (!validateQuestion()) {
+                    $('html, body').animate({ scrollTop: $('#question').offset().top }, 500);
+                }
+            });
+            $('#answer').on('input', function() {
+                validateAnswer();
+                if (!validateAnswer()) {
+                    $('html, body').animate({ scrollTop: $('#answer').offset().top }, 500);
+                }
+            });
+
+
+            function validateAQuestion() {
+                const value = $('#Aquestion').val().trim();
+                if (!value) {
+                    $('#Aquestion').addClass('error-field');
+                    $('#AquestionError').text('Please enter a question (arabic).');
+                    return false;
+                } else {
+                    $('#Aquestion').removeClass('error-field');
+                    $('#AquestionError').text('');
+                    return true;
+                }
+            }
+            function validateAAnswer() {
+                const value = $('#Aanswer').val().trim();
+                if (!value) {
+                    $('#Aanswer').addClass('error-field');
+                    $('#AanswerError').text('Please enter a answer (arabic).');
+                    return false;
+                } else {
+                    $('#Aanswer').removeClass('error-field');
+                    $('#AanswerError').text('');
+                    return true;
+                }
+            }
+
+            $('#Aquestion').on('input', function() {
+                validateQuestion();
+                if (!validateQuestion()) {
+                    $('html, body').animate({ scrollTop: $('#Aquestion').offset().top }, 500);
+                }
+            });
+            $('#Aanswer').on('input', function() {
+                validateAnswer();
+                if (!validateAnswer()) {
+                    $('html, body').animate({ scrollTop: $('#Aanswer').offset().top }, 500);
+                }
+            });
+
+
+            // Form Submission Validation
+            $('#formValidate0').on('submit', function(e) {
+                let valid = true;
+                valid &= validateQuestion();
+                valid &= validateAnswer();
+                valid &= validateAQuestion();
+                valid &= validateAAnswer();
+
+                if (!valid) {
+                    e.preventDefault();
+                    $('html, body').animate({ scrollTop: $('.error-message:contains("Please")').first().offset().top }, 500);
+                }
+            });
+
+        });
+    </script>
+
+</body>
+
+</html>

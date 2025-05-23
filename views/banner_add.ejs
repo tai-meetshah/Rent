@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+    <%- include('_layouts/head') %>
+    <title> Banner Add | <%= title %></title>
+
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/css/dropify.min.css">
+</head>
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+    <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+        <div class="row">
+            <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+                <!-- Search for small screen-->
+                <div class="container">
+                    <div class="row">
+                        <div class="col s12 m6 l6">
+                            <h6 class="breadcrumbs-title"><span>Add Banner</span></h6>
+                        </div>
+                        <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                            <ol class="breadcrumbs mb-0">
+                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                </li>
+                                <li class="breadcrumb-item"><a href="/banner">Banner</a>
+                                </li>
+                                <li class="breadcrumb-item active">Add Banner
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <div class="container pl-2 pr-2">
+            <div class="card">
+                <div class="row">
+                    <div class="col s12">
+                        <div id="basic-form" class=" card-default scrollspy">
+                            <div class="card-content">
+                                <form method="POST" action="/banner/create-banner" enctype="multipart/form-data" class="formValidate0" id="formValidate0">                                         
+                                    <div id="file-upload" class="section" style="margin: 0px 10px -20px 10px;">
+                                        <div class="row section">
+                                            <div class="input-field col s12">
+                                                <p>Upload a image</p>
+                                                <input type="file" id="input-file-events" name="image" accept=".jpeg, .jpg, .png" class="dropify-event" />
+                                                <span class="error-message" id="imageError"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="input-field col s12">
+                                        <label for="sort">Sort Order</label>
+                                        <input class="validate" id="sort" name="sort" type="number">
+                                        <div class="error-message" id="sortError"></div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col s12 display-flex justify-content-end">
+                                            <button class="btn btn-edit" type="submit" name="action">Submit</button>
+                                            &nbsp;&nbsp;&nbsp;
+                                            <a type="button" class="btn btn-delete" href="/banner">Cancel</a>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+    </div>
+    <!-- END: Page Main-->
+
+    <%- include('_layouts/commonJs') %>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/js/dropify.min.js"></script>
+    <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>  
+  
+
+    <script>
+        $(document).ready(function() {
+
+            function validateSort() {
+                const value = $('#sort').val().trim();
+                if (!value) {
+                    $('#sort').addClass('error-field');
+                    $('#sortError').text('Please enter a sort order.');
+                    return false;
+                } else {
+                    $('#sort').removeClass('error-field');
+                    $('#sortError').text('');
+                    return true;
+                }
+            }
+
+            function validateFileUploads() {
+                const image = $('#input-file-events[name="image"]').val();
+                let isValid = true;
+
+                if (!image) {
+                    $('#imageError').text('Please upload the banner image.');
+                    isValid = false;
+                } else {
+                    $('#imageError').text('');
+                }
+
+                return isValid;
+            }
+
+          
+            $('#sort').on('input', function() {
+                validateSort();
+                if (!validateSort()) {
+                    $('html, body').animate({ scrollTop: $('#sort').offset().top }, 500);
+                }
+            });
+            $('#input-file-events').on('change', function() {
+                validateFileUploads();
+                if (!validateFileUploads()) {
+                    // $('html, body').animate({ scrollTop: $('#input-file-events').offset().top }, 500);
+                }
+            });
+          
+
+            // Form Submission Validation
+            $('#formValidate0').on('submit', function(e) {
+                let valid = true;
+                valid &= validateSort();
+                valid &= validateFileUploads();
+
+                if (!valid) {
+                    e.preventDefault();
+                    $('html, body').animate({ scrollTop: $('.error-message:contains("Please")').first().offset().top }, 500);
+                }
+            });
+            
+        });
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+    <%- include('_layouts/head') %>
+    <title> About Us | <%= title %></title>
+
+</head>
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+    <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+        <div class="row">
+            <div class="row">
+                <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+                    <div class="container">
+                        <div class="row">
+                            <%- include('messages', { messages: messages }) %>
+                            <div class="col s12 m6 l6">
+                                <h6 class="breadcrumbs-title"><span>Manage About Us</span></h6>
+                            </div>
+                            <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                                <ol class="breadcrumbs mb-0">
+                                    <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                    </li>
+                                    <li class="breadcrumb-item active">About Us
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col s12">
+                <div class="container">
+                    <div class="section section-data-tables">
+                        <div class="row">
+                            <div class="col s12">
+                                <div class="card">
+                                    <div class="card-content">
+                                        <div class="row">
+                                            <div class="col s12">
+                                                <form method="POST" onsubmit="validate()" id="form" action="/cms/about">
+                                                   
+                                                    <div class="input-field">
+                                                        <input placeholder="Title" id="EnTitle" name="EnTitle" type="text" value="<%= page.title %>">
+                                                        <small>
+                                                            <div id="EnTitleErr" class="error"></div>
+                                                        </small>
+                                                        <label for="EnTitle">Title</label>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        Content
+                                                        <textarea name="EnContent" class="form-control ta" id="ta1" cols="30" rows="10" placeholder="content"> <%= page.content %> </textarea>
+                                                    </div>
+                                                    
+                                                    <div class="row mt-2">
+                                                        <div class="col s12 display-flex justify-content-end">
+                                                            <button class="btn btn-edit" type="submit" name="action">Submit</button>
+                                                            &nbsp;&nbsp;&nbsp;
+                                                            <a type="button" class="btn btn-delete" href="/">Cancel</a>
+                                                        </div>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="content-overlay"></div>
+            </div>
+        </div>
+    </div>
+    <!-- END: Page Main-->
+
+    <%- include('_layouts/commonJs') %>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/js/dropify.min.js"></script>
+    <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>  
+   <!-- ===== ckeditor JavaScript ===== -->
+   <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+
+    <script>
+        $(document).ready(function() {
+
+            // CKEditor Initialization
+            const elements = $('textarea.ta').get();
+            Object.keys(elements).forEach(i => {
+                CKEDITOR.replace(elements[i].id, {
+                    versionCheck: false
+                });
+            });
+
+            function validateDescription() {
+                const value = CKEDITOR.instances['textarea'].getData().trim();
+                if (!value) {
+                    $('#descriptionError').text('Please enter product description.');
+                    return false;
+                } else {
+                    $('#descriptionError').text('');
+                    return true;
+                }
+            }
+
+            function validateName() {
+                const value = $('#name').val().trim();
+                if (!value) {
+                    $('#name').addClass('error-field');
+                    $('#nameError').text('Please enter a product name.');
+                    return false;
+                } else {
+                    $('#name').removeClass('error-field');
+                    $('#nameError').text('');
+                    return true;
+                }
+            }
+
+            //REAL-TIME CHECK VALIDATION
+
+            $('#name').on('input', function() {
+                validateName();
+                if (!validateName()) {
+                    $('html, body').animate({ scrollTop: $('#name').offset().top }, 500);
+                }
+            });
+         
+            CKEDITOR.instances['textarea'].on('change', function() {
+                validateAboutUs();
+                if (!validateAboutUs()) {
+                    $('html, body').animate({ scrollTop: $('#description').offset().top }, 500);
+                }
+            });
+
+
+            // Form Submission Validation
+            $('#formValidate0').on('submit', function(e) {
+                let valid = true;
+                valid &= validateName();
+                valid &= validateDescription();
+
+                if (!valid) {
+                    e.preventDefault();
+                    $('html, body').animate({ scrollTop: $('.error-message:contains("Please")').first().offset().top }, 500);
+                }
+            });
+            
+        });
+    </script>
+
+</body>
+
+</html>

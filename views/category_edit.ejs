@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+    <%- include('_layouts/head') %>
+    <title> Category Edit | <%= title %></title>
+
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/css/dropify.min.css">
+
+</head>
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+    <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+        <div class="row">
+            <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+                <!-- Search for small screen-->
+                <div class="container">
+                    <div class="row">
+                        <div class="col s12 m6 l6">
+                            <h6 class="breadcrumbs-title"><span>Update Category</span></h6>
+                        </div>
+                        <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                            <ol class="breadcrumbs mb-0">
+                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                </li>
+                                <li class="breadcrumb-item"><a href="/category">Categories</a>
+                                </li>
+                                <li class="breadcrumb-item active">Update Category
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container pl-2 pr-2">
+            <div class="card">
+                <div class="row">
+                    <div class="col s12">
+                        <div id="basic-form" class=" card-default scrollspy">
+                            <div class="card-content">
+                                <form method="POST" action="/category/update-category/<%= category._id %>" class="formValidate0" id="formValidate0" enctype="multipart/form-data">
+                                    <div id="file-upload" class="section" style="margin: 0px 10px -20px 10px;">
+                                        <div class="row section">
+                                            <div class="input-field col s12">
+                                                <p>Upload a category image</p>
+                                                <input type="file" id="input-file-events" name="image" accept=".jpeg, .jpg, .png" class="dropify-event" data-default-file="<%= process.env.IMAGE_URL %><%= category.image %>"/>
+                                                <span class="error-message" id="imageError"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="input-field col s12 m6">
+                                        <label for="ename">Category Name (English)</label>
+                                        <input class="validate" id="ename" name="ename" type="text" value="<%= category.en.name %>">
+                                        <div class="error-message" id="enameError"></div>
+                                    </div>
+
+                                    <div class="input-field col s12 m6">
+                                        <label for="aname">Category Name (Arabic)</label>
+                                        <input class="validate" id="aname" name="aname" type="text" value="<%= category.ar.name %>">
+                                        <div class="error-message" id="anameError"></div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col s12 display-flex justify-content-end">
+                                            <button class="btn btn-edit" type="submit" name="action">Update</button>
+                                            &nbsp;&nbsp;&nbsp;
+                                            <a type="button" class="btn btn-delete" href="/category">Cancel</a>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <!-- END: Page Main-->
+
+    <%- include('_layouts/commonJs') %>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/js/dropify.min.js"></script>
+    <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>
+
+
+    <script>
+        $(document).ready(function() {
+
+            function validateSort() {
+                const value = $('#ename').val().trim();
+                if (!value) {
+                    $('#ename').addClass('error-field');
+                    $('#enameError').text('Please enter a category name (english).');
+                    return false;
+                } else {
+                    $('#ename').removeClass('error-field');
+                    $('#enameError').text('');
+                    return true;
+                }
+            }
+            function validateName() {
+                const value = $('#aname').val().trim();
+                if (!value) {
+                    $('#aname').addClass('error-field');
+                    $('#anameError').text('Please enter a category name (arabic).');
+                    return false;
+                } else {
+                    $('#aname').removeClass('error-field');
+                    $('#anameError').text('');
+                    return true;
+                }
+            }
+
+            $('#sort').on('input', function() {
+                validateSort();
+                if (!validateSort()) {
+                    $('html, body').animate({ scrollTop: $('#sort').offset().top }, 500);
+                }
+            });
+
+            // Form Submission Validation
+            $('#formValidate0').on('submit', function(e) {
+                let valid = true;
+                valid &= validateSort();
+                valid &= validateName();
+
+                if (!valid) {
+                    e.preventDefault();
+                    $('html, body').animate({ scrollTop: $('.error-message:contains("Please")').first().offset().top }, 500);
+                }
+            });
+
+        });
+    </script>
+
+</body>
+
+</html>

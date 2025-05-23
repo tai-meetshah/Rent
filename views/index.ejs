@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+  <%- include('_layouts/head') %>
+  <title>Dashboard | <%= title %></title>
+  <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/dashboard.css">
+</head>
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+  <%- include('_layouts/sidenavbar') %>
+
+  <!-- BEGIN: Page Main-->
+  <div id="main ">
+    <div class="row dashboard">
+      <div class="col s12">
+        <div class="container">
+          <div class="section">
+            <!--card stats start-->
+            <div id="card-stats" class="pt-0">
+              <div class="row">
+              </div>
+              <%- include('messages', { messages: messages }) %>
+              <div class="row mt-2">
+                
+                <div class="col m3 s12" style="padding: 10px;">
+                  <div style="background-color: #1A9CFF;border-radius: 20px;padding: 10px 10px 20px 30px;">
+                    <a href="/user">                                            
+                      <h4 style="font-size: 40px;color: #FFFFFF;font-weight: 900;" class="counter" data-target="<%= data.user %>">
+                      </h4>
+                      <span style="font-size: 22px;color: #FFFFFF">Total Users</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="col m3 s12" style="padding: 10px;">
+                  <div style="background-color: #5139DB;border-radius: 20px;padding: 10px 10px 20px 30px;">
+                    <a href="/vendor">                            
+                      <h4 style="font-size: 40px;color: #FFFFFF;font-weight: 900;" class="counter" data-target="<%= data.vendor %>">
+                      </h4>
+                      <span style="font-size: 22px;color: #FFFFFF">Total Vendors</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="col m3 s12" style="padding: 10px;">
+                  <div style="background-color: #31B411;border-radius: 20px;padding: 10px 10px 20px 30px;">
+                    <a href="/user">                            
+                      <h4 style="font-size: 40px;color: #FFFFFF;font-weight: 900;" class="counter" data-target="<%= data.retailer %>">
+                      </h4>
+                      <span style="font-size: 22px;color: #FFFFFF">Total Earn Point</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="col m3 s12" style="padding: 10px;">
+                  <div style="background-color: #FF531A;border-radius: 20px;padding: 10px 10px 20px 30px;">
+                    <a href="/user">                            
+                      <h4 style="font-size: 40px;color: #FFFFFF;font-weight: 900;" class="counter" data-target="<%= data.retailer %>">
+                      </h4>
+                      <span style="font-size: 22px;color: #FFFFFF">Total Redeem Point</span>
+                    </a>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+          <!--end container-->
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <!-- END: Page Main-->
+  <%- include('_layouts/commonJs') %>
+
+  <script>
+    jQuery(document).ready(function($) {
+      $(".clickable-row").click(function() {
+        window.location = $(this).data("href");
+      });
+    });
+
+    // script.js
+    document.addEventListener('DOMContentLoaded', () => {
+      const counters = document.querySelectorAll('.counter');
+
+      counters.forEach(counter => {
+        const updateCounter = () => {
+          const target = +counter.getAttribute('data-target');
+          let count = 0;
+          const interval = setInterval(() => {
+            count += Math.ceil(target / 100);
+            if (count >= target) {
+              count = target;
+              clearInterval(interval);
+            }
+            counter.textContent = count;
+          }, 10);
+        };
+        updateCounter();
+      });
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,66 @@
+/*----------------------------------------
+    Login Page
+------------------------------------------*/
+.login-bg
+{
+    background-image: url('../../images/gallery/lgbg.jpg');
+    background-repeat: no-repeat;
+    background-size: cover;
+    position: relative; /* Ensure the overlay covers the whole element */
+}
+.login-bg::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5); /* Adjust the opacity here */
+    z-index: 1; /* Place the overlay above the background image */
+}
+
+.login-bg .login-container {
+    position: relative;
+    z-index: 2; /* Ensure the content is above the overlay */
+}
+
+
+input:-webkit-autofill {
+    background-clip: content-box;
+    background-color: transparent !important;
+    box-shadow: 0 0 0px 1000px transparent inset !important;
+    -webkit-text-fill-color: #000 !important; /* Ensure text color remains visible */
+}
+
+/* Reset any background color on focus */
+input[type="text"]:focus, 
+input[type="email"]:focus, 
+input[type="password"]:focus {
+    background-color: transparent !important;
+    outline: none;
+    box-shadow: none;
+}
+
+#login-page
+{
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display:         flex;
+
+    height: 100vh;
+
+    -webkit-box-pack: center;
+    -webkit-justify-content: center;
+    -ms-flex-pack: center;
+            justify-content: center;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+            align-items: center;
+}
+
+#login-page .card-panel.border-radius-6.login-card
+{
+    margin-left: 0 !important;
+}
