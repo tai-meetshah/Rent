@@ -48,10 +48,10 @@ const userSchema = new mongoose.Schema(
         fcmToken: {
             type: String,
         },
-        isNotification: {
-            type: Boolean,
-            default: true,
-        },
+        // isNotification: {
+        //     type: Boolean,
+        //     default: true,
+        // },
         isDelete: {
             type: Boolean,
             default: false,

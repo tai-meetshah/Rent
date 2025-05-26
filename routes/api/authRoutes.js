@@ -3,9 +3,10 @@ const { upload } = require('../../controllers/uploadController');
 const authController = require('../../controllers/api/authController');
 
 
-router.post('/user/sendOtp', upload.none(), authController.sendOtp);
-router.post('/user/verifyOtp', upload.none(), authController.verifyOtp);
-router.post('/user/resendOtp', upload.none(), authController.resendOtp);
+// router.post('/user/sendOtp', upload.none(), authController.sendOtp);
+// router.post('/user/verifyOtp', upload.none(), authController.verifyOtp);
+// router.post('/user/resendOtp', upload.none(), authController.resendOtp);
+
 router.post('/user/signup', upload.none(), authController.signUp);
 router.post('/user/login', upload.none(), authController.login);
 router.post(
@@ -13,7 +14,7 @@ router.post(
     upload.none(),
     authController.forgotPassword
 );
-// router.post('/user/resetPassword', upload.none(), authController.resetPassword);
+router.post('/user/resetPassword', upload.none(), authController.resetPassword);
 // router.post(
 //     '/user/changePassword',
 //     authController.checkUser,

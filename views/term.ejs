@@ -42,7 +42,6 @@
                                             <div class="col s12">
                                                 <%- include('messages', { messages: messages }) %>
                                                 <form method="POST" onsubmit="validate()" id="form" action="/cms/term">
-                                                    <h4 class="card-title">English</h4>
                                                     <div class="input-field">
                                                         <input placeholder="Title" id="EnTitle" name="EnTitle" type="text" value="<%= page.en.title %>">
                                                         <small>
@@ -53,18 +52,6 @@
                                                     <div class="form-group">
                                                         Content
                                                         <textarea name="EnContent" class="form-control ta" id="ta1" cols="30" rows="10" placeholder="content"> <%= page.en.content %> </textarea>
-                                                    </div>
-                                                    <h4 class="card-title mt-2">Arabic</h4>
-                                                    <div class="input-field">
-                                                        <input placeholder="Title" id="ArTitle" name="ArTitle" type="text" value="<%= page.ar.title %>">
-                                                        <small>
-                                                            <div id="ArTitleErr" class="error"></div>
-                                                        </small>
-                                                        <label for="ArTitle">Title</label>
-                                                    </div>
-                                                    <div class="form-group">
-                                                        Content
-                                                        <textarea name="ArContent" class="form-control ta" id="ta2" cols="30" rows="10" placeholder="content"> <%= page.ar.content %> </textarea>
                                                     </div>
 
                                                     <button type="submit" id="submitBtn" class="btn purple mt-2">Submit</button>

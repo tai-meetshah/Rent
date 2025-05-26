@@ -50,7 +50,7 @@
                                   <span class="menu-title <%= url == '/' ? 'theme-text' : 'black-text' %>">Dashboard</span>
                                 </a>
                               </li>
-                            
+
                               <li class="bold <%= url.startsWith('/user') ? 'active' : '' %>">
                                 <a class="waves-effect waves-cyan" href="/user">
                                   <i class="material-icons <%= url.startsWith('/user') ? 'theme-text' : 'black-text' %> ">wc</i>
@@ -95,11 +95,11 @@
                                 </span>
                                 </a>
                                 <ul class="dropdown-content dropdown-horizontal-list" id="cmsDropdown">
-                                  <li>
+                                  <!-- <li>
                                     <a href="/cms/faq" class="<%= url.startsWith('/cms/faq') ? 'active' : '' %>" >
                                         <span>FAQ's</span>
                                     </a>
-                                  </li>
+                                  </li> -->
                                   <li>
                                     <a href="/cms/privacy" class="<%= url.startsWith('/cms/privacy') ? 'active' : '' %>" >
                                         <span>Privacy Policy</span>

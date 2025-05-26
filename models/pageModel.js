@@ -11,10 +11,6 @@ const pageSchema = mongoose.Schema(
             title: { type: String, required: [true, 'Title is required'] },
             content: String,
         },
-        ar: {
-            title: { type: String, required: [true, 'Title is required'] },
-            content: String,
-        },
     },
     {
         timestamps: true,

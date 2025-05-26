@@ -89,10 +89,10 @@ exports.sendOtp = async (req, res, next) => {
 
 exports.verifyOtp = async (req, res, next) => {
     try {
-        let { mobileNumber, otp } = req.body;
+        let { email, otp } = req.body;
 
         const otpVerified = await otpModel.findOne({
-            mobileNumber: mobileNumber,
+            email: email,
             otp: otp,
         });
 
@@ -183,9 +183,6 @@ exports.signUp = async (req, res, next) => {
             zipcode: req.body.zipcode,
             fcmToken: req.body.fcmToken,
         });
-        const token = await user.generateAuthToken();
-
-        user.save();
 
         // hide fields
         user = user.toObject();
@@ -200,7 +197,6 @@ exports.signUp = async (req, res, next) => {
             success: true,
             message: req.t('auth.registered'),
             user,
-            token,
         });
     } catch (error) {
         console.log(error);
@@ -258,18 +254,19 @@ exports.login = async (req, res, next) => {
 
 exports.forgotPassword = async (req, res, next) => {
     try {
-        const mobileNumber = req.body.mobileNumber;
-        if (!mobileNumber)
-            return next(createError.BadRequest('validation.phone'));
+        const email = req.body.email;
+        if (!email) return next(createError.BadRequest('validation.email'));
 
-        const user = await User.findOne({ mobileNumber });
-        if (!user) return next(createError.BadRequest('phone.notRegistered'));
+        const user = await User.findOne({ email });
+        if (!user)
+            return next(createError.BadRequest('phone.notRegisteredEmail'));
 
         // generate and save OTP
         const otp = generateCode(4);
         await otpModel.updateOne(
-            { mobileNumber: mobileNumber },
-            { $set: { otp: otp } }
+            { email: email },
+            { otp, expireAt: Date.now() + 5 * 60 * 1000 },
+            { upsert: true }
         );
 
         // send OTP
@@ -283,8 +280,17 @@ exports.forgotPassword = async (req, res, next) => {
 
 exports.resetPassword = async (req, res, next) => {
     try {
+        let { email, otp } = req.body;
+
+        const otpVerified = await otpModel.findOne({
+            email: email,
+            otp: otp,
+        });
+
+        if (!otpVerified) return next(createError.BadRequest('otp.fail'));
+
         const user = await User.findOne({
-            mobileNumber: req.body.mobileNumber,
+            email: req.body.email,
         });
 
         // update passcode
@@ -294,7 +300,7 @@ exports.resetPassword = async (req, res, next) => {
 
         res.json({
             success: true,
-            message: req.t('passwordUpdated'),
+            message: 'Password updated successfully',
         });
     } catch (error) {
         next(error);
