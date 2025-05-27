@@ -64,8 +64,7 @@
                                                         <tr>
                                                             <th>Sr</th>
                                                             <th>Image</th>
-                                                            <th>Name (English)</th>
-                                                            <th>Name (Arabic)</th>
+                                                            <th>Name</th>
                                                             <th data-orderable="false">Status</th>
                                                             <th data-orderable="false">Action</th>
                                                         </tr>
@@ -74,9 +73,8 @@
                                                         <% for( let i=0; i < categories.length; i++ ) { %>
                                                         <tr>
                                                             <td><%= i+1 %></td>
-                                                            <td><img src="<%= process.env.IMAGE_URL %><%= categories[i].image %>" width="60px"></td>
-                                                            <td><%= categories[i].en.name %></td>
-                                                            <td><%= categories[i].ar.name %></td>
+                                                            <td><img src="<%= process.env.IMAGE_URL %><%= categories[i].image %>" width="80px"></td>
+                                                            <td><%= categories[i].name %></td>
                                                             <td>
                                                                 <% if (categories[i].isActive) { %>
                                                                     <a href="/category/update-status/<%= categories[i]._id %>/0" class="waves-effect border-round waves-light btn green mr-1 mb-2"  onclick="return confirm('Are you sure want to De-Active this category?');">Active</a>

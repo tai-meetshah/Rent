@@ -1,21 +1,26 @@
 const mongoose = require('mongoose');
 
-const categorySchema = new mongoose.Schema(
-  {
-    vendor : {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Vendor',
+const CategorySchema = new mongoose.Schema(
+    {
+        name: {
+            type: String,
+            required: [true, 'Name is required.'],
+            trim: true,
+        },
+        image: {
+            type: String,
+            required: true,
+        },
+        isActive: {
+            type: Boolean,
+            default: true,
+        },
+        isDelete: {
+            type: Boolean,
+            default: false,
+        },
     },
-    name: {
-      type: String,
-      required: true
-    },
-    isDelete: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  { timestamps: true }
+    { timestamps: true }
 );
 
-module.exports = new mongoose.model('Category', categorySchema);
+module.exports = mongoose.model('Category', CategorySchema);

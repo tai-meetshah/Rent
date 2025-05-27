@@ -38,14 +38,14 @@
                 </div>
             </div>
         </div>
-    
+
         <div class="container pl-2 pr-2">
             <div class="card">
                 <div class="row">
                     <div class="col s12">
                         <div id="basic-form" class=" card-default scrollspy">
                             <div class="card-content">
-                                <form method="POST" action="/category/create-category" class="formValidate0" id="formValidate0" enctype="multipart/form-data">                                         
+                                <form method="POST" action="/category/create-category" class="formValidate0" id="formValidate0" enctype="multipart/form-data">
                                     <div id="file-upload" class="section" style="margin: 0px 10px -20px 10px;">
                                         <div class="row section">
                                             <div class="input-field col s12">
@@ -55,17 +55,13 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="input-field col s12 m6">
-                                        <label for="ename">Category Name (English)</label>
+                                    <div class="input-field col s12">
+                                        <label for="ename">Category Name </label>
                                         <input class="validate" id="ename" name="ename" type="text">
                                         <div class="error-message" id="enameError"></div>
                                     </div>
-                                    
-                                    <div class="input-field col s12 m6">
-                                        <label for="aname">Category Name (Arabic)</label>
-                                        <input class="validate" id="aname" name="aname" type="text">
-                                        <div class="error-message" id="anameError"></div>
-                                    </div>
+
+
 
                                     <div class="row">
                                         <div class="col s12 display-flex justify-content-end">
@@ -81,14 +77,14 @@
                 </div>
             </div>
         </div>
-    
+
     </div>
     <!-- END: Page Main-->
 
     <%- include('_layouts/commonJs') %>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/js/dropify.min.js"></script>
-    <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>  
-  
+    <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>
+
 
     <script>
         $(document).ready(function() {
@@ -97,7 +93,7 @@
                 const value = $('#ename').val().trim();
                 if (!value) {
                     $('#ename').addClass('error-field');
-                    $('#enameError').text('Please enter a category name (english).');
+                    $('#enameError').text('Please enter a category name.');
                     return false;
                 } else {
                     $('#ename').removeClass('error-field');
@@ -105,18 +101,7 @@
                     return true;
                 }
             }
-            function validateName() {
-                const value = $('#aname').val().trim();
-                if (!value) {
-                    $('#aname').addClass('error-field');
-                    $('#anameError').text('Please enter a category name (arabic).');
-                    return false;
-                } else {
-                    $('#aname').removeClass('error-field');
-                    $('#anameError').text('');
-                    return true;
-                }
-            }
+
             function validateFileUploads() {
                 const image = $('#input-file-events[name="image"]').val();
                 let isValid = true;
@@ -143,12 +128,11 @@
                     // $('html, body').animate({ scrollTop: $('#input-file-events').offset().top }, 500);
                 }
             });
-         
+
             // Form Submission Validation
             $('#formValidate0').on('submit', function(e) {
                 let valid = true;
                 valid &= validateSort();
-                valid &= validateName();
                 valid &= validateFileUploads();
 
                 if (!valid) {
@@ -156,7 +140,7 @@
                     $('html, body').animate({ scrollTop: $('.error-message:contains("Please")').first().offset().top }, 500);
                 }
             });
-            
+
         });
     </script>
 

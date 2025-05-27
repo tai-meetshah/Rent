@@ -56,17 +56,13 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="input-field col s12 m6">
-                                        <label for="ename">Category Name (English)</label>
-                                        <input class="validate" id="ename" name="ename" type="text" value="<%= category.en.name %>">
+                                    <div class="input-field col s12">
+                                        <label for="ename">Category Name</label>
+                                        <input class="validate" id="ename" name="ename" type="text" value="<%= category.name %>">
                                         <div class="error-message" id="enameError"></div>
                                     </div>
 
-                                    <div class="input-field col s12 m6">
-                                        <label for="aname">Category Name (Arabic)</label>
-                                        <input class="validate" id="aname" name="aname" type="text" value="<%= category.ar.name %>">
-                                        <div class="error-message" id="anameError"></div>
-                                    </div>
+
 
                                     <div class="row">
                                         <div class="col s12 display-flex justify-content-end">
@@ -98,7 +94,7 @@
                 const value = $('#ename').val().trim();
                 if (!value) {
                     $('#ename').addClass('error-field');
-                    $('#enameError').text('Please enter a category name (english).');
+                    $('#enameError').text('Please enter a category name.');
                     return false;
                 } else {
                     $('#ename').removeClass('error-field');
@@ -106,18 +102,7 @@
                     return true;
                 }
             }
-            function validateName() {
-                const value = $('#aname').val().trim();
-                if (!value) {
-                    $('#aname').addClass('error-field');
-                    $('#anameError').text('Please enter a category name (arabic).');
-                    return false;
-                } else {
-                    $('#aname').removeClass('error-field');
-                    $('#anameError').text('');
-                    return true;
-                }
-            }
+
 
             $('#sort').on('input', function() {
                 validateSort();
@@ -130,7 +115,6 @@
             $('#formValidate0').on('submit', function(e) {
                 let valid = true;
                 valid &= validateSort();
-                valid &= validateName();
 
                 if (!valid) {
                     e.preventDefault();

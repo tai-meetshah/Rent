@@ -13,6 +13,14 @@ module.exports = (error, req, res, next) => {
         return res.redirect(url);
     }
 
+    if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({
+            status: 'fail',
+            code: 401,
+            message: req.t('Token has expired. Please log in again.'),
+        });
+    }
+
     if (error.code == 11000) {
         return res.status(403).json({
             success: false,

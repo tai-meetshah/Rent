@@ -356,10 +356,16 @@ exports.editProfile = async (req, res, next) => {
         // const phoneExists = await User.findOne({mobileNumber: req.body.mobileNumber, _id: { $ne: user._id } });
         // if (phoneExists)
         //     return next(createError.BadRequest('validation.alreadyRegisteredPhone'));
-
+        if (req.file) {
+            user.photo = `${req.file.filename}`;
+        }
         user.name = req.body.name;
-        // user.mobileNumber = req.body.mobileNumber
-        user.birthDate = req.body.birthDate;
+        user.address = req.body.address;
+        user.landmark = req.body.landmark;
+        user.city = req.body.city;
+        user.state = req.body.state;
+        user.country = req.body.country;
+        user.zipcode = req.body.zipcode;
         user.gender = req.body.gender;
 
         await user.save();

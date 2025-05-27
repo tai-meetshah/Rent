@@ -86,7 +86,8 @@ app.use('/uploads/*', (req, res) => res.status(404).end());
 
 // 2) API ROUTES
 app.use('/api/auth', require('./routes/api/authRoutes'));
-// app.use('/api/staff', require('./routes/api/staffRoutes'));
+app.use('/api/cms', require('./routes/api/cmsRoutes'));
+app.use('/api/product', require('./routes/api/productRoutes'));
 // app.use('/api/staff-self', require('./routes/api/selfStaff'));
 // app.use('/api/branch', require('./routes/api/branchRoutes'));
 
@@ -111,7 +112,7 @@ app.use(function (req, res, next) {
 app.use('/', require('./routes/admin/authRoutes'));
 app.use('/user', require('./routes/admin/userRoutes'));
 app.use('/banner', require('./routes/admin/bannerRoutes'));
-// app.use('/category', require('./routes/admin/categoryRoutes'));
+app.use('/category', require('./routes/admin/categoryRoutes'));
 app.use('/cms', require('./routes/admin/cmsRoutes'));
 
 // 404 admin

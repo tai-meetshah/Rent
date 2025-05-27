@@ -2,7 +2,6 @@ const router = require('express').Router();
 const { upload } = require('../../controllers/uploadController');
 const authController = require('../../controllers/api/authController');
 
-
 // router.post('/user/sendOtp', upload.none(), authController.sendOtp);
 // router.post('/user/verifyOtp', upload.none(), authController.verifyOtp);
 // router.post('/user/resendOtp', upload.none(), authController.resendOtp);
@@ -21,18 +20,18 @@ router.post('/user/resetPassword', upload.none(), authController.resetPassword);
 //     upload.none(),
 //     authController.changePassword
 // );
-// router.get(
-//     '/user/getProfile',
-//     authController.checkUser,
-//     upload.none(),
-//     authController.getProfile
-// );
-// router.put(
-//     '/user/editProfile',
-//     authController.checkUser,
-//     upload.none(),
-//     authController.editProfile
-// );
+router.get(
+    '/user/getProfile',
+    authController.checkUser,
+    upload.none(),
+    authController.getProfile
+);
+router.put(
+    '/user/editProfile',
+    authController.checkUser,
+    upload.single('photo'),
+    authController.editProfile
+);
 // router.post(
 //     '/user/updateNotification/:status',
 //     authController.checkUser,
