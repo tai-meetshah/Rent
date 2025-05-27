@@ -63,11 +63,9 @@
                                                     <thead>
                                                         <tr>
                                                             <th>Sr</th>
-                                                            <th>QR Code</th>
                                                             <th>Name</th>
-                                                            <th>Mobile Number</th>
-                                                            <th>Birth Date</th>
-                                                            <th>Gender</th>
+                                                            <th>Email</th>
+                                                            <th>City</th>
                                                             <th>Created Date</th>
                                                             <th data-orderable="false">Status</th>
                                                             <!-- <th data-orderable="false">Action</th> -->
@@ -77,14 +75,12 @@
                                                         <% for( let i=0; i < users.length; i++ ) { %>
                                                         <tr>
                                                             <td><%= i+1 %></td>
-                                                            <td><img src="<%= process.env.IMAGE_URL%><%= users[i].qrCode %>" style="width: 30%;"/></td>
                                                             <td><%= users[i].name %></td>
-                                                            <td><%= users[i].mobileNumber %></td>
-                                                            <td><%= users[i].birthDate ? new Date(users[i].birthDate).toISOString().split('T')[0] : '-' %></td>
-                                                            <td><%= users[i].gender %></td>
-                                                            <td><%= users[i].createdAt.toISOString().split('T')[0] %> <%= 
+                                                            <td><%= users[i].email %></td>
+                                                            <td><%= users[i].city %></td>
+                                                            <td><%= users[i].createdAt.toISOString().split('T')[0] %> <%=
                                                                 users[i].createdAt.toLocaleString('en-US', {
-                                                                    timeZone: 'UTC', 
+                                                                    timeZone: 'UTC',
                                                                     hour: '2-digit',
                                                                     minute: '2-digit',
                                                                     hour12: true
