@@ -163,11 +163,11 @@ exports.checksignUp = async (req, res, next) => {
 exports.signUp = async (req, res, next) => {
     try {
         const userExists = await User.findOne({
-            mobileNumber: req.body.mobileNumber,
+            email: req.body.email,
         });
         if (userExists)
             return next(
-                createError.BadRequest('validation.alreadyRegisteredPhone')
+                createError.BadRequest('validation.alreadyRegisteredEmail')
             );
 
         // create user
