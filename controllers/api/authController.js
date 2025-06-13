@@ -338,13 +338,13 @@ exports.login = async (req, res, next) => {
             '+password -__v -createdAt -updatedAt'
         );
 
-        if (!user) return next(createError.BadRequest('auth.credentials'));
+        if (!user) return next(createError.BadRequest('auth.credentialsemail'));
 
         if (user.isActive == false)
             return next(createError.BadRequest('auth.blocked'));
 
         if (!user || !(await user.correctPassword(password, user.password)))
-            return next(createError.BadRequest('auth.credentials'));
+            return next(createError.BadRequest('auth.credentialsemail'));
 
         const token = await user.generateAuthToken();
 
