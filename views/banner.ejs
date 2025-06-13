@@ -32,7 +32,7 @@
                         </div>
                         <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
                             <ol class="breadcrumbs mb-0">
-                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a>
                                 </li>
                                 <li class="breadcrumb-item active">Banner List
                                 </li>
@@ -42,20 +42,20 @@
                 </div>
             </div>
         </div>
-    
+
         <div class="container mt-2">
             <div class="row">
                 <div class="col s5 m6 l6">
                     <p><b>Total Banners (<%= banners.length %>)</b></p>
                 </div>
                 <div class="col s7 m6 l6 right-align-md" style="text-align: right;">
-                    <a href="/banner/create-banner" class="btn pull-right btn-add btn-breadcrumbs white-text">Create banner</a>
+                    <a href="/admin/banner/create-banner" class="btn pull-right btn-add btn-breadcrumbs white-text">Create banner</a>
                 </div>
             </div>
         </div>
-      
+
         <div class="container">
-            
+
             <div class="row ls">
                 <% for( let i=0; i < banners.length; i++ ) { %>
                 <div style="padding: 10px;"  class="col s12 m6 l6 xl3" >
@@ -64,24 +64,24 @@
                             <img class="activator" src="<%= process.env.IMAGE_URL %><%= banners[i].image %>" />
                         </div>
                         <div class="card-content" style="padding-left: 0px !important;">
-                            <a  href="/banner/delete/<%= banners[i]._id %>"  class="btn-floating activator btn-move-up waves-effect waves-light accent-2 z-depth-4 right btn-delete">
+                            <a  href="/admin/banner/delete/<%= banners[i]._id %>"  class="btn-floating activator btn-move-up waves-effect waves-light accent-2 z-depth-4 right btn-delete">
                                 <i class="material-icons" onclick="return confirm('Are you sure want to delete this banner?');">delete</i>
                             </a>
-                            <a href="/banner/update-banner/<%= banners[i]._id %>" class="btn-floating activator btn-move-up waves-effect waves-light accent-2 z-depth-4 right btn-edit" >
+                            <a href="/admin/banner/update-banner/<%= banners[i]._id %>" class="btn-floating activator btn-move-up waves-effect waves-light accent-2 z-depth-4 right btn-edit" >
                                 <i class="material-icons">edit</i>
                             </a>
                         </div>
                     </div>
                 </div>
                 <% } %>
-               
+
             </div>
         </div>
     </div>
     <!-- END: Page Main-->
 
     <%- include('_layouts/commonJs') %>
-  
+
 </body>
 
 </html>

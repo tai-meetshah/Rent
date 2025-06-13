@@ -10,5 +10,6 @@ router.get(
 );
 router.get('/:type/:id', userController.viewUser);
 router.get('/change-status/:id/:status', userController.changeUserStatus);
+router.get('/delete/:id', userController.getDeleteUser);
 
 module.exports = router;

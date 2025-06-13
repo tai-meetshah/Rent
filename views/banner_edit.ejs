@@ -26,9 +26,9 @@
                         </div>
                         <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
                             <ol class="breadcrumbs mb-0">
-                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a>
                                 </li>
-                                <li class="breadcrumb-item"><a href="/banner">Banner</a>
+                                <li class="breadcrumb-item"><a href="/admin/banner">Banner</a>
                                 </li>
                                 <li class="breadcrumb-item active">Update Banner
                                 </li>
@@ -45,7 +45,7 @@
                     <div class="col s12">
                         <div id="basic-form" class=" card-default scrollspy">
                             <div class="card-content">
-                                <form method="POST" action="/banner/update-banner/<%= banner._id %>" enctype="multipart/form-data" class="formValidate0" id="formValidate0">
+                                <form method="POST" action="/admin/banner/update-banner/<%= banner._id %>" enctype="multipart/form-data" class="formValidate0" id="formValidate0">
                                     <div id="file-upload" class="section" style="margin: 0px 10px -20px 10px;">
                                         <div class="row section">
                                             <div class="input-field col s12">
@@ -65,7 +65,7 @@
                                         <div class="col s12 display-flex justify-content-end">
                                             <button class="btn btn-edit" type="submit" name="action">Update</button>
                                             &nbsp;&nbsp;&nbsp;
-                                            <a type="button" class="btn btn-delete" href="/banner">Cancel</a>
+                                            <a type="button" class="btn btn-delete" href="/admin/banner">Cancel</a>
                                         </div>
                                     </div>
                                 </form>

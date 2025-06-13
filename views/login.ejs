@@ -15,7 +15,7 @@
             <div class="container">
                 <div id="login-page" class="row">
                     <div class="col s12 m6 l4 z-depth-4 card-panel border-radius-6 login-card bg-opacity-8" style="background-color: white;">
-                        <form class="login-form" id="loginform" action="/login" method="post" onsubmit="return validate()">
+                        <form class="login-form" id="loginform" action="/admin/login" method="post" onsubmit="return validate()">
                             <div class="row">
                                 <div class="s12" style="text-align: center;">
                                     <br/>
@@ -50,7 +50,7 @@
                                     </small>
                                 </div>
                                 <div class="input-field col s12" style="margin-top: -10px;">
-                                    <p class="margin right-align medium-small"><a href="/forgot" style="color: blue;">Forgot password ?</a></p>
+                                    <p class="margin right-align medium-small"><a href="/admin/forgot" style="color: blue;">Forgot password ?</a></p>
                                 </div>
                             </div>
                             <div class="row">
@@ -122,7 +122,7 @@
             // Toggle the type attribute
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
-            
+
             // Toggle the eye icon
             this.textContent = type === 'password' ? 'visibility_off' : 'visibility';
         });

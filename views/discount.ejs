@@ -37,7 +37,7 @@
                         </div>
                         <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
                             <ol class="breadcrumbs mb-0">
-                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a>
                                 </li>
                                 <li class="breadcrumb-item active">Vendor Discount's
                                 </li>
@@ -82,9 +82,9 @@
                                                             <td><%= discounts[i].expiryDate%></td>
                                                             <td>
                                                                 <% if (discounts[i].adminApprovedStatus == 'Pending') { %>
-                                                                    <a href="/discount/change-status/<%= discounts[i]._id %>/Approved" style="background-color: rgb(212, 240, 216);padding: 5px 10px 5px 10px;color: green;border-radius: 5px;cursor: pointer;" onclick="return confirm('Are you sure want to Approve this discount?');">Approve</a>
+                                                                    <a href="/admin/discount/change-status/<%= discounts[i]._id %>/Approved" style="background-color: rgb(212, 240, 216);padding: 5px 10px 5px 10px;color: green;border-radius: 5px;cursor: pointer;" onclick="return confirm('Are you sure want to Approve this discount?');">Approve</a>
                                                                     &nbsp;
-                                                                    <a  href="/discount/change-status/<%= discounts[i]._id %>/Rejected" style="background-color: rgb(240, 212, 212);padding: 5px 10px 5px 10px;color: red;border-radius: 5px;cursor: pointer;" onclick="return confirm('Are you sure want to Reject this discount?');">Reject</a>
+                                                                    <a  href="/admin/discount/change-status/<%= discounts[i]._id %>/Rejected" style="background-color: rgb(240, 212, 212);padding: 5px 10px 5px 10px;color: red;border-radius: 5px;cursor: pointer;" onclick="return confirm('Are you sure want to Reject this discount?');">Reject</a>
                                                                 <% } else { %>
                                                                     <a style="background-color: <%= discounts[i].adminApprovedStatus == 'Approved' ? 'rgb(212, 240, 212)' : 'rgb(240, 212, 212)' %>;padding: 5px 10px 5px 10px;color: <%= discounts[i].adminApprovedStatus == 'Approved' ? 'green' : 'red' %>; border-radius: 5px;"><%= discounts[i].adminApprovedStatus %></a>
                                                                 <% } %>
@@ -119,7 +119,7 @@
                     </div>
                     </div>
                 </div>
-  
+
             </div>
         </div>
     </div>
@@ -135,10 +135,10 @@
           document.querySelectorAll('.view-discount').forEach(icon => {
             icon.addEventListener('click', function() {
               const discountId = this.getAttribute('data-id');
-              
+
               // Use the discountId to fetch and populate the modal
               const discount = <%- JSON.stringify(discounts) %>.find(d => d._id === discountId);
-              
+
               if (discount) {
                 document.getElementById('modalTitle').innerText = `Details for ${discount.title}`;
                 document.getElementById('modalBody').innerHTML = `
@@ -148,9 +148,9 @@
                     &nbsp;&nbsp;
                     <strong>Discount :</strong> ${discount.discountValue} ${discount.discountType === 'Fixed' ? 'BHD' : '%'}
                 </p>
-                 
+
                 <p>
-                    <strong>Total Number of Counts :</strong> ${discount.totalUserCount} 
+                    <strong>Total Number of Counts :</strong> ${discount.totalUserCount}
                     &nbsp;&nbsp;
                     <strong>Customer Type :</strong> ${discount.customerType}
                 </p>
@@ -166,7 +166,7 @@
           });
         });
     </script>
-      
+
 </body>
 
 </html>

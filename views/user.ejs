@@ -38,7 +38,7 @@
                         </div>
                         <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
                             <ol class="breadcrumbs mb-0">
-                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a>
                                 </li>
                                 <li class="breadcrumb-item active">User List
                                 </li>
@@ -88,9 +88,9 @@
                                                             </td>
                                                             <td>
                                                                 <% if (users[i].isActive) { %>
-                                                                    <a href="/user/change-status/<%= users[i]._id %>/0" class="waves-effect border-round waves-light btn green mr-1 mb-2"  onclick="return confirm('Are you sure want to De-Active this user?');">Active</a>
+                                                                    <a href="/admin/user/change-status/<%= users[i]._id %>/0" class="waves-effect border-round waves-light btn green mr-1 mb-2"  onclick="return confirm('Are you sure want to De-Active this user?');">Active</a>
                                                                 <% } else { %>
-                                                                    <a href="/user/change-status/<%= users[i]._id %>/1" class="waves-effect border-round waves-light btn red mr-1 mb-2"  style="padding: 0px 16px 0px 16px;" onclick="return confirm('Are you sure want to Active this user?');">De-Active</a>
+                                                                    <a href="/admin/user/change-status/<%= users[i]._id %>/1" class="waves-effect border-round waves-light btn red mr-1 mb-2"  style="padding: 0px 16px 0px 16px;" onclick="return confirm('Are you sure want to Active this user?');">De-Active</a>
                                                                 <% } %>
 
                                                             </td>

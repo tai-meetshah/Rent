@@ -1,7 +1,6 @@
 const Page = require('../../models/pageModel.js');
 const faqModel = require('../../models/faqModel.js');
 
-
 exports.getPrivacy = async (req, res) => {
     try {
         const page = await Page.findOne({ key: 'privacy' });
@@ -19,9 +18,6 @@ exports.postPrivacy = async (req, res) => {
 
         page.en.title = req.body.EnTitle;
         page.en.content = req.body.EnContent;
-        
-        page.ar.title = req.body.ArTitle;
-        page.ar.content = req.body.ArContent;
 
         await page.save();
 
@@ -50,9 +46,6 @@ exports.postTerm = async (req, res) => {
 
         page.en.title = req.body.EnTitle;
         page.en.content = req.body.EnContent;
-        
-        page.ar.title = req.body.ArTitle;
-        page.ar.content = req.body.ArContent;
 
         await page.save();
 
@@ -76,17 +69,13 @@ exports.getFaq = async (req, res) => {
 };
 
 exports.getFaqAdd = async (req, res) => {
-  
     res.render('faq_add');
-  
 };
 
 exports.postFaqAdd = async (req, res) => {
     try {
-
         await faqModel.create({
-            en: {question: req.body.question, answer: req.body.answer},
-            ar: {question: req.body.Aquestion, answer: req.body.Aanswer}
+            en: { question: req.body.question, answer: req.body.answer },
         });
 
         req.flash('green', 'FAQ added successfully.');
@@ -100,7 +89,7 @@ exports.postFaqAdd = async (req, res) => {
 exports.getFaqUpdate = async (req, res) => {
     const faq = await faqModel.findById(req.params.id);
 
-    res.render('faq_edit', { faq } );
+    res.render('faq_edit', { faq });
 };
 
 exports.postFaqUpdate = async (req, res) => {
@@ -130,7 +119,7 @@ exports.getFaqDelete = async (req, res) => {
         req.flash('green', 'FAQ deleted successfully.');
         res.redirect('/cms/faq');
     } catch (error) {
-        console.log(error)
+        console.log(error);
         req.flash('red', error.message);
         res.redirect(req.originalUrl);
     }

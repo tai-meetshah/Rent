@@ -25,7 +25,7 @@
                             </div>
                             <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
                                 <ol class="breadcrumbs mb-0">
-                                    <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                    <li class="breadcrumb-item"><a href="/admin">Dashboard</a>
                                     </li>
                                     <li class="breadcrumb-item active">FAQ's
                                     </li>
@@ -39,7 +39,7 @@
                 <%- include('messages', { messages: messages }) %>
                 <div class="row">
                     <div class="col s12 right-align-md" style="text-align: right;">
-                        <a href="/cms/faq/add" class="btn pull-right btn-add btn-breadcrumbs white-text">Add FAQ</a>
+                        <a href="/admin/cms/faq/add" class="btn pull-right btn-add btn-breadcrumbs white-text">Add FAQ</a>
                     </div>
                 </div>
             </div>
@@ -54,11 +54,11 @@
                                         <div class="col s10 m11 xl11"><%= faqs[i].en.answer %></span>
                                         </div>
                                         <div class="col s2 m1 xl1">
-                                            <a href="/cms/faq/edit/<%= faqs[i]._id %>" class="btn-floating theme-bg-warn">
+                                            <a href="/admin/cms/faq/edit/<%= faqs[i]._id %>" class="btn-floating theme-bg-warn">
                                                 <i class="material-icons">edit</i>
                                             </a>
                                             <br/>
-                                            <a href="/cms/faq/delete/<%= faqs[i]._id %>"  class="btn-floating  btn-delete" style="margin-top: 10px;">
+                                            <a href="/admin/cms/faq/delete/<%= faqs[i]._id %>"  class="btn-floating  btn-delete" style="margin-top: 10px;">
                                                 <i class="material-icons" onclick="return confirm('Are you sure want to delete this FAQ?');">delete</i>
                                             </a>
                                         </div>
@@ -77,7 +77,7 @@
 
     <%- include('_layouts/commonJs') %>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/js/dropify.min.js"></script>
-    <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>  
+    <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>
    <!-- ===== ckeditor JavaScript ===== -->
    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
 
@@ -124,7 +124,7 @@
                     $('html, body').animate({ scrollTop: $('#name').offset().top }, 500);
                 }
             });
-         
+
             CKEDITOR.instances['textarea'].on('change', function() {
                 validateAboutUs();
                 if (!validateAboutUs()) {
@@ -144,7 +144,7 @@
                     $('html, body').animate({ scrollTop: $('.error-message:contains("Please")').first().offset().top }, 500);
                 }
             });
-            
+
         });
     </script>
 

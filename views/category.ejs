@@ -29,7 +29,7 @@
                         </div>
                         <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
                             <ol class="breadcrumbs mb-0">
-                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a>
                                 </li>
                                 <li class="breadcrumb-item active">Category List
                                 </li>
@@ -44,7 +44,7 @@
                 <div class="container">
                     <div class="row">
                         <div class="col s12 right-align-md">
-                            <a class="btn pull-right btn-add btn-breadcrumbs white-text" href="/category/create-category">Create Category</a>
+                            <a class="btn pull-right btn-add btn-breadcrumbs white-text" href="/admin/category/create-category">Create Category</a>
                         </div>
                     </div>
                 </div>
@@ -77,19 +77,19 @@
                                                             <td><%= categories[i].name %></td>
                                                             <td>
                                                                 <% if (categories[i].isActive) { %>
-                                                                    <a href="/category/update-status/<%= categories[i]._id %>/0" class="waves-effect border-round waves-light btn green mr-1 mb-2"  onclick="return confirm('Are you sure want to De-Active this category?');">Active</a>
+                                                                    <a href="/admin/category/update-status/<%= categories[i]._id %>/0" class="waves-effect border-round waves-light btn green mr-1 mb-2"  onclick="return confirm('Are you sure want to De-Active this category?');">Active</a>
                                                                     <% } else { %>
-                                                                    <a href="/category/update-status/<%= categories[i]._id %>/1" class="waves-effect border-round waves-light btn red mr-1 mb-2"  style="padding: 0px 16px 0px 16px;" onclick="return confirm('Are you sure want to Active this category?');">De-Active</a>
+                                                                    <a href="/admin/category/update-status/<%= categories[i]._id %>/1" class="waves-effect border-round waves-light btn red mr-1 mb-2"  style="padding: 0px 16px 0px 16px;" onclick="return confirm('Are you sure want to Active this category?');">De-Active</a>
                                                                     <% } %>
                                                             </td>
                                                             <td>
                                                                 <!-- <a href="/category/update-category/<%= categories[i].id %>" class="waves-effect border-round waves-light btn mr-1 mb-2"><i class="material-icons">create</i></a> -->
 
-                                                                  <a href="/category/update-category/<%= categories[i].id %>" class="btn-floating  waves-effect waves-light accent-2 btn-edit">
+                                                                  <a href="/admin/category/update-category/<%= categories[i].id %>" class="btn-floating  waves-effect waves-light accent-2 btn-edit">
                                                                     <i class="material-icons">edit</i>
                                                                 </a> &nbsp;&nbsp;
 
-                                                                  <a href="/category/delete-category/<%= categories[i]._id %>" class="btn-floating waves-effect waves-light accent-2 btn-delete">
+                                                                  <a href="/admin/category/delete-category/<%= categories[i]._id %>" class="btn-floating waves-effect waves-light accent-2 btn-delete">
                                                                     <i class="material-icons" onclick="return confirm('Are you sure want to delete this category?');">delete</i>
                                                                   </a>
                                                             </td>

@@ -44,17 +44,17 @@
                       <div class="nav-wrapper">
                           <ul id="ul-horizontal-nav" data-menu="menu-navigation">
 
-                              <li class="bold <%= url == '/' ? 'active' : '' %>">
-                                <a class="waves-effect waves-cyan" href="/">
-                                  <i class="material-icons <%= url == '/' ? 'theme-text' : 'black-text' %>">dashboard</i>
-                                  <span class="menu-title <%= url == '/' ? 'theme-text' : 'black-text' %>">Dashboard</span>
+                              <li class="bold <%= url == '/admin' ? 'active' : '' %>">
+                                <a class="waves-effect waves-cyan" href="/admin">
+                                  <i class="material-icons <%= url == '/admin' ? 'theme-text' : 'black-text' %>">dashboard</i>
+                                  <span class="menu-title <%= url == '/admin' ? 'theme-text' : 'black-text' %>">Dashboard</span>
                                 </a>
                               </li>
 
-                              <li class="bold <%= url.startsWith('/user') ? 'active' : '' %>">
-                                <a class="waves-effect waves-cyan" href="/user">
-                                  <i class="material-icons <%= url.startsWith('/user') ? 'theme-text' : 'black-text' %> ">wc</i>
-                                  <span class="menu-title <%= url.startsWith('/user') ? 'theme-text' : 'black-text' %> ">Users</span>
+                              <li class="bold <%= url.startsWith('/admin/user') ? 'active' : '' %>">
+                                <a class="waves-effect waves-cyan" href="/admin/user">
+                                  <i class="material-icons <%= url.startsWith('/admin/user') ? 'theme-text' : 'black-text' %> ">wc</i>
+                                  <span class="menu-title <%= url.startsWith('/admin/user') ? 'theme-text' : 'black-text' %> ">Users</span>
                                 </a>
                               </li>
 
@@ -65,17 +65,17 @@
                                 </a>
                               </li> -->
 
-                              <li class="bold <%= url.startsWith('/banner') ? 'active' : '' %>">
-                                <a class="waves-effect waves-cyan" href="/banner">
-                                  <i class="material-icons <%= url.startsWith('/banner') ? 'theme-text' : 'black-text' %> ">burst_mode</i>
-                                  <span class="menu-title <%= url.startsWith('/banner') ? 'theme-text' : 'black-text' %> ">Banners</span>
+                              <li class="bold <%= url.startsWith('/admin/banner') ? 'active' : '' %>">
+                                <a class="waves-effect waves-cyan" href="/admin/banner">
+                                  <i class="material-icons <%= url.startsWith('/admin/banner') ? 'theme-text' : 'black-text' %> ">burst_mode</i>
+                                  <span class="menu-title <%= url.startsWith('/admin/banner') ? 'theme-text' : 'black-text' %> ">Banners</span>
                                 </a>
                               </li>
 
-                              <li class="bold <%= url.startsWith('/category') ? 'active' : '' %>">
-                                <a class="waves-effect waves-cyan" href="/category">
-                                  <i class="material-icons <%= url.startsWith('/category') ? 'theme-text' : 'black-text' %> ">local_activity</i>
-                                  <span class="menu-title <%= url.startsWith('/category') ? 'theme-text' : 'black-text' %> ">Manage Category</span>
+                              <li class="bold <%= url.startsWith('/admin/category') ? 'active' : '' %>">
+                                <a class="waves-effect waves-cyan" href="/admin/category">
+                                  <i class="material-icons <%= url.startsWith('/admin/category') ? 'theme-text' : 'black-text' %> ">local_activity</i>
+                                  <span class="menu-title <%= url.startsWith('/admin/category') ? 'theme-text' : 'black-text' %> ">Manage Category</span>
                                 </a>
                               </li>
 
@@ -86,12 +86,12 @@
                                 </a>
                               </li> -->
 
-                              <li class="bold <%= url.startsWith('/cms') ? 'active' : '' %>">
+                              <li class="bold <%= url.startsWith('/admin/cms') ? 'active' : '' %>">
                                 <a class="dropdown-menu waves-effect waves-cyan" data-target="cmsDropdown">
-                                  <i class="material-icons <%= url.startsWith('/cms') ? 'theme-text' : 'black-text' %> ">content_paste</i>
+                                  <i class="material-icons <%= url.startsWith('/admin/cms') ? 'theme-text' : 'black-text' %> ">content_paste</i>
                                   <span>
-                                    <span class="dropdown-title <%= url.startsWith('/cms') ? 'theme-text' : 'black-text' %>">CMS Pages</span>
-                                    <i class="material-icons right <%= url.startsWith('/cms') ? 'theme-text' : 'black-text' %>" style="font-size:18px !important">keyboard_arrow_down</i>
+                                    <span class="dropdown-title <%= url.startsWith('/admin/cms') ? 'theme-text' : 'black-text' %>">CMS Pages</span>
+                                    <i class="material-icons right <%= url.startsWith('/admin/cms') ? 'theme-text' : 'black-text' %>" style="font-size:18px !important">keyboard_arrow_down</i>
                                 </span>
                                 </a>
                                 <ul class="dropdown-content dropdown-horizontal-list" id="cmsDropdown">
@@ -101,12 +101,12 @@
                                     </a>
                                   </li> -->
                                   <li>
-                                    <a href="/cms/privacy" class="<%= url.startsWith('/cms/privacy') ? 'active' : '' %>" >
+                                    <a href="/admin/cms/privacy" class="<%= url.startsWith('/admin/cms/privacy') ? 'active' : '' %>" >
                                         <span>Privacy Policy</span>
                                     </a>
                                   </li>
                                   <li>
-                                    <a href="/cms/term" class="<%= url.startsWith('/cms/term') ? 'active' : '' %>" >
+                                    <a href="/admin/cms/term" class="<%= url.startsWith('/admin/cms/term') ? 'active' : '' %>" >
                                         <span>Terms and conditions</span>
                                     </a>
                                   </li>

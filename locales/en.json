@@ -49,6 +49,7 @@
     "blocked": "Sorry! You are blocked. Please contact Admin.",
     "updated": "Profile has been updated successfully",
     "credentials": "Invalid mobile number or password!",
+    "credentialsemail": "Invalid email or password!",
     "vcredentials": "Invalid email address or password!",
     "deleted": "This account has been deleted.",
     "deleted_success": "Account has been deleted.",

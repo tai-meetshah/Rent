@@ -25,9 +25,9 @@
                         </div>
                         <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
                             <ol class="breadcrumbs mb-0">
-                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a>
                                 </li>
-                                <li class="breadcrumb-item"><a href="/cms/faq">FAQ's</a>
+                                <li class="breadcrumb-item"><a href="/admin/cms/faq">FAQ's</a>
                                 </li>
                                 <li class="breadcrumb-item active">Edit FAQ
                                 </li>
@@ -44,7 +44,7 @@
                     <div class="col s12">
                         <div id="basic-form" class=" card-default scrollspy">
                             <div class="card-content">
-                                <form method="POST" action="/cms/faq/edit/<%= faq._id %>" class="formValidate0" id="formValidate0">
+                                <form method="POST" action="/admin/cms/faq/edit/<%= faq._id %>" class="formValidate0" id="formValidate0">
 
                                     <div class="input-field col s12">
                                         <label for="question">Question (English)</label>
@@ -74,7 +74,7 @@
                                         <div class="col s12 display-flex justify-content-end">
                                             <button class="btn btn-edit" type="submit" name="action">Update</button>
                                             &nbsp;&nbsp;&nbsp;
-                                            <a type="button" class="btn btn-delete" href="/cms/faq">Cancel</a>
+                                            <a type="button" class="btn btn-delete" href="/admin/cms/faq">Cancel</a>
                                         </div>
                                     </div>
                                 </form>

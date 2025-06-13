@@ -25,9 +25,9 @@
                         </div>
                         <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
                             <ol class="breadcrumbs mb-0">
-                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a>
                                 </li>
-                                <li class="breadcrumb-item"><a href="/cms/faq">FAQ's</a>
+                                <li class="breadcrumb-item"><a href="/admin/cms/faq">FAQ's</a>
                                 </li>
                                 <li class="breadcrumb-item active">Add FAQ
                                 </li>
@@ -37,14 +37,14 @@
                 </div>
             </div>
         </div>
-    
+
         <div class="container pl-2 pr-2">
             <div class="card">
                 <div class="row">
                     <div class="col s12">
                         <div id="basic-form" class=" card-default scrollspy">
                             <div class="card-content">
-                                <form method="POST" action="/cms/faq/add" class="formValidate0" id="formValidate0"> 
+                                <form method="POST" action="/admin/cms/faq/add" class="formValidate0" id="formValidate0">
 
                                     <div class="input-field col s12">
                                         <label for="question">Question (English)</label>
@@ -74,7 +74,7 @@
                                         <div class="col s12 display-flex justify-content-end">
                                             <button class="btn btn-edit" type="submit" name="action">Submit</button>
                                             &nbsp;&nbsp;&nbsp;
-                                            <a type="button" class="btn btn-delete" href="/cms/faq">Cancel</a>
+                                            <a type="button" class="btn btn-delete" href="/admin/cms/faq">Cancel</a>
                                         </div>
                                     </div>
                                 </form>
@@ -84,12 +84,12 @@
                 </div>
             </div>
         </div>
-    
+
     </div>
     <!-- END: Page Main-->
 
     <%- include('_layouts/commonJs') %>
-  
+
     <script>
         $(document).ready(function() {
 
@@ -130,8 +130,8 @@
                     $('html, body').animate({ scrollTop: $('#answer').offset().top }, 500);
                 }
             });
-        
- 
+
+
             function validateAQuestion() {
                 const value = $('#Aquestion').val().trim();
                 if (!value) {
@@ -169,8 +169,8 @@
                     $('html, body').animate({ scrollTop: $('#Aanswer').offset().top }, 500);
                 }
             });
-        
-         
+
+
             // Form Submission Validation
             $('#formValidate0').on('submit', function(e) {
                 let valid = true;
@@ -184,7 +184,7 @@
                     $('html, body').animate({ scrollTop: $('.error-message:contains("Please")').first().offset().top }, 500);
                 }
             });
-            
+
         });
     </script>
 
