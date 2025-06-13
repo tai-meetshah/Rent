@@ -6,6 +6,13 @@ const authController = require('../../controllers/api/authController');
 // router.post('/user/verifyOtp', upload.none(), authController.verifyOtp);
 // router.post('/user/resendOtp', upload.none(), authController.resendOtp);
 
+router.post('/user/socialLogin', upload.none(), authController.socialLogin);
+
+router.post(
+    '/user/createSocialProfile',
+    upload.none(),
+    authController.createSocialProfile
+);
 router.post('/user/signup', upload.none(), authController.signUp);
 router.post('/user/login', upload.none(), authController.login);
 router.post(

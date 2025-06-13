@@ -31,7 +31,7 @@
     "notFound": "Address not found."
   },
   "otp": {
-    "sent": "OTP sent to your mobile number.",
+    "sent": "OTP sent to your email.",
     "fail": "Oops! Invalid OTP.",
     "verified": "OTP verified.",
     "sentemail": "OTP sent to your email address."

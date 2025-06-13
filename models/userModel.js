@@ -39,9 +39,12 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: [true, 'Please provide zipcode.'],
         },
+        googleId: String,
+        facebookId: String,
+        appleId: String,
         password: {
             type: String,
-            required: [true, 'validation.password'],
+            // required: [true, 'validation.password'],
             minlength: [6, 'Password should be atleast 6 characters long.'],
             trim: true,
             select: false,

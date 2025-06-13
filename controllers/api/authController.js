@@ -162,6 +162,9 @@ exports.checksignUp = async (req, res, next) => {
 
 exports.signUp = async (req, res, next) => {
     try {
+        if (!req.body.password)
+            return next(createError.BadRequest('Provide password!'));
+
         const userExists = await User.findOne({
             email: req.body.email,
         });
@@ -204,14 +207,133 @@ exports.signUp = async (req, res, next) => {
     }
 };
 
+exports.socialLogin = async (req, res, next) => {
+    try {
+        const { email, googleId, facebookId, appleId } = req.body;
+
+        let user = await User.findOne({ email }).populate(
+            'city country address'
+        );
+
+        // if user not exists, redirect to create profile screen
+        if (!user) {
+            return res.json({
+                code: '001',
+                message: req.t('success'),
+                user: { email, googleId, facebookId, appleId },
+            });
+        }
+
+        if (googleId) {
+            if (!user.googleId) {
+                const errorMessage = user.facebookId
+                    ? 'Please log in with Facebook.'
+                    : user.appleId
+                    ? 'Please log in with Apple.'
+                    : 'Please log in with email.';
+                return next(createError.BadRequest(errorMessage));
+            }
+            if (googleId !== user.googleId) {
+                return next(createError.BadRequest('Invalid Google ID.'));
+            }
+        }
+
+        if (facebookId) {
+            if (!user.facebookId) {
+                const errorMessage = user.googleId
+                    ? 'Please log in with Google.'
+                    : user.appleId
+                    ? 'Please log in with Apple.'
+                    : 'Please log in with email.';
+                return next(createError.BadRequest(errorMessage));
+            }
+            if (facebookId !== user.facebookId) {
+                return next(createError.BadRequest('Invalid Facebook ID.'));
+            }
+        }
+
+        if (appleId) {
+            if (!user.appleId) {
+                const errorMessage = user.googleId
+                    ? 'Please log in with Google.'
+                    : user.facebookId
+                    ? 'Please log in with Facebook.'
+                    : 'Please log in with email.';
+                return next(createError.BadRequest(errorMessage));
+            }
+            if (appleId !== user.appleId) {
+                return next(createError.BadRequest('Invalid Apple ID.'));
+            }
+        }
+
+        user.fcmToken = req.body.fcmToken;
+        await user.save();
+        const token = await user.generateAuthToken();
+
+        user.__v = undefined;
+        user.isDelete = undefined;
+        user.isActive = undefined;
+        user.updatedAt = undefined;
+
+        return res.json({
+            message: 'Login Successful.',
+            token,
+            user,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.createSocialProfile = async (req, res, next) => {
+    try {
+        console.log('createSocialProfile');
+        let user = new User({
+            name: req.body.name,
+            email: req.body.email,
+            address: req.body.address,
+
+            landmark: req.body.landmark,
+            city: req.body.city,
+            state: req.body.state,
+            country: req.body.country,
+            zipcode: req.body.zipcode,
+
+            fcmToken: req.body.fcmToken,
+            googleId: req.body.googleId,
+            facebookId: req.body.facebookId,
+            appleId: req.body.appleId,
+        });
+
+        await user.validate();
+
+        await Promise.all([user.save()]);
+
+        const token = await user.generateAuthToken();
+
+        // hide fields
+        user.password = undefined;
+        user.__v = undefined;
+        user.isDelete = undefined;
+        user.isActive = undefined;
+        user.updatedAt = undefined;
+
+        res.status(201).json({
+            message: 'Profile created successfully.',
+            token,
+            user,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 exports.login = async (req, res, next) => {
     try {
         const { email, password, fcmToken } = req.body;
 
         if (!email && !password)
-            return next(
-                createError.BadRequest('Provide mobile number and password!')
-            );
+            return next(createError.BadRequest('Provide email and password!'));
 
         let user = await User.findOne({ email, isDelete: false }).select(
             '+password -__v -createdAt -updatedAt'
