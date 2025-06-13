@@ -287,7 +287,6 @@ exports.socialLogin = async (req, res, next) => {
 
 exports.createSocialProfile = async (req, res, next) => {
     try {
-        console.log('createSocialProfile');
         let user = new User({
             name: req.body.name,
             email: req.body.email,
