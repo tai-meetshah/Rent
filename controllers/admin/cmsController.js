@@ -22,7 +22,7 @@ exports.postPrivacy = async (req, res) => {
         await page.save();
 
         req.flash('green', 'Privacy Policy updated successfully.');
-        res.redirect('/cms/privacy');
+        res.redirect('/admin/cms/privacy');
     } catch (error) {
         req.flash('red', error.message);
         res.redirect(req.originalUrl);
