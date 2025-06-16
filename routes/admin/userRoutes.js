@@ -8,7 +8,7 @@ router.get(
     authController.checkPermission('user', 'isView'),
     userController.getAllUsers
 );
-router.get('/:type/:id', userController.viewUser);
+// router.get('/:type/:id', userController.viewUser);
 router.get('/change-status/:id/:status', userController.changeUserStatus);
 router.get('/delete/:id', userController.getDeleteUser);
 

@@ -68,7 +68,7 @@
                                                             <th>City</th>
                                                             <th>Created Date</th>
                                                             <th data-orderable="false">Status</th>
-                                                            <!-- <th data-orderable="false">Action</th> -->
+                                                            <th data-orderable="false">Action</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -93,6 +93,13 @@
                                                                     <a href="/admin/user/change-status/<%= users[i]._id %>/1" class="waves-effect border-round waves-light btn red mr-1 mb-2"  style="padding: 0px 16px 0px 16px;" onclick="return confirm('Are you sure want to Active this user?');">De-Active</a>
                                                                 <% } %>
 
+                                                            </td>
+                                                             <td>
+                                                               
+
+                                                                  <a href="/admin/user/delete/<%= users[i]._id %>" class="btn-floating waves-effect waves-light accent-2 btn-delete">
+                                                                    <i class="material-icons" onclick="return confirm('Are you sure want to delete this user?');">delete</i>
+                                                                  </a>
                                                             </td>
                                                         </tr>
                                                         <% } %>

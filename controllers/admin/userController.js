@@ -54,6 +54,7 @@ exports.changeUserStatus = async (req, res) => {
 
 exports.getDeleteUser = async (req, res) => {
     try {
+        console.log(req.params.id);
         await User.findByIdAndDelete(req.params.id);
 
         req.flash('green', 'User deleted successfully.');
