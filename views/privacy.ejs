@@ -42,7 +42,6 @@
                                             <div class="col s12">
                                                 <%- include('messages', { messages: messages }) %>
                                                 <form method="POST" onsubmit="validate()" id="form" action="/cms/privacy">
-                                                    <h4 class="card-title">English</h4>
                                                     <div class="input-field">
                                                         <input placeholder="Title" id="EnTitle" name="EnTitle" type="text" value="<%= page.en.title %>">
                                                         <small>
@@ -54,18 +53,7 @@
                                                         Content
                                                         <textarea name="EnContent" class="form-control ta" id="ta1" cols="30" rows="10" placeholder="content"> <%= page.en.content %> </textarea>
                                                     </div>
-                                                    <h4 class="card-title mt-2">Arabic</h4>
-                                                    <div class="input-field">
-                                                        <input placeholder="Title" id="ArTitle" name="ArTitle" type="text" value="<%= page.ar.title %>">
-                                                        <small>
-                                                            <div id="ArTitleErr" class="error"></div>
-                                                        </small>
-                                                        <label for="ArTitle">Title</label>
-                                                    </div>
-                                                    <div class="form-group">
-                                                        Content
-                                                        <textarea name="ArContent" class="form-control ta" id="ta2" cols="30" rows="10" placeholder="content"> <%= page.ar.content %> </textarea>
-                                                    </div>
+
 
                                                     <button type="submit" id="submitBtn" class="btn purple mt-2">Submit</button>
                                                     <a onclick="history.back()" class="btn btn-danger ml-1 mt-2">Cancel</a>
@@ -94,7 +82,6 @@
         function validate() {
 
             const EnTitleValue = document.getElementById('EnTitle').value.trim();
-            const ArTitleValue = document.getElementById('ArTitle').value.trim();
 
             if (EnTitleValue == '') {
                 return setError('EnTitleErr', 'Please enter title.');
@@ -102,11 +89,7 @@
                 document.getElementById('EnTitleErr').innerText = '';
             }
 
-            if (ArTitleValue == '') {
-                return setError('ArTitleErr', 'Please enter title.');
-            } else {
-                document.getElementById('ArTitleErr').innerText = '';
-            }
+
 
             document.getElementById('submitBtn').disabled = true;
             form.submit();

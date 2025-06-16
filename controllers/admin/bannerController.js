@@ -7,7 +7,7 @@ exports.getBanners = async (req, res) => {
         res.render('banner', { banners });
     } catch (error) {
         req.flash('red', error.message);
-        res.redirect('/');
+        res.redirect('/admin');
     }
 };
 
@@ -16,7 +16,7 @@ exports.getAddBanner = async (req, res) => {
         res.render('banner_add');
     } catch (error) {
         req.flash('red', error.message);
-        res.redirect('/banner');
+        res.redirect('/admin/banner');
     }
 };
 
@@ -28,10 +28,10 @@ exports.postAddBanner = async (req, res) => {
         });
 
         req.flash('green', 'Banner created successfully.');
-        res.redirect('/banner');
+        res.redirect('/admin/banner');
     } catch (error) {
         req.flash('red', error.message);
-        res.redirect('/banner');
+        res.redirect('/admin/banner');
     }
 };
 
@@ -43,7 +43,7 @@ exports.getEditBanner = async (req, res) => {
     } catch (error) {
         if (error.name === 'CastError') req.flash('red', 'banner not found!');
         else req.flash('red', error.message);
-        res.redirect('/banner');
+        res.redirect('/admin/banner');
     }
 };
 
@@ -59,10 +59,10 @@ exports.postEditBanner = async (req, res) => {
         await banner.save();
 
         req.flash('green', 'Banner updated successfully.');
-        res.redirect('/banner');
+        res.redirect('/admin/banner');
     } catch (error) {
         req.flash('red', error.message);
-        res.redirect('/banner');
+        res.redirect('/admin/banner');
     }
 };
 
@@ -71,11 +71,11 @@ exports.getDeleteBanner = async (req, res) => {
         await bannerModel.findByIdAndDelete(req.params.id);
 
         req.flash('green', 'Banner deleted successfully.');
-        res.redirect('/banner');
+        res.redirect('/admin/banner');
     } catch (error) {
         if (error.name === 'CastError' || error.name === 'TypeError')
             req.flash('red', 'Banner not found!');
         else req.flash('red', error.message);
-        res.redirect('/banner');
+        res.redirect('/admin/banner');
     }
 };

@@ -8,6 +8,7 @@ const Admin = require('../../models/adminModel');
 const OTP = require('../../models/adminOtpModel');
 const User = require('../../models/userModel');
 const adminModel = require('../../models/adminModel');
+const categoryModel = require('../../models/categoryModel');
 
 exports.checkAdmin = async (req, res, next) => {
     try {
@@ -95,7 +96,7 @@ exports.checkPermission = (moduleKey, action) => {
 exports.getDashboard = async (req, res) => {
     var data = {};
     data.user = await User.find({ isDelete: false }).count();
-    // data.vendor = await Vendor.find({ isDelete: false }).count();
+    data.category = await categoryModel.find({ isDelete: false }).count();
     res.render('index', { data });
 };
 
