@@ -81,7 +81,6 @@
         function validate() {
 
             const EnTitleValue = document.getElementById('EnTitle').value.trim();
-            const ArTitleValue = document.getElementById('ArTitle').value.trim();
 
             if (EnTitleValue == '') {
                 return setError('EnTitleErr', 'Please enter title.');
@@ -89,11 +88,7 @@
                 document.getElementById('EnTitleErr').innerText = '';
             }
 
-            if (ArTitleValue == '') {
-                return setError('ArTitleErr', 'Please enter title.');
-            } else {
-                document.getElementById('ArTitleErr').innerText = '';
-            }
+     
 
             document.getElementById('submitBtn').disabled = true;
             form.submit();
