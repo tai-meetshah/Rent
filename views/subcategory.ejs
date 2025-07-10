@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+  <%- include('_layouts/head') %>
+    <title>Subcategory | <%= title %>
+    </title>
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css"
+      href="/app-assets/vendors/data-tables/extensions/responsive/css/responsive.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/select.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+</head>
+<!-- END: Head-->
+
+<body
+  class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns"
+  data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+  <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+      <div class="row">
+        <%- include('messages', { messages: messages }) %>
+          <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+            <div class="container">
+              <div class="row">
+              <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+                <div class="container">
+                  <div class="row">
+                    <%- include('messages', { messages: messages }) %>
+                      <div class="col s12 m6 l6">
+                        <h6 class="breadcrumbs-title"><span>Manage Subcategory</span></h6>
+                      </div>
+                      <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                        <ol class="breadcrumbs mb-0">
+                          <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
+                          <li class="breadcrumb-item active">Subcategory List</li>
+                        </ol>
+                      </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="breadcrumbs-wrapper" style="background-color: white;">
+                <div class="container">
+                  <div class="row">
+                    <div class="col s12 right-align-md">
+                      <a class="btn pull-right btn-add btn-breadcrumbs white-text" href="/admin/category/<%= category.id %>/add">Create
+                        Subcategory</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="col s12">
+            <div class="container">
+              <div class="section section-data-tables">
+                <!-- Page Length Options -->
+                <div class="row">
+                  <div class="col s12">
+                    <div class="card">
+                      <div class="card-content">
+                        <h4 class="card-title">Category: <%= category.name %>
+                        </h4>
+                        <div class="row">
+                          <div class="col s12 overflow">
+                            <table id="page-length-option" class="display">
+                              <thead>
+                                <tr>
+                                  <th>Sr</th>
+                                  <th>Name</th>
+                                  <th>Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <% for( let i=0; i < subcategories.length; i++ ) { %>
+                                  <tr>
+                                    <td>
+                                      <%= i+1 %>
+                                    </td>
+                                    <td>
+                                      <%= subcategories[i].name %>
+                                    </td>
+                                    <td style="max-width: 70px;">
+                                      <a href="/subcategory/<%= category.id %>/edit/<%= subcategories[i].id %>"><i
+                                          class="material-icons">create</i></a>
+                                      <a href="/subcategory/delete/<%= subcategories[i].id %>"
+                                        onclick="return confirm('Are you sure?')"><i
+                                          class="material-icons">delete</i></a>
+                                    </td>
+                                  </tr>
+                                  <% } %>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="content-overlay"></div>
+          </div>
+      </div>
+    </div>
+    <!-- END: Page Main-->
+
+    <%- include('_layouts/commonJs') %>
+      <script src="/app-assets/vendors/data-tables/js/jquery.dataTables.min.js"></script>
+      <%- include('_layouts/savePageLength') %>
+        <script>
+          jQuery(document).ready(function ($) {
+            $(".clickable-row").click(function () {
+              window.location = $(this).data("href");
+            });
+          });
+        </script>
+</body>
+
+</html>

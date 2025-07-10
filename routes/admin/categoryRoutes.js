@@ -38,4 +38,17 @@ router.get(
 );
 router.get('/delete-category/:id', categoryController.deleteCategory);
 
+// subcategory
+router.get('/:categoryId', categoryController.getSubcategories);
+router
+    .route('/:categoryId/add')
+    .get(categoryController.getAddSubcategory)
+    .post(categoryController.postAddSubcategory);
+router
+    .route('/:categoryId/edit/:id')
+    .get(categoryController.getEditSubcategory)
+    .post(categoryController.postEditSubcategory);
+router.get('/subcategory/delete/:id', categoryController.getDeleteSubcategory);
+
+
 module.exports = router;

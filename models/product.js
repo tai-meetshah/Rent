@@ -3,17 +3,23 @@ const validator = require('validator');
 const validate = require('../utils/validation.json');
 
 
-const toTitleCase = x =>
-    x.replace(
-        /\w\S*/g,
-        txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
-    );
+// const toTitleCase = x =>
+//     x.replace(
+//         /\w\S*/g,
+//         txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+//     );
 
-const MerchantSchema = new mongoose.Schema(
+const chargeSlabSchema = new mongoose.Schema({
+    from: { type: Number, required: true }, // e.g. 0
+    to: { type: Number, required: true },   // e.g. 25
+    amount: { type: Number, required: true } // e.g. 100
+});
+
+const ProductSchema = new mongoose.Schema(
     {
-        name: {
+        title: {
             type: String,
-            required: [true, 'Item name is required.'],
+            required: [true, 'Title is required.'],
             trim: true,
         },
         category: [
@@ -26,37 +32,48 @@ const MerchantSchema = new mongoose.Schema(
         subcategory: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                required: [true, 'Subcategory is required.'],
+                // required: [true, 'Subcategory is required.'],
                 ref: 'Subcategory',
             },
         ],
-        country: {
+        description: {
             type: String,
-            required: [true, 'Country is required.'],
-            trim: true,
-            set: toTitleCase,
-        },
-        state: {
-            type: String,
-            required: [true, 'State is required.'],
-            trim: true,
-            set: toTitleCase,
-        },
-        city: {
-            type: String,
-            required: [true, 'City is required.'],
-            trim: true,
-            set: toTitleCase,
-        },
-        address: {
-            type: String,
-            required: [true, 'Address is required.'],
+            required: [true, 'Description is required.'],
             trim: true,
         },
-        call: {
+        feature: {
             type: String,
-            required: [true, 'Phone number is required.'],
+            trim: true,
         },
+        ideal: {
+            type: String,
+            trim: true,
+        },
+
+        inStock: { type: Boolean, required: true },
+        stockQuantity: {
+            type: String,
+            required: function () {
+                return this.inStock;
+            },
+        },
+
+        deposit: { type: Boolean, required: true },
+        depositAmount: {
+            type: String,
+            required: function () {
+                return this.inStock;
+            },
+        },
+
+        deliverProduct: { type: Boolean, required: true },
+
+        slabs: [chargeSlabSchema],
+        deliver: { type: String, required: true }, //car bike
+
+        selectDate: [{ type: Date, required: true }],
+        keywords: [{ type: String, required: true }],
+
         email: {
             type: String,
             required: [true, validate.email],
@@ -66,12 +83,12 @@ const MerchantSchema = new mongoose.Schema(
         },
         images: {
             type: [String],
-            validate: {
-                validator: function (images) {
-                    return images.length <= 6;
-                },
-                message: 'Maximum 6 images allowed.',
-            },
+            // validate: {
+            //     validator: function (images) {
+            //         return images.length <= 6;
+            //     },
+            //     message: 'Maximum 6 images allowed.',
+            // },
         },
         review: {
             type: mongoose.Schema.Types.ObjectId,
@@ -85,17 +102,9 @@ const MerchantSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
-        facebook: { type: String, trim: true },
-        instagram: { type: String, trim: true },
-        twitter: { type: String, trim: true },
-        youtube: { type: String, trim: true },
+
         isDeleted: { type: Boolean, default: false, select: false },
-        offers: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Offer',
-            },
-        ],
+
         coordinates: {
             type: {
                 type: String,
@@ -118,6 +127,6 @@ const MerchantSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-MerchantSchema.index({ coordinates: '2dsphere' }, { background: true });
+ProductSchema.index({ coordinates: '2dsphere' }, { background: true });
 
-module.exports = new mongoose.model('Merchant', MerchantSchema);
+module.exports = new mongoose.model('Product', ProductSchema);

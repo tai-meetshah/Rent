@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Category = require('../../models/categoryModel');
+const Subcategory = require('../../models/subCatModel');
 
 exports.getCategories = async (req, res) => {
     try {
@@ -105,5 +106,135 @@ exports.deleteCategory = async (req, res) => {
         if (error.name === 'CastError') req.flash('red', 'Category not found!');
         else req.flash('red', error.message);
         res.redirect('/admin/category');
+    }
+};
+
+
+exports.getSubcategories = async (req, res) => {
+    try {
+        const [category, subcategories] = await Promise.all([
+            Category.findById(req.params.categoryId),
+            Subcategory.find({ category: req.params.categoryId }).sort('name'),
+        ]);
+
+        if (!category) {
+            req.flash('red', 'Category not found!');
+            return res.redirect('/category');
+        }
+
+        res.render('subcategory', { subcategories, category });
+    } catch (error) {
+        if (error.name === 'CastError') req.flash('red', 'Category not found!');
+        else req.flash('red', error.message);
+        res.redirect('/category');
+    }
+};
+
+exports.getAddSubcategory = async (req, res) => {
+    try {
+        const [category, categories] = await Promise.all([
+            Category.findById(req.params.categoryId),
+            Category.find({ isDelete: false }).sort('name'),
+        ]);
+        console.log('getAddSubcategory')
+        res.render('subcategory_add', { category, categories });
+    } catch (error) {
+        req.flash('red', error.message);
+        res.redirect(`/category/${req.params.categoryId}`);
+    }
+};
+
+exports.postAddSubcategory = async (req, res) => {
+    try {
+        await Subcategory.create({
+            name: req.body.EnName,
+            category: req.body.category,
+        });
+        console.log('postAddSubcategory')
+
+        req.flash('green', 'Sub Category added successfully.');
+        // res.redirect(`/category/${req.params.categoryId}`);
+        res.redirect(`/category/${req.params.categoryId}`);
+
+    } catch (error) {
+        console.log(error)
+        req.flash('red', error.message);
+        res.redirect(`/category/${req.params.categoryId}`);
+    }
+};
+
+exports.getEditSubcategory = async (req, res) => {
+    try {
+        const [subcategory, categories] = await Promise.all([
+            Subcategory.findById(req.params.id),
+            Category.find().sort('name'),
+        ]);
+
+        if (!subcategory) {
+            req.flash('red', 'Subcategory not found!');
+            return res.redirect(`/category/${req.params.categoryId}`);
+        }
+
+        res.render('subcategory_edit', { subcategory, categories });
+    } catch (error) {
+        if (error.name === 'CastError')
+            req.flash('red', 'Subcategory not found!');
+        else req.flash('red', error.message);
+        res.redirect(`/category/${req.params.categoryId}`);
+    }
+};
+
+exports.postEditSubcategory = async (req, res) => {
+    try {
+        const subcategory = await Subcategory.findById(req.params.id);
+        if (!subcategory) {
+            req.flash('red', 'Subcategory not found!');
+            return res.redirect(`/category/${req.params.categoryId}`);
+        }
+
+        subcategory.name = req.body.EnName;
+        subcategory.category = req.body.category;
+
+        await subcategory.save();
+
+        req.flash('green', 'Subcategory updated successfully.');
+        res.redirect(`/category/${subcategory.category}`);
+    } catch (error) {
+        req.flash('red', error.message);
+        res.redirect(`/category/${req.params.categoryId}`);
+    }
+};
+
+exports.getDeleteSubcategory = async (req, res) => {
+    try {
+        // const merchants = await Merchant.find({
+        //     subcategory: req.params.id,
+        // }).select('_id');
+
+        // const merchantIDs = merchants.map(x => x._id);
+
+        await Promise.all([
+            Subcategory.deleteOne({
+                _id: req.params.id,
+            }),
+            // Review.deleteMany({
+            //     merchant: {
+            //         $in: merchantIDs,
+            //     },
+            // }),
+            // Offer.deleteMany({
+            //     merchant: {
+            //         $in: merchantIDs,
+            //     },
+            // }),
+        ]);
+
+        req.flash('green', 'Subcategory deleted successfully.');
+        res.redirect('/category');
+    } catch (error) {
+        if (error.name === 'CastError')
+            req.flash('red', 'Subcategory not found!');
+        else req.flash('red', error.message);
+        res.redirect('/category');
     }
 };
