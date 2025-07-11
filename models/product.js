@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
-const validator = require('validator');
-const validate = require('../utils/validation.json');
-
+// const validator = require('validator');
+// const validate = require('../utils/validation.json');
 
 // const toTitleCase = x =>
 //     x.replace(
@@ -11,8 +10,8 @@ const validate = require('../utils/validation.json');
 
 const chargeSlabSchema = new mongoose.Schema({
     from: { type: Number, required: true }, // e.g. 0
-    to: { type: Number, required: true },   // e.g. 25
-    amount: { type: Number, required: true } // e.g. 100
+    to: { type: Number, required: true }, // e.g. 25
+    amount: { type: Number, required: true }, // e.g. 100
 });
 
 const ProductSchema = new mongoose.Schema(
@@ -42,6 +41,7 @@ const ProductSchema = new mongoose.Schema(
             trim: true,
         },
         feature: {
+            //key features
             type: String,
             trim: true,
         },
@@ -66,20 +66,21 @@ const ProductSchema = new mongoose.Schema(
             },
         },
 
-        deliverProduct: { type: Boolean, required: true },
+        deliverProduct: { type: Boolean, required: true }, //deliverProduct to renter
 
         slabs: [chargeSlabSchema],
         deliver: { type: String, required: true }, //car bike
 
-        selectDate: [{ type: Date, required: true }],
+        selectDate: [{ type: Date }],
+        allDaysAvailable: { type: Boolean, default: false },
         keywords: [{ type: String, required: true }],
 
         email: {
             type: String,
-            required: [true, validate.email],
+            // required: [true, validate.email],
             unique: true,
             lowercase: true,
-            validate: [validator.isEmail, validate.emailInvalid],
+            // validate: [validator.isEmail, validate.emailInvalid],
         },
         images: {
             type: [String],
@@ -122,7 +123,52 @@ const ProductSchema = new mongoose.Schema(
         longitude: {
             type: String,
         },
-        date: { type: Date, default: Date.now },
+        oName: {
+            type: String,
+            trim: true,
+        },
+        oEmail: {
+            type: String,
+            lowercase: true,
+            // validate: [validator.isEmail, validate.emailInvalid],
+        },
+        oCoordinates: {
+            type: {
+                type: String,
+                enum: ['Point'],
+                default: 'Point',
+            },
+            coordinates: {
+                type: [Number],
+                index: '2dsphere',
+            },
+        },
+        oLatitude: {
+            type: String,
+        },
+        oLongitude: {
+            type: String,
+        },
+        oCancellationCharges: [
+            {
+                hoursBefore: {
+                    type: String,
+                    required: true, // e.g. 24 or 12
+                },
+                chargeAmount: {
+                    type: String,
+                    required: true, // e.g. 50 or 100
+                },
+            },
+        ],
+        oRentingOut: { type: Boolean },
+        oRulesPolicy: {
+            type: String,
+        },
+
+        step: {
+            type: String,
+        },
     },
     { timestamps: true }
 );

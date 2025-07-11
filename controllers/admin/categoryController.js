@@ -147,10 +147,9 @@ exports.getAddSubcategory = async (req, res) => {
 exports.postAddSubcategory = async (req, res) => {
     try {
         await Subcategory.create({
-            name: req.body.EnName,
+            name: req.body.ename,
             category: req.body.category,
         });
-        console.log('postAddSubcategory')
 
         req.flash('green', 'Sub Category added successfully.');
         // res.redirect(`/category/${req.params.categoryId}`);

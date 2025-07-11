@@ -43,11 +43,11 @@ router.get('/:categoryId', categoryController.getSubcategories);
 router
     .route('/:categoryId/add')
     .get(categoryController.getAddSubcategory)
-    .post(categoryController.postAddSubcategory);
+    .post(upload.none(), categoryController.postAddSubcategory);
 router
     .route('/:categoryId/edit/:id')
     .get(categoryController.getEditSubcategory)
-    .post(categoryController.postEditSubcategory);
+    .post(upload.none(), categoryController.postEditSubcategory);
 router.get('/subcategory/delete/:id', categoryController.getDeleteSubcategory);
 
 
