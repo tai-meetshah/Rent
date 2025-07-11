@@ -78,7 +78,7 @@ const ProductSchema = new mongoose.Schema(
         email: {
             type: String,
             // required: [true, validate.email],
-            unique: true,
+            // unique: true,
             lowercase: true,
             // validate: [validator.isEmail, validate.emailInvalid],
         },

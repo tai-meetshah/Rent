@@ -131,6 +131,9 @@ exports.createProductStep1 = async (req, res, next) => {
 
         const savedProduct = await newProduct.save();
 
+        savedProduct.oCoordinates = undefined;
+        savedProduct.oCancellationCharges = undefined;
+
         res.status(201).json({
             success: true,
             message: 'Step 1: Product created successfully.',
