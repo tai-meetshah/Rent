@@ -21,6 +21,11 @@ const ProductSchema = new mongoose.Schema(
             required: [true, 'Title is required.'],
             trim: true,
         },
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            required: [true, 'User is required.'],
+            ref: 'User',
+        },
         category: [
             {
                 type: mongoose.Schema.Types.ObjectId,
@@ -61,9 +66,9 @@ const ProductSchema = new mongoose.Schema(
         deposit: { type: Boolean, required: true },
         depositAmount: {
             type: String,
-            required: function () {
-                return this.inStock;
-            },
+            // required: function () {
+            //     return this.inStock;
+            // },
         },
 
         deliverProduct: { type: Boolean, required: true }, //deliverProduct to renter
@@ -75,13 +80,6 @@ const ProductSchema = new mongoose.Schema(
         allDaysAvailable: { type: Boolean, default: false },
         keywords: [{ type: String, required: true }],
 
-        email: {
-            type: String,
-            // required: [true, validate.email],
-            // unique: true,
-            lowercase: true,
-            // validate: [validator.isEmail, validate.emailInvalid],
-        },
         images: {
             type: [String],
             // validate: {
@@ -105,6 +103,10 @@ const ProductSchema = new mongoose.Schema(
         },
 
         isDeleted: { type: Boolean, default: false, select: false },
+        isActive: {
+            type: Boolean,
+            default: true,
+        },
 
         coordinates: {
             type: {
@@ -121,6 +123,9 @@ const ProductSchema = new mongoose.Schema(
             type: String,
         },
         longitude: {
+            type: String,
+        },
+        location: {
             type: String,
         },
         oName: {
@@ -149,6 +154,9 @@ const ProductSchema = new mongoose.Schema(
         oLongitude: {
             type: String,
         },
+        oLocation: {
+            type: String,
+        },
         oCancellationCharges: [
             {
                 hoursBefore: {
@@ -169,6 +177,7 @@ const ProductSchema = new mongoose.Schema(
         step: {
             type: String,
         },
+        publish: { type: Boolean },
     },
     { timestamps: true }
 );

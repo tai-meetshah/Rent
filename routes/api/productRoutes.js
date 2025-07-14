@@ -7,6 +7,7 @@ const { upload } = require('../../controllers/uploadController');
 const productController = require('../../controllers/api/productController');
 
 router.get('/category', checkUser, productController.getAllCategories);
+router.get('/user-product', checkUser, productController.getAllProduct);
 
 router.post(
     '/category/:categoryId',
@@ -18,6 +19,17 @@ router.get('/subcategory', productController.getAllSubcategories);
 router.post(
     '/create-product-step-1',
     upload.array('images', 6),
+    checkUser,
     productController.createProductStep1
 );
+
+router.post(
+    '/create-product-step-2',
+    fileUpload(),
+    checkUser,
+    productController.createProductStep2
+);
+
+router.post('/remove-image', fileUpload(), checkUser, productController.deleteProductImg)
+
 module.exports = router;

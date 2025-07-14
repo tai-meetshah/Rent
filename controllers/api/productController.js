@@ -5,13 +5,29 @@ const Product = require('../../models/product');
 exports.getAllCategories = async (req, res, next) => {
     try {
         let categories = await Category.find({
-            isDelete: false,
+            isDeleted: false,
             isActive: true,
         })
             .sort('-_id')
-            .select('-__v -isDelete -isActive');
+            .select('-__v -isDeleted -isActive');
 
         res.json({ success: true, categories });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.getAllProduct = async (req, res, next) => {
+    try {
+        let categories = await Product.find({
+            isDeleted: false,
+            isActive: true,
+            user: req.user.id
+        })
+            .sort('-_id')
+            .select('-__v -isDeleted -isActive');
+
+        res.json({ success: true, data: categories });
     } catch (error) {
         next(error);
     }
@@ -90,7 +106,7 @@ exports.createProductStep1 = async (req, res, next) => {
             selectDate,
             allDaysAvailable,
             keywords,
-            email,
+            location,
         } = req.body;
 
         // Parse fields that come as JSON strings
@@ -108,6 +124,7 @@ exports.createProductStep1 = async (req, res, next) => {
             description,
             feature,
             ideal,
+
             inStock,
             stockQuantity,
             deposit,
@@ -118,15 +135,17 @@ exports.createProductStep1 = async (req, res, next) => {
             selectDate: parsedSelectDate,
             allDaysAvailable,
             keywords: parsedKeywords,
-            email,
             images,
+
             step: '1',
             latitude,
             longitude,
+            location,
             coordinates: {
                 type: 'Point',
                 coordinates: [longitude, latitude],
             },
+            user: req.user.id
         });
 
         const savedProduct = await newProduct.save();
@@ -144,3 +163,220 @@ exports.createProductStep1 = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.createProductStep2 = async (req, res, next) => {
+    try {
+        const {
+            oName,
+            oEmail,
+            oLatitude,
+            oLongitude,
+            oCancellationCharges,
+            oRentingOut,
+            oRulesPolicy,
+            oLocation,
+            productId,
+            publish
+        } = req.body;
+
+        // Prepare update object
+        const updateData = {
+            oName,
+            oEmail,
+            oLatitude: parseFloat(oLatitude),
+            oLongitude: parseFloat(oLongitude),
+            oLocation,
+            oRentingOut,
+            oRulesPolicy,
+            step: "2",
+            publish
+        };
+
+        // GeoJSON point
+        if (oLatitude && oLongitude) {
+            updateData.oCoordinates = {
+                type: 'Point',
+                coordinates: [parseFloat(oLongitude), parseFloat(oLatitude)]
+            };
+        }
+
+        // Parse cancellation charges
+        if (oCancellationCharges) {
+            updateData.oCancellationCharges = typeof oCancellationCharges === 'string'
+                ? JSON.parse(oCancellationCharges)
+                : oCancellationCharges;
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(
+            productId,
+            updateData,
+            { new: true }
+        );
+
+        if (!updatedProduct) {
+            return res.status(404).json({ success: false, message: 'Product not found.' });
+        }
+
+        const responseFields = {
+            _id: updatedProduct._id,
+            oName: updatedProduct.oName,
+            oEmail: updatedProduct.oEmail,
+            oLatitude: updatedProduct.oLatitude,
+            oLongitude: updatedProduct.oLongitude,
+            oCoordinates: updatedProduct.oCoordinates,
+            oLocation: updatedProduct.oLocation,
+            oRentingOut: updatedProduct.oRentingOut,
+            oRulesPolicy: updatedProduct.oRulesPolicy,
+            oCancellationCharges: updatedProduct.oCancellationCharges,
+            step: updatedProduct.step,
+            publish: updatedProduct.publish
+        };
+
+        res.status(200).json({
+            success: true,
+            message: 'Step 2: Owner information updated.',
+            data: responseFields,
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+exports.editProductStep1 = async (req, res, next) => {
+    try {
+        const {
+            productId,
+            slabs,
+            selectDate,
+            keywords,
+            latitude,
+            longitude
+        } = req.body;
+
+        const images = req.files ? req.files.map(file => `/${file.filename}`) : undefined;
+
+        const allowedFields = [
+            'title', 'category', 'subcategory', 'description', 'feature', 'ideal',
+            'inStock', 'stockQuantity', 'deposit', 'depositAmount', 'deliverProduct',
+            'deliver', 'allDaysAvailable', 'location', 'publish'
+        ];
+
+        const updateData = {};
+
+        // Dynamically assign values
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updateData[field] = req.body[field];
+            }
+        });
+
+        if (slabs !== undefined) {
+            updateData.slabs = typeof slabs === 'string' ? JSON.parse(slabs) : slabs;
+        }
+
+        if (selectDate !== undefined) {
+            updateData.selectDate = typeof selectDate === 'string' ? JSON.parse(selectDate) : selectDate;
+        }
+
+        if (keywords !== undefined) {
+            updateData.keywords = typeof keywords === 'string' ? JSON.parse(keywords) : keywords;
+        }
+
+        if (latitude !== undefined) updateData.latitude = parseFloat(latitude);
+        if (longitude !== undefined) updateData.longitude = parseFloat(longitude);
+
+        if (latitude && longitude) {
+            updateData.coordinates = {
+                type: 'Point',
+                coordinates: [parseFloat(longitude), parseFloat(latitude)],
+            };
+        }
+
+        if (images && images.length > 0) {
+            const existingProduct = await Product.findById(productId);
+            if (!existingProduct) {
+                return res.status(404).json({ success: false, message: "Product not found" });
+            }
+
+            updateData.images = [...existingProduct.images, ...images];
+        }
+
+        updateData.step = "1";
+
+        const updated = await Product.findByIdAndUpdate(productId, updateData, { new: true });
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Step 1: Product updated successfully.",
+            data: updated
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.editProductStep2 = async (req, res, next) => {
+    try {
+        const { productId } = req.body;
+
+        // Whitelisted Step 2 fields
+        const allowedFields = [
+            'oName', 'oEmail', 'oLatitude',
+            'oLongitude', 'oCancellationCharges', 'oRentingOut',
+            'oRulesPolicy', 'oLocation', 'publish'
+        ];
+
+        const updateData = {};
+
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updateData[field] = req.body[field];
+            }
+        });
+
+        if (oLatitude && oLongitude) {
+            updateData.oCoordinates = {
+                type: 'Point',
+                coordinates: [parseFloat(oLongitude), parseFloat(oLatitude)],
+            };
+        }
+
+        updateData.step = "2";
+
+        const updated = await Product.findByIdAndUpdate(productId, updateData, { new: true });
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Step 2: Owner info updated successfully.",
+            data: updated
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+exports.deleteProductImg = async (req, res, next) => {
+    try {
+        const { imagePath, productId } = req.body;
+        const product = await Product.findById(productId);
+        if (!product) return res.status(404).json({ success: false });
+
+        product.images = product.images.filter(img => img !== imagePath);
+        await product.save();
+
+        res.json({ success: true, message: "Image removed successfully" });
+    } catch (error) {
+        next(error);
+    }
+}
