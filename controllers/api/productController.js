@@ -17,12 +17,29 @@ exports.getAllCategories = async (req, res, next) => {
     }
 };
 
+// one user product
 exports.getAllProduct = async (req, res, next) => {
     try {
         let categories = await Product.find({
             isDeleted: false,
             isActive: true,
             user: req.user.id
+        })
+            .sort('-_id')
+            .select('-__v -isDeleted -isActive');
+
+        res.json({ success: true, data: categories });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Get all the products not one user only /all-product
+exports.getProducts = async (req, res, next) => {
+    try {
+        let categories = await Product.find({
+            isDeleted: false,
+            isActive: true,
         })
             .sort('-_id')
             .select('-__v -isDeleted -isActive');
@@ -323,7 +340,7 @@ exports.editProductStep1 = async (req, res, next) => {
 
 exports.editProductStep2 = async (req, res, next) => {
     try {
-        const { productId } = req.body;
+        const { productId, oLatitude, oLongitude, oCancellationCharges } = req.body;
 
         // Whitelisted Step 2 fields
         const allowedFields = [
@@ -340,6 +357,12 @@ exports.editProductStep2 = async (req, res, next) => {
             }
         });
 
+        if (oCancellationCharges) {
+            updateData.oCancellationCharges = typeof oCancellationCharges === 'string'
+                ? JSON.parse(oCancellationCharges)
+                : oCancellationCharges;
+        }
+
         if (oLatitude && oLongitude) {
             updateData.oCoordinates = {
                 type: 'Point',
@@ -355,10 +378,25 @@ exports.editProductStep2 = async (req, res, next) => {
             return res.status(404).json({ success: false, message: "Product not found" });
         }
 
+        const responseFields = {
+            _id: updated._id,
+            oName: updated.oName,
+            oEmail: updated.oEmail,
+            oLatitude: updated.oLatitude,
+            oLongitude: updated.oLongitude,
+            oCoordinates: updated.oCoordinates,
+            oLocation: updated.oLocation,
+            oRentingOut: updated.oRentingOut,
+            oRulesPolicy: updated.oRulesPolicy,
+            oCancellationCharges: updated.oCancellationCharges,
+            step: updated.step,
+            publish: updated.publish
+        };
+
         res.status(200).json({
             success: true,
             message: "Step 2: Owner info updated successfully.",
-            data: updated
+            data: responseFields
         });
     } catch (error) {
         next(error);
@@ -380,3 +418,33 @@ exports.deleteProductImg = async (req, res, next) => {
         next(error);
     }
 }
+
+exports.cancellProduct = async (req, res, next) => {
+    try {
+        const { productId } = req.body;
+        const product = await Product.findById(productId);
+
+        product.isDeleted = true
+
+        await product.save();
+
+        res.json({ success: true, message: 'Product cancelled successfully.' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.activeDeactiveProduct = async (req, res, next) => {
+    try {
+        const { productId, status } = req.body;
+        const product = await Product.findById(productId);
+
+        product.isActive = status
+
+        await product.save()
+
+        res.json({ success: true, message: 'Product status updated successfully.' });
+    } catch (error) {
+        next(error);
+    }
+};

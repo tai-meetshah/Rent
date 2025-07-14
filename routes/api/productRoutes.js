@@ -8,6 +8,7 @@ const productController = require('../../controllers/api/productController');
 
 router.get('/category', checkUser, productController.getAllCategories);
 router.get('/user-product', checkUser, productController.getAllProduct);
+router.get('/all-product', checkUser, productController.getProducts);
 
 router.post(
     '/category/:categoryId',
@@ -22,12 +23,24 @@ router.post(
     checkUser,
     productController.createProductStep1
 );
-
 router.post(
     '/create-product-step-2',
     fileUpload(),
     checkUser,
     productController.createProductStep2
+);
+
+router.post(
+    '/edit-product-step-1',
+    upload.array('images', 6),
+    checkUser,
+    productController.editProductStep1
+);
+router.post(
+    '/edit-product-step-2',
+    fileUpload(),
+    checkUser,
+    productController.editProductStep2
 );
 
 router.post('/remove-image', fileUpload(), checkUser, productController.deleteProductImg)
