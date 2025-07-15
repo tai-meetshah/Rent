@@ -27,7 +27,7 @@ exports.getAllProduct = async (req, res, next) => {
         })
             .sort('-_id')
             .populate('category subcategory')
-            .select('-__v -isDeleted -isActive');
+            .select('-__v -isDeleted');
 
         res.json({ success: true, data: categories });
     } catch (error) {
