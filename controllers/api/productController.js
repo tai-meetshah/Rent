@@ -26,6 +26,7 @@ exports.getAllProduct = async (req, res, next) => {
             user: req.user.id
         })
             .sort('-_id')
+            .populate('category subcategory')
             .select('-__v -isDeleted -isActive');
 
         res.json({ success: true, data: categories });
@@ -56,6 +57,7 @@ exports.getCategoryWithSubcategories = async (req, res, next) => {
 
         const subcategories = await Subcategory.find({
             category: categoryId,
+            isDeleted: false,
         }).select('-__v -category');
 
         res.json({
@@ -70,6 +72,11 @@ exports.getCategoryWithSubcategories = async (req, res, next) => {
 exports.getAllSubcategories = async (req, res, next) => {
     try {
         const categories = await Subcategory.aggregate([
+            {
+                $match: {
+                    isDeleted: false,
+                },
+            },
             {
                 $lookup: {
                     from: 'categories',
@@ -423,6 +430,9 @@ exports.cancellProduct = async (req, res, next) => {
     try {
         const { productId } = req.body;
         const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found.' });
+        }
 
         product.isDeleted = true
 
