@@ -42,6 +42,8 @@ router.post(
     checkUser,
     productController.editProductStep2
 );
+router.post('/status-change', fileUpload(), checkUser, productController.activeDeactiveProduct);
+router.post('/cancell-product', fileUpload(), checkUser, productController.cancellProduct);
 
 router.post('/remove-image', fileUpload(), checkUser, productController.deleteProductImg)
 

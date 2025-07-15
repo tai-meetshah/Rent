@@ -48,7 +48,7 @@ router
     .route('/:categoryId/edit/:id')
     .get(categoryController.getEditSubcategory)
     .post(upload.none(), categoryController.postEditSubcategory);
-router.get('/subcategory/delete/:id', categoryController.getDeleteSubcategory);
+router.get('/delete/:id', categoryController.getDeleteSubcategory);
 
 
 module.exports = router;

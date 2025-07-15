@@ -4,17 +4,20 @@
 
 <head>
     <%- include('_layouts/head') %>
-    <title>Edit Sub Category | <%= title %></title>
+        <title>Edit Sub Category | <%= title %>
+        </title>
 </head>
 <!-- END: Head-->
 
-<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+<body
+    class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns"
+    data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
     <%- include('_layouts/sidenavbar') %>
 
-    <!-- BEGIN: Page Main-->
-    <div id="main">
-        <div class="row">
-            <div id="breadcrumbs-wrapper" data-image="/app-assets/images/gallery/breadcrumb-bg.jpg">
+        <!-- BEGIN: Page Main-->
+        <div id="main">
+            <div class="row">
+                <!-- <div id="breadcrumbs-wrapper" data-image="/app-assets/images/gallery/breadcrumb-bg.jpg">
                 <div class="container">
                     <div class="row">
                         <div class="col s12 m6 l6">
@@ -30,89 +33,116 @@
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="col s12">
-                <div class="container">
-                    <div class="section">
+            </div> -->
+                <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+                    <!-- Search for small screen-->
+                    <div class="container">
                         <div class="row">
-                            <div class="col s12">
-                                <div class="card">
-                                    <div class="card-content">
-                                        <div class="row">
-                                            <form method="POST" onsubmit="validate()" action="/category/<%= subcategory.category %>/edit/<%= subcategory.id %>" id="form">
-                                                <div class="col m6 s12">
-                                                    <div class="input-field">
-                                                        <input placeholder="Name" id="EnName" name="EnName" type="text" value="<%= subcategory.name %>">
-                                                        <label for="EnName">Name</label>
+                            <div class="col s12 m6 l6">
+                                <h6 class="breadcrumbs-title"><span>Update Subcategory</span></h6>
+                            </div>
+                            <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                                <ol class="breadcrumbs mb-0">
+                                    <li class="breadcrumb-item"><a href="/admin">Dashboard</a>
+                                    </li>
+                                    <li class="breadcrumb-item"><a href="/admin/category">Subcategory</a>
+                                    </li>
+                                    <li class="breadcrumb-item active">Update Subcategory
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col s12">
+                    <div class="container">
+                        <div class="section">
+                            <div class="row">
+                                <div class="col s12">
+                                    <div class="card">
+                                        <div class="card-content">
+                                            <div class="row">
+                                                <form method="POST" onsubmit="validate()"
+                                                    action="/admin/category/<%= subcategory.category %>/edit/<%= subcategory.id %>"
+                                                    id="form">
+
+                                                    <div class="input-field col m6 s12">
+                                                        <select id="category" name="category">
+                                                            <option value="">Select category</option>
+                                                            <% for( let i=0; i < categories.length; i++ ) { %>
+                                                                <option value="<%= categories[i]._id %>"
+                                                                    <%=subcategory.category==categories[i].id
+                                                                    ? 'selected' : '' %>><%= categories[i].name %>
+                                                                </option>
+                                                                <% } %>
+                                                        </select>
+                                                        <label>Select category</label>
                                                         <small>
-                                                            <div id="error1" class="error"></div>
+                                                            <div id="error3" class="error"></div>
                                                         </small>
                                                     </div>
-                                                </div>
 
-                                                <div class="input-field col m6 s12">
-                                                    <select id="category" name="category">
-                                                        <option value="">Select category</option>
-                                                        <% for( let i = 0; i < categories.length; i++ ) { %>
-                                                        <option value="<%= categories[i]._id %>" <%= subcategory.category == categories[i].id ? 'selected' : '' %>><%= categories[i].name %></option>
-                                                        <% } %>
-                                                    </select>
-                                                    <label>Select category</label>
-                                                    <small>
-                                                        <div id="error3" class="error"></div>
-                                                    </small>
-                                                </div>
-                                                <div class="col s12">
-                                                    <button type="submit" class="btn purple" id="submitBtn">Submit</button>
-                                                </div>
-                                            </form>
+                                                    <div class="col m6 s12">
+                                                        <div class="input-field">
+                                                            <input placeholder="Name" id="EnName" name="EnName" type="text" value="<%= subcategory.name %>">
+                                                            <label for="EnName">Name</label>
+                                                            <small>
+                                                                <div id="error1" class="error"></div>
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col s12">
+                                                        <button type="submit" class="btn purple"
+                                                            id="submitBtn">Submit</button>
+                                                    </div>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    <div class="content-overlay"></div>
                 </div>
-                <div class="content-overlay"></div>
             </div>
         </div>
-    </div>
-    <!-- END: Page Main-->
+        <!-- END: Page Main-->
 
-    <script>
-        const formC = document.getElementById('form');
+        <script>
+            const formC = document.getElementById('form');
 
-        formC.addEventListener('submit', (e) => {
-            e.preventDefault();
-        })
+            formC.addEventListener('submit', (e) => {
+                e.preventDefault();
+            })
 
-        function validate() {
-            let returnVal = true;
+            function validate() {
+                let returnVal = true;
 
-            const EnNameValue = document.getElementById('EnName').value.trim();
-            const categoryValue = document.getElementById('category').value;
+                const EnNameValue = document.getElementById('EnName').value.trim();
+                const categoryValue = document.getElementById('category').value;
 
-            if (EnNameValue == '') {
-                document.getElementById('error1').innerText = 'Please enter name.';
-                returnVal = false;
-            } else {
-                document.getElementById('error1').innerText = '';
+                if (EnNameValue == '') {
+                    document.getElementById('error1').innerText = 'Please enter name.';
+                    returnVal = false;
+                } else {
+                    document.getElementById('error1').innerText = '';
+                }
+
+                if (categoryValue == '') {
+                    document.getElementById('error3').innerText = 'Please select category.';
+                    returnVal = false;
+                } else {
+                    document.getElementById('error3').innerText = '';
+                }
+
+                if (returnVal) {
+                    document.getElementById('submitBtn').disabled = true;
+                    formC.submit();
+                }
             }
-
-            if (categoryValue == '') {
-                document.getElementById('error3').innerText = 'Please select category.';
-                returnVal = false;
-            } else {
-                document.getElementById('error3').innerText = '';
-            }
-
-            if (returnVal) {
-                document.getElementById('submitBtn').disabled = true;
-                formC.submit();
-            }
-        }
-    </script>
-    <%- include('_layouts/commonJs') %>
+        </script>
+        <%- include('_layouts/commonJs') %>
 </body>
 
 </html>

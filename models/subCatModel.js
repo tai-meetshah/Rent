@@ -11,6 +11,14 @@ const subCatSchema = new mongoose.Schema({
         required: true,
         ref: 'Category',
     },
+    isActive: {
+        type: Boolean,
+        default: true,
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 module.exports = new mongoose.model('Subcategory', subCatSchema);

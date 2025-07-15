@@ -23,7 +23,6 @@
     <!-- BEGIN: Page Main-->
     <div id="main">
       <div class="row">
-        <%- include('messages', { messages: messages }) %>
           <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
             <div class="container">
               <div class="row">
@@ -88,9 +87,9 @@
                                       <%= subcategories[i].name %>
                                     </td>
                                     <td style="max-width: 70px;">
-                                      <a href="/subcategory/<%= category.id %>/edit/<%= subcategories[i].id %>"><i
+                                      <a href="/admin/category/<%= category.id %>/edit/<%= subcategories[i].id %>"><i
                                           class="btn-floating waves-effect waves-light accent-2 btn-edit"><i class="material-icons">edit</i></i></a>
-                                      <a href="/subcategory/delete/<%= subcategories[i].id %>"
+                                      <a href="/admin/category/delete/<%= subcategories[i].id %>"
                                         onclick="return confirm('Are you sure?')"><i
                                           class="btn-floating waves-effect waves-light accent-2 btn-delete"><i class="material-icons">delete</i></i></a>
                                     </td>
