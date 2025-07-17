@@ -74,10 +74,18 @@
 
                               <li class="bold <%= url.startsWith('/admin/category') ? 'active' : '' %>">
                                 <a class="waves-effect waves-cyan" href="/admin/category">
-                                  <i class="material-icons <%= url.startsWith('/admin/category') ? 'theme-text' : 'black-text' %> ">view_week</i>
+                                  <i class="material-icons <%= url.startsWith('/admin/category') ? 'theme-text' : 'black-text' %> ">view_module</i>
                                   <span class="menu-title <%= url.startsWith('/admin/category') ? 'theme-text' : 'black-text' %> ">Manage Category</span>
                                 </a>
                               </li>
+
+                                <li class="bold <%= url.startsWith('/admin/product') ? 'active' : '' %>">
+                                  <a class="waves-effect waves-cyan" href="/admin/product">
+                                    <i class="material-icons <%= url.startsWith('/admin/product') ? 'theme-text' : 'black-text' %> ">widgets</i>
+                                    <span class="menu-title <%= url.startsWith('/admin/product') ? 'theme-text' : 'black-text' %> ">
+                                      Products</span>
+                                  </a>
+                                </li>
 
                               <!-- <li class="bold <%= url.startsWith('/report') ? 'active' : '' %>">
                                 <a class="waves-effect waves-cyan" href="/report">

@@ -24,7 +24,7 @@ router.get(
     '/product/product_view/:id',
     categoryController.getProductView
 );
-router.get('/delete-product/:id', categoryController.deleteProduct);
+router.get('/product/delete-product/:id', categoryController.deleteProduct);
 
 
 module.exports = router;

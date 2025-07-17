@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Category = require('../../models/categoryModel');
 const Subcategory = require('../../models/subCatModel');
+const Product = require('../../models/product');
 
 exports.getCategories = async (req, res) => {
     try {
@@ -245,6 +246,51 @@ exports.getDeleteSubcategory = async (req, res) => {
     } catch (error) {
         if (error.name === 'CastError')
             req.flash('red', 'Subcategory not found!');
+        else req.flash('red', error.message);
+        res.redirect('/admin/category');
+    }
+};
+
+exports.getProducts = async (req, res) => {
+    try {
+        const categories = await Product.find({ isDeleted: false })
+            .populate('category subcategory user')
+            .select('title user images category subcategory isActive isDeleted')
+            .sort('-_id')
+
+        res.render('product', { categories });
+    } catch (error) {
+        req.flash('red', error.message);
+        res.redirect('/admin');
+    }
+};
+
+exports.getProductView = async (req, res) => {
+    try {
+        const vendor = await Product.findById(req.params.id)
+            .populate('category subcategory user')
+
+        res.render('product_view', { vendor });
+    } catch (error) {
+        req.flash('red', error.message);
+        res.redirect('/admin');
+    }
+};
+
+exports.deleteProduct = async (req, res) => {
+    try {
+        const category = await Product.findByIdAndUpdate(req.params.id, {
+            isDeleted: true,
+        });
+        if (!category) {
+            req.flash('red', 'Product not found!');
+            return res.redirect('/admin/product');
+        }
+
+        req.flash('green', 'Product deleted successfully.');
+        res.redirect('/admin/product');
+    } catch (error) {
+        if (error.name === 'CastError') req.flash('red', 'Product not found!');
         else req.flash('red', error.message);
         res.redirect('/admin/category');
     }

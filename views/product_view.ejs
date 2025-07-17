@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+  <%- include('_layouts/head') %>
+    <title>Product View | <%= title %>
+    </title>
+    <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/page-users.css">
+
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css"
+      href="/app-assets/vendors/data-tables/extensions/responsive/css/responsive.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/select.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+    <link rel="stylesheet" type="text/css"
+      href="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/css/dropify.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <style>
+      table tr td,
+      th {
+        text-align: center;
+      }
+
+      [type='checkbox']+span:not(.lever):before {
+        border-color: black;
+      }
+
+      [type='checkbox']:checked+span:not(.lever):before {
+        border-right-color: black;
+        border-bottom-color: black;
+      }
+
+      .switch label input[type=checkbox]:not(:checked)+.lever {
+        background-color: #f3374a;
+        /* Light red track */
+      }
+
+      .switch label input[type=checkbox]:not(:checked)+.lever::before {
+        background-color: #ffaba5;
+        /* Dark red thumb */
+      }
+
+      /* Toggle ON (switch track and thumb) */
+      .switch label input[type=checkbox]:checked+.lever {
+        background-color: #31db37;
+        /* Light green track */
+      }
+
+      .switch label input[type=checkbox]:checked+.lever::before {
+        background-color: #4CAF50;
+        /* Dark green thumb */
+      }
+    </style>
+</head>
+<!-- END: Head-->
+
+<body
+  class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns   "
+  data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+  <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+      <div class="row">
+        <!-- <div id="breadcrumbs-wrapper" style="background-color: white;">
+          <div class="container">
+            <div class="row">
+              <div class="col s12 m6 l6">
+                <h5 class="breadcrumbs-title"><span>Product View</span></h5>
+              </div>
+
+            </div>
+          </div>
+        </div> -->
+        <%- include('messages', { messages: messages }) %>
+
+          <div class="col s12">
+            <div class="container">
+              <!-- users view start -->
+              <div class="section users-view">
+                <!-- users view media object start -->
+                <!-- <div class="card-panel">
+                  <div class="row">
+                    <div class="col s12 m7">
+                      <div class="display-flex media">
+                        <img
+                          src="<%= vendor && vendor.images && vendor.images.length > 0 ? process.env.IMAGE_URL + vendor.images[0] : '/images/default-avatar.png' %>"
+                          alt="users view avatar" height="64" width="64">
+
+                        <div class="media-body" style="margin-left: 10px;">
+
+                          <span>Email:</span>
+                          <span class="users-view-id"><a href="mailto:<%= vendor.oEmail %>">
+                              <%= vendor.oEmail %>
+                            </a></span>
+
+                        </div>
+                      </div>
+                    </div>
+                    <!-- <div class="col s12 m5" style="text-align: right;">
+                  <% if (vendor.adminApproved) { %>
+                      <a class="waves-effect waves-light btn green mr-1 mb-2" href="/admin/vendor/disapproved/<%= vendor._id %>" onclick="return confirm('Are you sure want to disapproved this vendor?');">Approved</a>
+                  <% } else { %>
+                      <a href="/admin/vendor/approved/<%= vendor._id %>" class="waves-effect waves-light btn red mr-1 mb-2"  style="padding: 0px 16px 0px 16px;" onclick="return confirm('Are you sure want to approved this vendor?');">Pending</a>
+                  <% } %>
+                </div> -->
+
+                <!-- Below code is working but toggle color is not in green and red -->
+                <!-- <div class="col s12 m5" style="text-align: right;">
+                  <div class="switch">
+                    <label>
+                      <span style="color: red; font-weight: bold;">Pending / Blocked</span>
+                      <input type="checkbox" <%=vendor.adminApproved ? 'checked' : '' %> onchange="toggleApproval('<%= vendor._id %>',
+                        this.checked)">
+                        <span class="lever"></span>
+                        <span style="color: green; font-weight: bold;">Approved</span>
+                    </label>
+                  </div>
+                </div> -->
+
+                <!-- users view media object ends -->
+
+                <!-- users view card details start -->
+                <div class="card">
+                  <div class="card-content">
+                    <div class="row">
+                      <div class="col s12">
+                        <h5>Product Information</h5>
+                        <table class="striped col s12 m6">
+                          <tbody>
+
+                            <tr>
+                              <th>Images</th>
+                              <td>
+                                <% if (vendor.images && vendor.images.length> 0) { %>
+                                  <% vendor.images.forEach(function(img) { %>
+                                    <img src="<%= process.env.IMAGE_URL + img %>" alt="product image" width="100"
+                                      style="margin: 5px;">
+                                    <% }) %>
+                                      <% } else { %>
+                                        No images
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th style="width: 200px;">User Name</th>
+                              <td>
+                                <%= vendor.user?.name ? vendor.user?.name : '-' %>
+                              </td>
+                            </tr>
+                            <!-- <tr>
+                          <th style="width: 200px;">User Mobile</th>
+                          <td>
+                            <%= vendor.user?.mobile ? vendor.user?.mobile : '-' %>
+                          </td>
+                        </tr> -->
+                            <tr>
+                              <th style="width: 200px;">User Email</th>
+                              <td>
+                                <%= vendor.user?.email ? vendor.user?.email : '-' %>
+                              </td>
+                            </tr>
+
+
+
+                            <tr>
+                              <th>Title</th>
+                              <td>
+                                <%= vendor.title || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Description</th>
+                              <td>
+                                <%= vendor.description || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Feature</th>
+                              <td>
+                                <%= vendor.feature || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Ideal</th>
+                              <td>
+                                <%= vendor.ideal || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Stock Quantity</th>
+                              <td>
+                                <%= vendor.stockQuantity || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Deposit Amount</th>
+                              <td>
+                                <%= vendor.depositAmount || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Deliver Type</th>
+                              <td>
+                                <%= vendor.deliver || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Location</th>
+                              <td>
+                                <%= vendor.location || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Latitude / Longitude</th>
+                              <td>
+                                <%= vendor.latitude %>, <%= vendor.longitude %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Owner Location</th>
+                              <td>
+                                <%= vendor.oLocation || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Owner Lat / Long</th>
+                              <td>
+                                <%= vendor.oLatitude %>, <%= vendor.oLongitude %>
+                              </td>
+                            </tr>
+
+                            <!-- <tr>
+                              <th>Owner Name</th>
+                              <td>
+                                <%= vendor.oName || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Owner Email</th>
+                              <td>
+                                <%= vendor.oEmail || '-' %>
+                              </td>
+                            </tr> -->
+
+                            <tr>
+                              <th>Renting Out</th>
+                              <td>
+                                <%= vendor.oRentingOut ? 'Yes' : 'No' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Rules & Policy</th>
+                              <td>
+                                <%= vendor.oRulesPolicy || '-' %>
+                              </td>
+                            </tr>
+
+                            <!-- <tr>
+                              <th>Publish</th>
+                              <td>
+                                <%= vendor.publish ? 'Yes' : 'No' %>
+                              </td>
+                            </tr> -->
+
+                            <tr>
+                              <th>All Days Available</th>
+                              <td>
+                                <%= vendor.allDaysAvailable ? 'Yes' : 'No' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Keywords</th>
+                              <td>
+                                <%= vendor.keywords?.join(', ') || ' -' %>
+                              </td>
+                            </tr>
+
+
+
+                            <tr>
+                              <th>Categories</th>
+                              <td>
+                                <% if (vendor.category && vendor.category.length> 0) { %>
+                                  <% vendor.category.forEach(cat=> { %>
+                                    <div>
+                                      <%= cat.name %>
+                                    </div>
+                                    <% }) %>
+                                      <% } else { %>
+                                        -
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Subcategories</th>
+                              <td>
+                                <% if (vendor.subcategory && vendor.subcategory.length> 0) { %>
+                                  <% vendor.subcategory.forEach(sub=> { %>
+                                    <div>
+                                      <%= sub.name %>
+                                    </div>
+                                    <% }) %>
+                                      <% } else { %>
+                                        -
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Rental Slabs</th>
+                              <td>
+                                <% if (vendor.slabs && vendor.slabs.length> 0) { %>
+                                  <% vendor.slabs.forEach(slab=> { %>
+                                    <div>From <%= slab.from %> to <%= slab.to %> = $<%= slab.amount %>
+                                    </div>
+                                    <% }) %>
+                                      <% } else { %>
+                                        -
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Cancellation Charges</th>
+                              <td>
+                                <% if (vendor.oCancellationCharges && vendor.oCancellationCharges.length> 0) { %>
+                                  <% vendor.oCancellationCharges.forEach(cc=> { %>
+                                    <div>
+                                      <%= cc.hoursBefore %> hrs before: $<%= cc.chargeAmount %>
+                                    </div>
+                                    <% }) %>
+                                      <% } else { %>
+                                        -
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Date</th>
+                              <!-- <td><%= vendor.createdAt.toISOString().split('T')[0] %> <%=
+                            vendor.createdAt.toLocaleString('en-US', {
+                                timeZone: 'UTC',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                              }).replace(',', ''); %></td> -->
+                              <% const createdAt=new Date(vendor.createdAt); const
+                                day=String(createdAt.getUTCDate()).padStart(2, '0' ); const
+                                month=String(createdAt.getUTCMonth() + 1).padStart(2, '0' ); const
+                                year=createdAt.getUTCFullYear(); const formattedDate=`${day}-${month}-${year}`; %>
+                                <td>
+                                  <%= formattedDate %>
+                                </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+
+                  </div>
+                </div>
+                <!-- users view card details ends -->
+
+              </div>
+              <!-- users view ends -->
+            </div>
+            <div class="content-overlay"></div>
+          </div>
+      </div>
+    </div>
+    <!-- END: Page Main-->
+
+    <%- include('_layouts/commonJs') %>
+      <script src="/app-assets/vendors/data-tables/js/jquery.dataTables.min.js"></script>
+      <script src="/app-assets/js/scripts/data-tables.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/js/dropify.min.js"></script>
+      <script src="/app-assets/js/scripts/form-file-uploads.min.js"></script>
+
+      <script>
+        // Modal
+        $(document).ready(function () {
+          $('.modal').modal();
+        });
+
+        // Validation
+        // const form = document.getElementById('form');
+        // form.addEventListener('submit', (e) => {
+        //   e.preventDefault();
+        // });
+
+        // Validate Image upload
+        const forms = document.querySelectorAll(".image-form");
+        forms.forEach((elem) => {
+          elem.addEventListener('submit', (e) => {
+            e.preventDefault();
+            validate(e.target);
+          })
+        });
+
+        // Validation
+        function validate(formElement) {
+          let returnVal = true;
+
+          const titleValue = formElement.querySelector('#title').value.trim();
+          const bodyValue = formElement.querySelector('#body').value.trim();
+          const selectedUserIds = formElement.querySelector('#selectedUserIds').value.trim();
+          console.log("Selected Users:", selectedUserIds);
+
+          if (titleValue === '') {
+            document.getElementById('error1').innerText = 'Please enter notification title.';
+            returnVal = false;
+          } else {
+            document.getElementById('error1').innerText = '';
+          }
+
+          if (selectedUserIds === '') {
+            document.getElementById('error2').innerText = 'Please select some users.';
+            returnVal = false;
+          } else if (bodyValue === '') {
+            document.getElementById('error2').innerText = 'Please enter notification body.';
+            returnVal = false;
+          } else {
+            document.getElementById('error2').innerText = '';
+          }
+
+          if (returnVal) {
+            formElement.querySelector('#submitBtn').disabled = true;
+            formElement.submit();
+          }
+        }
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+          const selectAllCheckbox = document.getElementById('selectAll');
+          const userCheckboxes = document.querySelectorAll('[name="selectedUsers[]"]');
+          const selectedUserIdsInput = document.getElementById('selectedUserIds');
+
+          selectAllCheckbox.addEventListener('change', function () {
+            userCheckboxes.forEach(function (checkbox) {
+              checkbox.checked = selectAllCheckbox.checked;
+            });
+
+            updateSelectedUserIds();
+          });
+
+          userCheckboxes.forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+              updateSelectedUserIds();
+            });
+          });
+
+          function updateSelectedUserIds() {
+            const selectedUserIds = Array.from(userCheckboxes)
+              .filter(function (checkbox) {
+                return checkbox.checked;
+              })
+              .map(function (checkbox) {
+                return checkbox.value;
+              });
+
+            selectedUserIdsInput.value = selectedUserIds.join(',');
+          }
+        });
+      </script>
+      <script>
+        function toggleApproval(vendorId, isApproved) {
+          const action = isApproved ? 'approve' : 'disapprove';
+          const confirmation = confirm(`Are you sure you want to ${action} this vendor?`);
+
+          if (confirmation) {
+            const url = `/admin/vendor/${isApproved ? 'approved' : 'disapproved'}/${vendorId}`;
+            window.location.href = url;
+          } else {
+            // Prevent toggle change on cancel
+            setTimeout(() => {
+              location.reload(); // Revert UI if cancelled
+            }, 100);
+          }
+        }
+      </script>
+</body>
+
+</html>
