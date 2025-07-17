@@ -108,6 +108,57 @@ exports.getAllSubcategories = async (req, res, next) => {
     }
 };
 
+// exports.getAllSubcategories = async (req, res, next) => {
+//     try {
+//         const categories = await Subcategory.aggregate([
+//             {
+//                 $match: {
+//                     isDeleted: false, // Only non-deleted subcategories
+//                 },
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'categories',
+//                     let: { categoryId: '$category' },
+//                     pipeline: [
+//                         {
+//                             $match: {
+//                                 $expr: {
+//                                     $and: [
+//                                         { $eq: ['$_id', '$$categoryId'] },
+//                                         { $eq: ['$isDeleted', false] }, // Only non-deleted categories
+//                                     ],
+//                                 },
+//                             },
+//                         },
+//                     ],
+//                     as: 'category',
+//                 },
+//             },
+//             {
+//                 $unwind: '$category',
+//             },
+//             {
+//                 $group: {
+//                     _id: '$category._id',
+//                     name: { $first: '$category.name' },
+//                     image: { $first: '$category.image' },
+//                     subcategories: {
+//                         $push: {
+//                             _id: '$_id',
+//                             name: '$name',
+//                         },
+//                     },
+//                 },
+//             },
+//         ]);
+
+//         res.json({ success: true, categories });
+//     } catch (error) {
+//         next(error);
+//     }
+// };
+
 exports.createProductStep1 = async (req, res, next) => {
     try {
         const images = req.files ? req.files.map(file => `/${file.filename}`) : [];
@@ -347,6 +398,12 @@ exports.editProductStep1 = async (req, res, next) => {
 exports.editProductStep2 = async (req, res, next) => {
     try {
         const { productId, oLatitude, oLongitude, oCancellationCharges } = req.body;
+        if (!productId) {
+            return res.status(400).json({
+                success: false,
+                message: "productId pass.",
+            });
+        }
 
         // Whitelisted Step 2 fields
         const allowedFields = [
@@ -438,6 +495,24 @@ exports.cancellProduct = async (req, res, next) => {
         await product.save();
 
         res.json({ success: true, message: 'Product cancelled successfully.' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.deleteProduct = async (req, res, next) => {
+    try {
+        const { productId } = req.body;
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found.' });
+        }
+
+        product.isDeleted = true
+
+        await product.save();
+
+        res.json({ success: true, message: 'Product deleted successfully.' });
     } catch (error) {
         next(error);
     }

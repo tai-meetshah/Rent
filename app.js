@@ -113,6 +113,7 @@ app.use('/admin', require('./routes/admin/authRoutes'));
 app.use('/admin/user', require('./routes/admin/userRoutes'));
 app.use('/admin/banner', require('./routes/admin/bannerRoutes'));
 app.use('/admin/category', require('./routes/admin/categoryRoutes'));
+app.use('/admin/', require('./routes/admin/productRoutes'));
 app.use('/admin/cms', require('./routes/admin/cmsRoutes'));
 
 // 404 admin
