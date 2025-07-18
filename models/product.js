@@ -177,7 +177,7 @@ const ProductSchema = new mongoose.Schema(
         step: {
             type: String,
         },
-        publish: { type: Boolean },
+        publish: { type: Boolean, default: false, },
     },
     { timestamps: true }
 );
