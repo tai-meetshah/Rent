@@ -114,6 +114,7 @@ exports.getAllSubcategories = async (req, res, next) => {
             {
                 $match: {
                     isDeleted: false,
+                    isActive: true
                 },
             },
             {
