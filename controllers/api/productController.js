@@ -37,14 +37,22 @@ exports.getAllProduct = async (req, res, next) => {
 // Get all the products not one user only /all-product
 exports.getProducts = async (req, res, next) => {
     try {
-        let categories = await Product.find({
+        const { categoryId } = req.query;
+
+        const filter = {
             isDeleted: false,
             isActive: true,
-        })
+        };
+
+        if (categoryId) {
+            filter.category = categoryId; // Use $in if `category` is an array { $in: [categoryId] }
+        }
+
+        const products = await Product.find(filter)
             .sort('-_id')
             .select('-__v -isDeleted -isActive');
 
-        res.json({ success: true, data: categories });
+        res.json({ success: true, data: products });
     } catch (error) {
         next(error);
     }
