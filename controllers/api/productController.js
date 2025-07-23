@@ -70,7 +70,7 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             .sort('-createdAt')  // Sort by latest creation date
             .populate('category subcategory')  // Populate category and subcategory details
             .select('-__v -isDeleted');
-            // .select('-__v -isDeleted -updatedAt -oEmail -keywords -category -isActive -subcategory -oCancellationCharges -oRulesPolicy -step -description');
+        // .select('-__v -isDeleted -updatedAt -oEmail -keywords -category -isActive -subcategory -oCancellationCharges -oRulesPolicy -step -description');
 
         res.json({ success: true, data: products });
     } catch (error) {
@@ -139,6 +139,9 @@ exports.getAllSubcategories = async (req, res, next) => {
                 $unwind: '$category',
             },
             {
+                $sort: { 'category.name': 1, name: 1 }, // Sort by category name, then subcategory name
+            },
+            {
                 $group: {
                     _id: '$category._id',
                     name: { $first: '$category.name' },
@@ -151,6 +154,11 @@ exports.getAllSubcategories = async (req, res, next) => {
                     },
                 },
             },
+            {
+                $sort: {
+                    name: 1
+                }
+            }
         ]);
 
         res.json({ success: true, categories });
