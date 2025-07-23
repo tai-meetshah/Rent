@@ -50,7 +50,8 @@ exports.getProducts = async (req, res, next) => {
 
         const products = await Product.find(filter)
             .sort('-_id')
-            .select('-__v -isDeleted -isActive');
+            .populate('category subcategory')
+            .select('-__v -isDeleted');
 
         res.json({ success: true, data: products });
     } catch (error) {
@@ -67,8 +68,9 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             user: { $ne: req.user.id }
         })
             .sort('-createdAt')  // Sort by latest creation date
-            // .populate('category subcategory')  // Populate category and subcategory details
-            .select('-__v -isDeleted -updatedAt -oEmail -keywords -category -isActive -subcategory -oCancellationCharges -oRulesPolicy -step -description');
+            .populate('category subcategory')  // Populate category and subcategory details
+            .select('-__v -isDeleted');
+            // .select('-__v -isDeleted -updatedAt -oEmail -keywords -category -isActive -subcategory -oCancellationCharges -oRulesPolicy -step -description');
 
         res.json({ success: true, data: products });
     } catch (error) {
@@ -86,7 +88,7 @@ exports.getFeatureProductById = async (req, res, next) => {
             user: { $ne: req.user.id }
         })
             .populate('category subcategory')  // Populate category and subcategory details
-            .select('-__v -isDeleted -isActive -step');  // Exclude unnecessary fields
+            .select('-__v -isDeleted -step');  // Exclude unnecessary fields
 
         if (!product) {
             return res.status(404).json({ success: false, message: 'Product not found.' });
