@@ -25,6 +25,9 @@ router.get(
     categoryController.getProductView
 );
 router.get('/product/delete-product/:id', categoryController.deleteProduct);
-
+router.get(
+    '/product/update-status/:id/:status',
+    categoryController.updateProductStatus
+);
 
 module.exports = router;

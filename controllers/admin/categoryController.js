@@ -91,6 +91,24 @@ exports.updateCategoryStatus = async (req, res) => {
     }
 };
 
+exports.updateProductStatus = async (req, res) => {
+    try {
+        const category = await Product.findById(req.params.id);
+
+        category.isActive = req.params.status;
+
+        await category.save();
+
+        req.flash('green', 'Product status updated successfully.');
+        res.redirect('/admin/product');
+    } catch (error) {
+        if (error.name === 'CastError' || error.name === 'TypeError')
+            req.flash('red', 'Category not found!');
+        else req.flash('red', error.message);
+        res.redirect('/admin/product');
+    }
+};
+
 exports.deleteCategory = async (req, res) => {
     try {
         const category = await Category.findByIdAndUpdate(req.params.id, {
