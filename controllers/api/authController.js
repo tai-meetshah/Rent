@@ -221,6 +221,7 @@ exports.socialLogin = async (req, res, next) => {
                 code: '001',
                 message: req.t('success'),
                 user: { email, googleId, facebookId, appleId },
+                token: ''
             });
         }
 
@@ -229,8 +230,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.facebookId
                     ? 'Please log in with Facebook.'
                     : user.appleId
-                    ? 'Please log in with Apple.'
-                    : 'Please log in with email.';
+                        ? 'Please log in with Apple.'
+                        : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (googleId !== user.googleId) {
@@ -243,8 +244,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.googleId
                     ? 'Please log in with Google.'
                     : user.appleId
-                    ? 'Please log in with Apple.'
-                    : 'Please log in with email.';
+                        ? 'Please log in with Apple.'
+                        : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (facebookId !== user.facebookId) {
@@ -257,8 +258,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.googleId
                     ? 'Please log in with Google.'
                     : user.facebookId
-                    ? 'Please log in with Facebook.'
-                    : 'Please log in with email.';
+                        ? 'Please log in with Facebook.'
+                        : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (appleId !== user.appleId) {
@@ -276,6 +277,7 @@ exports.socialLogin = async (req, res, next) => {
         user.updatedAt = undefined;
 
         return res.json({
+            code: '002',
             message: 'Login Successful.',
             token,
             user,
