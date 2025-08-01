@@ -3,7 +3,7 @@ const User = require('../../models/userModel');
 exports.getAllUsers = async (req, res) => {
     try {
         const users = await User.find({ isDelete: false })
-            .select('name email city createdAt isActive')
+            .select('name email city createdAt isActive googleId')
             .sort('-_id');
 
         res.render('user', { users });

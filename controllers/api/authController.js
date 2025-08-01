@@ -210,10 +210,12 @@ exports.signUp = async (req, res, next) => {
 exports.socialLogin = async (req, res, next) => {
     try {
         const { email, googleId, facebookId, appleId } = req.body;
+        // console.log('googleId: ', googleId);
 
         let user = await User.findOne({ email }).populate(
             'city country address'
         );
+        // console.log('user: ', user);
 
         // if user not exists, redirect to create profile screen
         if (!user) {
@@ -221,7 +223,7 @@ exports.socialLogin = async (req, res, next) => {
                 code: '001',
                 message: req.t('success'),
                 user: { email, googleId, facebookId, appleId },
-                token: ''
+                token: '',
             });
         }
 
@@ -230,8 +232,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.facebookId
                     ? 'Please log in with Facebook.'
                     : user.appleId
-                        ? 'Please log in with Apple.'
-                        : 'Please log in with email.';
+                    ? 'Please log in with Apple.'
+                    : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (googleId !== user.googleId) {
@@ -244,8 +246,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.googleId
                     ? 'Please log in with Google.'
                     : user.appleId
-                        ? 'Please log in with Apple.'
-                        : 'Please log in with email.';
+                    ? 'Please log in with Apple.'
+                    : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (facebookId !== user.facebookId) {
@@ -258,8 +260,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.googleId
                     ? 'Please log in with Google.'
                     : user.facebookId
-                        ? 'Please log in with Facebook.'
-                        : 'Please log in with email.';
+                    ? 'Please log in with Facebook.'
+                    : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (appleId !== user.appleId) {
@@ -308,7 +310,9 @@ exports.createSocialProfile = async (req, res, next) => {
 
         await user.validate();
 
+        // console.log(user,"nbew user");
         await Promise.all([user.save()]);
+        // console.log(user, 'nbew user');
 
         const token = await user.generateAuthToken();
 
