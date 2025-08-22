@@ -47,7 +47,11 @@ router.post(
 router.post('/status-change', fileUpload(), checkUser, productController.activeDeactiveProduct);
 router.post('/cancell-product', fileUpload(), checkUser, productController.cancellProduct);
 router.post('/delete-product', fileUpload(), checkUser, productController.deleteProduct);
-
 router.post('/remove-image', fileUpload(), checkUser, productController.deleteProductImg)
+
+router.post('/search-history', fileUpload(), checkUser, productController.saveSearch);
+router.get('/search-history', checkUser, productController.getSearchHistory);
+router.delete('/search-history/:id', checkUser, productController.deleteSearchTerm);
+router.delete('/search-history-clear', checkUser, productController.clearSearchHistory);
 
 module.exports = router;

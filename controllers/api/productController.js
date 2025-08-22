@@ -1,6 +1,7 @@
 const Category = require('../../models/categoryModel');
 const Subcategory = require('../../models/subCatModel');
 const Product = require('../../models/product');
+const SearchHistory = require('../../models/SearchHistory');
 
 exports.getAllCategories = async (req, res, next) => {
     try {
@@ -587,6 +588,69 @@ exports.activeDeactiveProduct = async (req, res, next) => {
         await product.save()
 
         res.json({ success: true, message: 'Product status updated successfully.' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// POST /api/search
+exports.saveSearch = async (req, res, next) => {
+    try {
+        const { term } = req.body;
+
+        if (!term || !term.trim()) {
+            return res.status(400).json({ success: false, message: 'Search term is required' });
+        }
+
+        await SearchHistory.create({
+            userId: req.user.id,
+            term: term.trim(),
+        });
+
+        res.status(200).json({ success: true, message: 'Search saved' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// GET /api/search-history
+exports.getSearchHistory = async (req, res, next) => {
+    try {
+        const history = await SearchHistory.find({ userId: req.user.id })
+            .sort({ searchedAt: -1 })
+            .limit(10);
+
+        res.status(200).json({ success: true, history });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// DELETE /api/search-history/:id
+exports.deleteSearchTerm = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        let deleted = await SearchHistory.findOneAndDelete({ _id: id, userId: req.user.id });
+        if (!deleted) {
+            return res.status(404).json({ success: false, message: 'Term not found' });
+        }
+
+        res.status(200).json({ success: true, message: 'Term deleted' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// DELETE /api/search-history
+exports.clearSearchHistory = async (req, res, next) => {
+    try {
+        let deleted = await SearchHistory.deleteMany({ userId: req.user.id });
+        if (!deleted) {
+            return res.status(404).json({ success: false, message: 'Search history not found' });
+        }
+
+        res.status(200).json({ success: true, message: 'Search history cleared' });
     } catch (error) {
         next(error);
     }
