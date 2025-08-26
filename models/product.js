@@ -54,6 +54,10 @@ const ProductSchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
+        price: {
+            type: Number,
+            trim: true,
+        },
 
         inStock: { type: Boolean, required: true },
         stockQuantity: {

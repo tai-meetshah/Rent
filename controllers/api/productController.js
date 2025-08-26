@@ -38,19 +38,100 @@ exports.getAllProduct = async (req, res, next) => {
 // Get all the products not one user only /all-product
 exports.getProducts = async (req, res, next) => {
     try {
-        const { categoryId } = req.query;
+        const {
+            categoryId,
+            subcategoryId,
+            latitude,
+            longitude,
+            distance, // in meters, e.g. 5000 = 5km
+            minPrice,
+            maxPrice,
+            rentalDuration,
+            inStock,
+            sortBy,
+            search,
+        } = req.body;
 
         const filter = {
             isDeleted: false,
             isActive: true,
         };
 
+        if (search) {
+            const searchRegex = new RegExp(search, 'i'); // case-insensitive
+
+            filter.$or = [
+                { title: searchRegex },
+                { description: searchRegex },
+                // { keywords: { $in: [search.toLowerCase()] } }, // if keywords stored in lowercase
+            ];
+        }
+
+        // Category filter
         if (categoryId) {
-            filter.category = categoryId; // Use $in if `category` is an array { $in: [categoryId] }
+            filter.category = categoryId;
+        }
+
+        // Subcategory filter
+        if (subcategoryId) {
+            filter.subcategory = subcategoryId;
+        }
+
+        // Price filter
+        if (minPrice || maxPrice) {
+            filter['price'] = {};
+            if (minPrice) filter['price'].$gte = Number(minPrice);
+            if (maxPrice) filter['price'].$lte = Number(maxPrice);
+        }
+
+        if (inStock !== undefined) {
+            filter.inStock = inStock === 'true';
+        }
+
+        // Rental Duration filter (example logic, depends on your schema)
+        if (rentalDuration) {
+            filter.keywords = { $in: [rentalDuration] };
+        }
+
+
+        // Sorting
+        let sortOption = { _id: -1 };
+        if (sortBy) {
+            switch (sortBy) {
+                case 'priceLowToHigh':
+                    sortOption = { 'price': 1 };
+                    break;
+                case 'priceHighToLow':
+                    sortOption = { 'price': -1 };
+                    break;
+                case 'ratingHighToLow':
+                    sortOption = { avgRating: -1 };
+                    break;
+                case 'ratingLowToHigh':
+                    sortOption = { avgRating: 1 };
+                    break;
+                case 'mostPopular':
+                    sortOption = { totalRating: -1 };
+                    break;
+            }
+        }
+
+        // Geospatial location filter
+        if (latitude && longitude) {
+            const maxDistance = distance ? Number(distance) : 10000; // default 5km
+            filter.coordinates = {
+                $near: {
+                    $geometry: {
+                        type: "Point",
+                        coordinates: [Number(longitude), Number(latitude)],
+                    },
+                    $maxDistance: maxDistance,
+                },
+            };
         }
 
         const products = await Product.find(filter)
-            .sort('-_id')
+            .sort(sortOption)
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
@@ -59,6 +140,7 @@ exports.getProducts = async (req, res, next) => {
         next(error);
     }
 };
+
 
 exports.getAllFeatureProduct = async (req, res, next) => {
     try {
@@ -231,6 +313,7 @@ exports.createProductStep1 = async (req, res, next) => {
             feature,
             ideal,
             inStock,
+            price,
             stockQuantity,
             deposit,
             depositAmount,
@@ -260,6 +343,7 @@ exports.createProductStep1 = async (req, res, next) => {
             ideal,
 
             inStock,
+            price,
             stockQuantity,
             deposit,
             depositAmount,
@@ -385,7 +469,7 @@ exports.editProductStep1 = async (req, res, next) => {
             slabs,
             selectDate,
             keywords,
-            latitude,
+            latitude, price,
             longitude
         } = req.body;
 
@@ -394,7 +478,7 @@ exports.editProductStep1 = async (req, res, next) => {
         const allowedFields = [
             'title', 'category', 'subcategory', 'description', 'feature', 'ideal',
             'inStock', 'stockQuantity', 'deposit', 'depositAmount', 'deliverProduct',
-            'deliver', 'allDaysAvailable', 'location', 'publish'
+            'deliver', 'allDaysAvailable', 'location', 'publish', 'price'
         ];
 
         const updateData = {};
