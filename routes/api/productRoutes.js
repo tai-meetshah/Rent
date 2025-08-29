@@ -9,7 +9,7 @@ const productController = require('../../controllers/api/productController');
 router.get('/category', checkUser, productController.getAllCategories);
 router.get('/user-product', checkUser, productController.getAllProduct);
 router.post('/all-product', fileUpload(), checkUser, productController.getProducts);
-router.get('/feature-product', checkUser, productController.getAllFeatureProduct);
+router.post('/feature-product', fileUpload(), checkUser, productController.getAllFeatureProduct);
 router.get('/feature-product/:productId', checkUser, productController.getFeatureProductById);
 
 router.post(

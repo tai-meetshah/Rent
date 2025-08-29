@@ -144,16 +144,33 @@ exports.getProducts = async (req, res, next) => {
 
 exports.getAllFeatureProduct = async (req, res, next) => {
     try {
-        const products = await Product.find({
+        const { latitude, longitude, distance } = req.body;
+
+        const filter = {
             isDeleted: false,
             publish: true,
             isActive: true,
             user: { $ne: req.user.id }
-        })
-            .sort('-createdAt')  // Sort by latest creation date
-            .populate('category subcategory')  // Populate category and subcategory details
+        };
+
+        // Geospatial location filter
+        if (latitude && longitude) {
+            const maxDistance = distance ? Number(distance) : 10000; // default 10km
+            filter.coordinates = {
+                $near: {
+                    $geometry: {
+                        type: "Point",
+                        coordinates: [Number(longitude), Number(latitude)],
+                    },
+                    $maxDistance: maxDistance,
+                },
+            };
+        }
+
+        const products = await Product.find(filter)
+            .sort('-createdAt')
+            .populate('category subcategory')
             .select('-__v -isDeleted');
-        // .select('-__v -isDeleted -updatedAt -oEmail -keywords -category -isActive -subcategory -oCancellationCharges -oRulesPolicy -step -description');
 
         res.json({ success: true, data: products });
     } catch (error) {
