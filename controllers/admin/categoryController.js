@@ -3,6 +3,7 @@ const path = require('path');
 const Category = require('../../models/categoryModel');
 const Subcategory = require('../../models/subCatModel');
 const Product = require('../../models/product');
+const userModel = require('../../models/userModel');
 
 exports.getCategories = async (req, res) => {
     try {
@@ -305,6 +306,10 @@ exports.deleteProduct = async (req, res) => {
             return res.redirect('/admin/product');
         }
 
+        await userModel.updateMany(
+            { favourites: req.params.id },
+            { $pull: { favourites: req.params.id } }
+        );
         req.flash('green', 'Product deleted successfully.');
         res.redirect('/admin/product');
     } catch (error) {

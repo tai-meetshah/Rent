@@ -2,6 +2,7 @@ const Category = require('../../models/categoryModel');
 const Subcategory = require('../../models/subCatModel');
 const Product = require('../../models/product');
 const SearchHistory = require('../../models/SearchHistory');
+const userModel = require('../../models/userModel');
 
 exports.getAllCategories = async (req, res, next) => {
     try {
@@ -59,11 +60,33 @@ exports.getProducts = async (req, res, next) => {
 
         if (search) {
             const searchRegex = new RegExp(search, 'i'); // case-insensitive
+            const searchLower = search.toLowerCase();
 
             filter.$or = [
                 { title: searchRegex },
                 { description: searchRegex },
                 // { keywords: { $in: [search.toLowerCase()] } }, // if keywords stored in lowercase
+                {
+                    $expr: {
+                        $gt: [
+                            {
+                                $size: {
+                                    $filter: {
+                                        input: "$keywords",
+                                        as: "keyword",
+                                        cond: {
+                                            $eq: [
+                                                { $toLower: "$$keyword" },
+                                                searchLower
+                                            ]
+                                        }
+                                    }
+                                }
+                            },
+                            0
+                        ]
+                    }
+                }
             ];
         }
 
@@ -146,6 +169,8 @@ exports.getAllFeatureProduct = async (req, res, next) => {
     try {
         const { latitude, longitude, distance } = req.body;
 
+        console.log(latitude, longitude, distance, 'latitude and longitude');
+        console.log('--------------------------------');
         const filter = {
             isDeleted: false,
             publish: true,
@@ -155,7 +180,9 @@ exports.getAllFeatureProduct = async (req, res, next) => {
 
         // Geospatial location filter
         if (latitude && longitude) {
+            console.log('latitude and longitude');
             const maxDistance = distance ? Number(distance) : 10000; // default 10km
+            console.log(maxDistance);
             filter.coordinates = {
                 $near: {
                     $geometry: {
@@ -172,8 +199,10 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
+        console.log(products);
         res.json({ success: true, data: products });
     } catch (error) {
+        console.log("error", error);
         next(error);
     }
 };
@@ -673,6 +702,13 @@ exports.deleteProduct = async (req, res, next) => {
 
         await product.save();
 
+        await userModel.updateMany(
+            { favourites: productId },
+            { $pull: { favourites: productId } }
+        );
+
+
+
         res.json({ success: true, message: 'Product deleted successfully.' });
     } catch (error) {
         next(error);
@@ -756,3 +792,64 @@ exports.clearSearchHistory = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.addFavouriteProduct = async (req, res, next) => {
+    try {
+        const { productId } = req.body;
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found.' });
+        }
+
+        const user = await userModel.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        user.favourites.push(productId);
+        await user.save();
+
+        res.status(200).json({ success: true, message: 'Product added to favourites.' });
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.removeFavouriteProduct = async (req, res, next) => {
+    try {
+        const { productId } = req.body;
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found.' });
+        }
+
+        const user = await userModel.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        user.favourites = user.favourites.filter(id => id.toString() !== productId);
+        await user.save();
+
+        res.status(200).json({ success: true, message: 'Product removed from favourites.' });
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.getFavouriteProducts = async (req, res, next) => {
+    try {
+        const user = await userModel.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        const products = await Product.find({ _id: { $in: user.favourites } })
+            .populate('category subcategory')
+            .select('-__v -isDeleted');
+
+        res.status(200).json({ success: true, products });
+    } catch (error) {
+        next(error);
+    }
+}

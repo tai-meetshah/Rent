@@ -10,6 +10,12 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: [true, 'Please provide name.'],
         },
+        favourites: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Product',
+            },
+        ],
         photo: { type: String, default: 'default_user.jpg' },
         email: {
             type: String,

@@ -54,4 +54,8 @@ router.get('/search-history', checkUser, productController.getSearchHistory);
 router.delete('/search-history/:id', checkUser, productController.deleteSearchTerm);
 router.delete('/search-history-clear', checkUser, productController.clearSearchHistory);
 
+router.post('/add-favourite', fileUpload(), checkUser, productController.addFavouriteProduct);
+router.post('/remove-favourite', fileUpload(), checkUser, productController.removeFavouriteProduct);
+router.get('/favourite-products', checkUser, productController.getFavouriteProducts);
+
 module.exports = router;
