@@ -158,7 +158,13 @@ exports.getProducts = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        res.json({ success: true, data: products });
+        const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
+        const data = products.map(p => ({
+            ...p.toObject(),
+            isFavourite: favouriteSet.has(p._id.toString())
+        }));
+
+        res.json({ success: true, data });
     } catch (error) {
         next(error);
     }
@@ -169,8 +175,8 @@ exports.getAllFeatureProduct = async (req, res, next) => {
     try {
         const { latitude, longitude, distance } = req.body;
 
-        console.log(latitude, longitude, distance, 'latitude and longitude');
-        console.log('--------------------------------');
+        // console.log(latitude, longitude, distance, 'latitude and longitude');
+        // console.log('--------------------------------');
         const filter = {
             isDeleted: false,
             publish: true,
@@ -180,9 +186,8 @@ exports.getAllFeatureProduct = async (req, res, next) => {
 
         // Geospatial location filter
         if (latitude && longitude) {
-            console.log('latitude and longitude');
             const maxDistance = distance ? Number(distance) : 10000; // default 10km
-            console.log(maxDistance);
+            // console.log(maxDistance);
             filter.coordinates = {
                 $near: {
                     $geometry: {
@@ -199,8 +204,14 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        console.log(products);
-        res.json({ success: true, data: products });
+        const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
+        const data = products.map(p => ({
+            ...p.toObject(),
+            isFavourite: favouriteSet.has(p._id.toString())
+        }));
+
+        // console.log(products);
+        res.json({ success: true, data });
     } catch (error) {
         console.log("error", error);
         next(error);
@@ -223,7 +234,10 @@ exports.getFeatureProductById = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Product not found.' });
         }
 
-        res.json({ success: true, data: product });
+        const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
+        const data = { ...product.toObject(), isFavourite: favouriteSet.has(product._id.toString()) };
+
+        res.json({ success: true, data });
     } catch (error) {
         next(error);
     }
