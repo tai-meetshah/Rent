@@ -862,7 +862,7 @@ exports.getFavouriteProducts = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        res.status(200).json({ success: true, products });
+        res.status(200).json({ success: true, data: products });
     } catch (error) {
         next(error);
     }
