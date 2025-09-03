@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema(
         },
         zipcode: {
             type: String,
-            required: [true, 'Please provide zipcode.'],
+            // required: [true, 'Please provide zipcode.'],
         },
         googleId: String,
         facebookId: String,
