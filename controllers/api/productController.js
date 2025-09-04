@@ -282,6 +282,12 @@ exports.getAllSubcategories = async (req, res, next) => {
                 $unwind: '$category',
             },
             {
+                $match:{
+                    'category.isDeleted': false,
+                    'category.isActive': true,
+                }
+            },
+            {
                 $sort: { 'category.name': 1, name: 1 }, // Sort by category name, then subcategory name
             },
             {
