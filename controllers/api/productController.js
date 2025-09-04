@@ -3,6 +3,7 @@ const Subcategory = require('../../models/subCatModel');
 const Product = require('../../models/product');
 const SearchHistory = require('../../models/SearchHistory');
 const userModel = require('../../models/userModel');
+const Booking = require('../../models/Booking');
 
 exports.getAllCategories = async (req, res, next) => {
     try {

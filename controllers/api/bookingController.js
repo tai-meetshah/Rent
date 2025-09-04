@@ -1,0 +1,233 @@
+const mongoose = require('mongoose');
+const Booking = require('../../models/Booking');
+const Product = require('../../models/product');
+
+// Helpers
+async function hasOverlappingBooking(productId, dates) {
+     const justDates = (dates || []).map(d => new Date(d.date || d));
+     if (!justDates.length) return false;
+     const overlap = await Booking.findOne({
+          product: productId,
+          status: { $nin: ['cancelled', 'completed'] },
+          "bookedDates.date": { $in: justDates }
+     }).select('_id');
+     return Boolean(overlap);
+}
+
+exports.checkAvailability = async (req, res, next) => {
+     try {
+          const { productId, dates } = req.body;
+          if (!productId || !Array.isArray(dates)) {
+               return res.status(400).json({ success: false, message: 'productId and dates[] are required' });
+          }
+          const product = await Product.findById(productId).select('_id');
+          if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
+          const isOverlap = await hasOverlappingBooking(productId, dates);
+          return res.json({ success: true, available: !isOverlap });
+     } catch (error) {
+          next(error);
+     }
+};
+
+exports.createBooking = async (req, res, next) => {
+     try {
+          const { productId, deliveryType, pickupTime, advancePayment, totalPrice, notes } = req.body;
+          let { bookedDates, address } = req.body;
+          // Accept bookedDates as JSON string or array
+          if (typeof bookedDates === 'string') {
+               try { bookedDates = JSON.parse(bookedDates); } catch (_) { }
+          }
+          if (!productId || !Array.isArray(bookedDates) || !deliveryType) {
+               return res.status(400).json({ success: false, message: 'Required: productId, bookedDates[], deliveryType' });
+          }
+
+          if (typeof address === 'string') {
+               try { address = JSON.parse(address); } catch (_) { }
+          }
+          // if (!address || typeof address !== 'object') {
+          //      address = {
+          //           fullName: req.body.fullName,
+          //           mobileNumber: req.body.mobileNumber,
+          //           addressLine: req.body.addressLine,
+          //           city: req.body.city,
+          //           state: req.body.state,
+          //           pincode: req.body.pincode,
+          //           country: req.body.country,
+          //      };
+          // }
+
+          const product = await Product.findById(productId);
+          if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
+
+          const overlap = await hasOverlappingBooking(productId, bookedDates);
+          if (overlap) return res.status(409).json({ success: false, message: 'Selected dates are not available.' });
+
+          const verificationImagePath = req.file ? `/${req.file.filename}` : undefined;
+
+          await Booking.create({
+               product: productId,
+               user: req.user.id,
+               bookedDates,
+               deliveryType,
+               pickupTime,
+               advancePayment: Number(advancePayment) || 0,
+               // totalPrice: Number(totalPrice),
+               status: 'pending',
+               paymentStatus: 'unpaid',
+               returnPhotos: [],
+               verificationId: verificationImagePath,
+               notes,
+               address,
+          });
+
+          res.status(201).json({ success: true, message: 'Booking created successfully.' });
+     } catch (error) {
+          next(error);
+     }
+};
+
+// {"fullName":"John Doe","mobileNumber":"1234567890","addressLine":"123 Street","city":"City","state":"State","pincode":"123456","country":"Country"}
+exports.getMyBookings = async (req, res, next) => {
+     try {
+          const bookings = await Booking.find({ user: req.user.id })
+               .sort('-createdAt')
+               .populate('product', '-__v -isDeleted');
+          res.json({ success: true, data: bookings });
+     } catch (error) {
+          next(error);
+     }
+};
+
+
+exports.getSellerBookings = async (req, res, next) => {
+     try {
+          const sellerId = req.user.id; // Assumes auth middleware sets req.user
+
+          // Fetch bookings where the product's owner is the current seller
+          const bookings = await Booking.find()
+               .populate({
+                    path: 'product',
+                    match: { user: sellerId }, // Filter products owned by seller
+                    // populate: { path: 'user', select: 'name email' } // Optional
+               })
+               .sort({ createdAt: -1 });
+
+          // const filteredBookings = bookings.filter(b => b.product !== null);
+
+          res.json({
+               success: true,
+               data: bookings
+          });
+     } catch (error) {
+          next(error);
+     }
+};
+
+exports.getBookingById = async (req, res, next) => {
+     try {
+          const { id } = req.params;
+          const booking = await Booking.findOne({ _id: id, user: req.user.id })
+               .populate('product', '-__v -isDeleted');
+          if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
+          res.json({ success: true, data: booking });
+     } catch (error) {
+          next(error);
+     }
+};
+
+exports.cancelBooking = async (req, res, next) => {
+     try {
+          const { bookingId } = req.body;
+          const booking = await Booking.findOne({ _id: bookingId, user: req.user.id });
+          if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
+          booking.status = 'cancelled';
+          await booking.save();
+          res.json({ success: true, message: 'Booking cancelled.' });
+     } catch (error) {
+          next(error);
+     }
+};
+
+// Only seller can update booking status
+exports.updateStatus = async (req, res, next) => {
+     try {
+          const { bookingId, status } = req.body;
+          const allowed = ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled'];
+
+          if (!allowed.includes(status)) {
+               return res.status(400).json({ success: false, message: 'Invalid status' });
+          }
+
+          const booking = await Booking.findOne({ _id: bookingId }).populate('product');
+          if (!booking) {
+               return res.status(404).json({ success: false, message: 'Booking not found.' });
+          }
+
+          const isSeller = booking.product?.user?.toString() === req.user.id.toString();
+          if (!isSeller) {
+               return res.status(403).json({ success: false, message: 'Unauthorized: Only seller can update status.' });
+          }
+
+          // Update and save status
+          booking.status = status;
+          await booking.save();
+
+          res.json({ success: true, message: 'Status updated.', booking });
+     } catch (error) {
+          next(error);
+     }
+};
+
+
+exports.updatePaymentStatus = async (req, res, next) => {
+     try {
+          const { bookingId, paymentStatus } = req.body;
+          const allowed = ['unpaid', 'paid', 'refunded'];
+          if (!allowed.includes(paymentStatus)) return res.status(400).json({ success: false, message: 'Invalid paymentStatus' });
+          const booking = await Booking.findOne({ _id: bookingId, user: req.user.id });
+          if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
+          booking.paymentStatus = paymentStatus;
+          await booking.save();
+          res.json({ success: true, message: 'Payment status updated.' });
+     } catch (error) {
+          next(error);
+     }
+};
+
+exports.uploadReturnPhotos = async (req, res, next) => {
+     try {
+          const { id } = req.params; // bookingId
+          const booking = await Booking.findOne({ _id: id, user: req.user.id });
+          if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
+          const files = req.files || [];
+          const photos = files.map(f => ({ url: `/${f.filename}`, status: 'pending', uploadedAt: new Date() }));
+          booking.returnPhotos.push(...photos);
+          await booking.save();
+          res.status(201).json({ success: true, message: 'Photos uploaded.', photos: booking.returnPhotos });
+     } catch (error) {
+          next(error);
+     }
+};
+
+exports.reviewReturnPhoto = async (req, res, next) => {
+     try {
+          const { bookingId, photoId, action, rejectionReason } = req.body;
+          const booking = await Booking.findOne({ _id: bookingId, user: req.user.id });
+          if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
+          const photo = (booking.returnPhotos || []).id(photoId);
+          if (!photo) return res.status(404).json({ success: false, message: 'Photo not found.' });
+          if (action === 'approve') {
+               photo.status = 'approved';
+               photo.rejectionReason = undefined;
+          } else if (action === 'reject') {
+               photo.status = 'rejected';
+               photo.rejectionReason = rejectionReason || 'Not approved';
+          } else {
+               return res.status(400).json({ success: false, message: 'Invalid action' });
+          }
+          await booking.save();
+          res.json({ success: true, message: 'Photo reviewed.' });
+     } catch (error) {
+          next(error);
+     }
+};

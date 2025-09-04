@@ -88,6 +88,7 @@ app.use('/uploads/*', (req, res) => res.status(404).end());
 app.use('/api/auth', require('./routes/api/authRoutes'));
 app.use('/api/cms', require('./routes/api/cmsRoutes'));
 app.use('/api/product', require('./routes/api/productRoutes'));
+app.use('/api/booking', require('./routes/api/bookingRoutes'));
 // app.use('/api/staff-self', require('./routes/api/selfStaff'));
 // app.use('/api/branch', require('./routes/api/branchRoutes'));
 
