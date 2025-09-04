@@ -186,7 +186,7 @@ exports.getEditSubcategory = async (req, res) => {
 
         const [subcategory, categories] = await Promise.all([
             Subcategory.findById(req.params.id),
-            Category.find().sort('name'),
+            Category.find({ isDeleted: false }).sort('name'),
         ]);
 
         if (!subcategory) {
