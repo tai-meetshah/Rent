@@ -142,7 +142,7 @@ exports.getProducts = async (req, res, next) => {
 
         // Geospatial location filter
         if (latitude && longitude) {
-            const maxDistance = distance ? Number(distance) : 10000; // default 5km
+            const maxDistance = distance ? Number(distance) : 10000;
             filter.coordinates = {
                 $near: {
                     $geometry: {

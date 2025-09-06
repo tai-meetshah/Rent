@@ -82,6 +82,8 @@ exports.createBooking = async (req, res, next) => {
 
           res.status(201).json({ success: true, message: 'Booking created successfully.' });
      } catch (error) {
+          console.log(error);
+          
           next(error);
      }
 };
@@ -91,7 +93,13 @@ exports.getMyBookings = async (req, res, next) => {
      try {
           const bookings = await Booking.find({ user: req.user.id })
                .sort('-createdAt')
-               .populate('product', '-__v -isDeleted');
+               .populate({
+                    path: 'product',
+                    populate: [
+                         { path: 'category', select: 'name' },
+                         { path: 'subcategory', select: 'name' }
+                    ]
+               })
           res.json({ success: true, data: bookings });
      } catch (error) {
           next(error);
@@ -108,7 +116,10 @@ exports.getSellerBookings = async (req, res, next) => {
                .populate({
                     path: 'product',
                     match: { user: sellerId }, // Filter products owned by seller
-                    // populate: { path: 'user', select: 'name email' } // Optional
+                    populate:[
+                         { path: 'category', select: 'name' },
+                         { path: 'subcategory', select: 'name' },
+                    ],
                })
                .sort({ createdAt: -1 });
 
@@ -227,6 +238,53 @@ exports.reviewReturnPhoto = async (req, res, next) => {
           }
           await booking.save();
           res.json({ success: true, message: 'Photo reviewed.' });
+     } catch (error) {
+          next(error);
+     }
+};
+
+exports.reuploadRejectedPhoto = async (req, res, next) => {
+     try {
+          const { id } = req.params; // bookingId
+          const { photoId } = req.body; // ID of the rejected photo to replace
+
+          if (!photoId) {
+               return res.status(400).json({ success: false, message: 'Photo ID is required.' });
+          }
+
+          const booking = await Booking.findOne({ _id: id, user: req.user.id });
+          if (!booking) {
+               return res.status(404).json({ success: false, message: 'Booking not found.' });
+          }
+
+          const photo = (booking.returnPhotos || []).id(photoId);
+          if (!photo) {
+               return res.status(404).json({ success: false, message: 'Photo not found.' });
+          }
+
+          if (photo.status !== 'rejected') {
+               return res.status(400).json({
+                    success: false,
+                    message: 'Only rejected photos can be re-uploaded.'
+               });
+          }
+
+          if (!req.file) {
+               return res.status(400).json({ success: false, message: 'New photo file is required.' });
+          }
+
+          photo.url = `/${req.file.filename}`;
+          photo.status = 'pending';
+          photo.rejectionReason = undefined;
+          photo.uploadedAt = new Date();
+
+          await booking.save();
+
+          res.json({
+               success: true,
+               message: 'Photo re-uploaded successfully.',
+               photo: photo
+          });
      } catch (error) {
           next(error);
      }

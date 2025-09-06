@@ -9,7 +9,7 @@ router.post('/check-availability', fileUpload(), checkUser, bookingController.ch
 // Accept image for verificationId using multer single upload
 router.post('/my-bookings', upload.single('verificationId'), checkUser, bookingController.createBooking);
 router.get('/my-bookings', checkUser, bookingController.getMyBookings);
-router.get('/:id', checkUser, bookingController.getBookingById);
+router.get('/my-bookings/:id', checkUser, bookingController.getBookingById);
 router.post('/cancel', fileUpload(), checkUser, bookingController.cancelBooking);
 
 router.get('/seller-bookings', checkUser, bookingController.getSellerBookings);
@@ -18,5 +18,6 @@ router.post('/payment-status', fileUpload(), checkUser, bookingController.update
 
 router.post('/:id/return-photos', upload.array('photos', 6), checkUser, bookingController.uploadReturnPhotos);
 router.post('/review-photo', fileUpload(), checkUser, bookingController.reviewReturnPhoto);
+router.post('/:id/reupload-photo', upload.single('photo'), checkUser, bookingController.reuploadRejectedPhoto);
 
 module.exports = router;
