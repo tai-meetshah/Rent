@@ -45,11 +45,11 @@ router.put(
 //     upload.none(),
 //     authController.updateNotification
 // );
-// router.delete(
-//     '/user/deleteAccount',
-//     authController.checkUser,
-//     upload.none(),
-//     authController.deleteAccount
-// );
+router.delete(
+    '/user/deleteAccount',
+    authController.checkUser,
+    upload.none(),
+    authController.deleteAccount
+);
 
 module.exports = router;

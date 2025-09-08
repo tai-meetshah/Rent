@@ -509,15 +509,7 @@ exports.editProfile = async (req, res, next) => {
 
 exports.deleteAccount = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id);
-
-        user.isDelete = true;
-        user.token = '';
-        user.fcmToken = '';
-
-        //Points Removed
-
-        await user.save();
+        await User.findByIdAndDelete(req.user.id);
 
         res.status(201).json({
             success: true,
