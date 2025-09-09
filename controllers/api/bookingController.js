@@ -83,7 +83,7 @@ exports.createBooking = async (req, res, next) => {
           res.status(201).json({ success: true, message: 'Booking created successfully.' });
      } catch (error) {
           console.log(error);
-          
+
           next(error);
      }
 };
@@ -95,6 +95,7 @@ exports.getMyBookings = async (req, res, next) => {
                .sort('-createdAt')
                .populate({
                     path: 'product',
+                    match: { isDeleted: false, isActive: true },
                     populate: [
                          { path: 'category', select: 'name' },
                          { path: 'subcategory', select: 'name' }
@@ -115,7 +116,7 @@ exports.getSellerBookings = async (req, res, next) => {
           const bookings = await Booking.find()
                .populate({
                     path: 'product',
-                    match: { user: sellerId }, // Filter products owned by seller
+                    match: { user: sellerId, isDeleted: false, isActive: true }, // Filter products owned by seller
                     populate:[
                          { path: 'category', select: 'name' },
                          { path: 'subcategory', select: 'name' },
