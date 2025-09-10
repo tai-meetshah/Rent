@@ -95,13 +95,15 @@ exports.getMyBookings = async (req, res, next) => {
                .sort('-createdAt')
                .populate({
                     path: 'product',
-                    match: { isDeleted: false, isActive: true },
+                    // match: { isDeleted: false, isActive: true },
                     populate: [
                          { path: 'category', select: 'name' },
                          { path: 'subcategory', select: 'name' }
                     ]
                })
-          res.json({ success: true, data: bookings });
+          const filteredBookings = bookings.filter(booking => booking.product && booking.product.isActive && !booking.product.isDeleted);
+
+          res.json({ success: true, data: filteredBookings });
      } catch (error) {
           next(error);
      }
@@ -117,7 +119,7 @@ exports.getSellerBookings = async (req, res, next) => {
                .populate({
                     path: 'product',
                     match: { user: sellerId, isDeleted: false, isActive: true }, // Filter products owned by seller
-                    populate:[
+                    populate: [
                          { path: 'category', select: 'name' },
                          { path: 'subcategory', select: 'name' },
                     ],
