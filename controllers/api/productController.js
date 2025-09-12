@@ -98,7 +98,11 @@ exports.getProducts = async (req, res, next) => {
 
         // Subcategory filter
         if (subcategoryId) {
-            filter.subcategory = subcategoryId;
+            const subcategories = Array.isArray(subcategoryId)
+                ? subcategoryId
+                : subcategoryId.split(',').map(id => id.trim());
+
+            filter.subcategory = { $in: subcategories };
         }
 
         // Price filter
