@@ -148,7 +148,11 @@
                     }
 
                     // Clickable row navigation
-                    $(".clickable-row").click(function () {
+                    // $(".clickable-row").click(function () {
+                    //     window.location = $(this).data("href");
+                    // });
+
+                      $(document).on("click", ".clickable-row", function () {
                         window.location = $(this).data("href");
                     });
                 });
