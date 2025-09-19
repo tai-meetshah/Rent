@@ -292,3 +292,50 @@ exports.reuploadRejectedPhoto = async (req, res, next) => {
           next(error);
      }
 };
+
+// Active orders: status confirmed and has at least one return photo
+exports.getActiveOrders = async (req, res, next) => {
+     try {
+          const bookings = await Booking.find({
+               user: req.user.id,
+               status: 'confirmed',
+               "returnPhotos.0": { $exists: true }
+          })
+               .sort('-createdAt')
+               .populate({
+                    path: 'product',
+                    populate: [
+                         { path: 'category', select: 'name' },
+                         { path: 'subcategory', select: 'name' }
+                    ]
+               });
+
+          const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
+          res.json({ success: true, data: filtered });
+     } catch (error) {
+          next(error);
+     }
+};
+
+// Order history: shows when any return photo is accepted (approved)
+exports.getOrderHistory = async (req, res, next) => {
+     try {
+          const bookings = await Booking.find({
+               user: req.user.id,
+               "returnPhotos.status": 'approved'
+          })
+               .sort('-createdAt')
+               .populate({
+                    path: 'product',
+                    populate: [
+                         { path: 'category', select: 'name' },
+                         { path: 'subcategory', select: 'name' }
+                    ]
+               });
+
+          const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
+          res.json({ success: true, data: filtered });
+     } catch (error) {
+          next(error);
+     }
+};

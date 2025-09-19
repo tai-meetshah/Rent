@@ -20,4 +20,7 @@ router.post('/:id/return-photos', upload.array('photos', 6), checkUser, bookingC
 router.post('/review-photo', fileUpload(), checkUser, bookingController.reviewReturnPhoto);
 router.post('/:id/reupload-photo', upload.single('photo'), checkUser, bookingController.reuploadRejectedPhoto);
 
+router.get('/active-orders', checkUser, bookingController.getActiveOrders);
+router.get('/order-history', checkUser, bookingController.getOrderHistory);
+
 module.exports = router;
