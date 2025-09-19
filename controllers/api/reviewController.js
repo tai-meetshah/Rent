@@ -188,8 +188,63 @@ exports.getMyReview = async (req, res, next) => {
                     { path: 'category', select: 'name' },
                     { path: 'subcategory', select: 'name' }
                ]
+          }).populate({
+               path: 'user',
+               select: 'name avatar image email'
           }).sort('-createdAt');
           res.json({ success: true, data: review });
+     } catch (error) {
+          next(error);
+     }
+};
+
+// GET /api/review/received - Get all reviews received by the current user as a vendor
+exports.getReceivedReviews = async (req, res, next) => {
+     try {
+          const { page = 1, limit = 10 } = req.query;
+          const skip = (page - 1) * limit;
+
+          // Find all products owned by the current user
+          const userProducts = await Product.find({
+               user: req.user.id,
+               isDeleted: false,
+               isActive: true
+          }).select('_id');
+
+          const productIds = userProducts.map(product => product._id);
+
+          const reviews = await Review.find({ product: { $in: productIds } })
+               .sort('-createdAt')
+               .skip(skip)
+               .limit(parseInt(limit))
+               .populate({
+                    path: 'user',
+                    select: 'name avatar image email'
+               })
+               .populate({
+                    path: 'product',
+                    select: 'title images user',
+                    match: { isDeleted: false, isActive: true },
+                    populate: [
+                         { path: 'category', select: 'name' },
+                         { path: 'subcategory', select: 'name' }
+                    ]
+               })
+               .populate('booking', 'status startDate endDate')
+               .select('-__v');
+
+          const total = await Review.countDocuments({ product: { $in: productIds } });
+
+          res.json({
+               success: true,
+               data: reviews,
+               pagination: {
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(total / limit),
+                    totalItems: total,
+                    itemsPerPage: parseInt(limit)
+               }
+          });
      } catch (error) {
           next(error);
      }

@@ -28,4 +28,7 @@ router.get('/product/:productId', checkUser, reviewController.getProductReviews)
 // Get my latest review (optionally filter by productId)
 router.get('/my', checkUser, fileUpload(), reviewController.getMyReview);
 
+// Get all reviews received by the current user as a vendor
+router.get('/received', checkUser, reviewController.getReceivedReviews);
+
 module.exports = router;
