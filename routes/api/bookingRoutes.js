@@ -23,4 +23,6 @@ router.post('/:id/reupload-photo', upload.single('photo'), checkUser, bookingCon
 router.get('/active-orders', checkUser, bookingController.getActiveOrders);
 router.get('/order-history', checkUser, bookingController.getOrderHistory);
 
+router.post('/sendEnquiry', checkUser, upload.single('image'), orderController.sendEnquiry);
+
 module.exports = router;

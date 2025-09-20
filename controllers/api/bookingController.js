@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Booking = require('../../models/Booking');
 const Product = require('../../models/product');
+const enquiryModel = require('../../models/enquiryModel');
 
 // Helpers
 async function hasOverlappingBooking(productId, dates) {
@@ -336,6 +337,107 @@ exports.getOrderHistory = async (req, res, next) => {
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
           res.json({ success: true, data: filtered });
      } catch (error) {
+          next(error);
+     }
+};
+
+exports.sendEnquiry = async (req, res, next) => {
+     try {
+          if (!req.body.enquiry)
+               return res.status(400).json({
+                    success: false,
+                    message: 'Please enter enquiry.',
+               });
+
+          var _c = {
+               sender: 'U',
+               subject: req.body.subject,
+               msg: req.body.enquiry,
+          };
+          await enquiryModel.create({
+               user: req.user.id,
+               chat: _c,
+          });
+
+          res.status(201).json({
+               success: true,
+               message: 'Enquiry send successfully',
+          });
+     } catch (error) {
+          console.log(error);
+          next(error);
+     }
+};
+
+exports.sendMsg = async (req, res, next) => {
+     try {
+          const enquiry = await enquiryModel.findById(req.params.id)
+          if (!enquiry.isEnded) {
+
+               // var validFile = ['application/pdf', 'application/msword', 'application/vnd.ms-excel']
+               // if (req.file) {
+               //      var fileType = validFile.includes(req.file.mimetype) ? 'file' : 'img';
+               // }
+               enquiry.chat.push(
+                    {
+                         msg: req.body.msg,
+                         sender: "U",
+                         // type: req.file ? fileType : 'text'
+                    }
+               )
+
+               await enquiry.save();
+
+               res.status(201).json({
+                    success: true,
+                    message: 'success'
+               });
+          }
+          else {
+               res.status(201).json({
+                    success: true,
+                    message: 'Oops! chat was ended by the Admin.'
+               });
+          }
+     } catch (error) {
+          console.log(error)
+          next(error);
+     }
+};
+
+exports.enquiryList = async (req, res) => {
+     try {
+          const data = await enquiryModel.find({ user: req.user.id }).sort({ updatedAt: -1 });
+
+          res.status(201).json({
+               success: true,
+               message: req.t('chat_ended'),
+               data: data
+          });
+
+     } catch (error) {
+          console.log(error)
+          next(error);
+     }
+};
+
+exports.chatHistory = async (req, res, next) => {
+     try {
+
+          const enquiry = await enquiryModel.findById(req.params.id)
+
+          await enquiryModel.updateOne(
+               { _id: req.params.id },
+               { $set: { "chat.$[elem].isRead": true } },
+               { arrayFilters: [{ "elem.sender": "A" }] }
+          );
+
+          res.status(201).json({
+               success: true,
+               data: enquiry
+          });
+     } catch (error) {
+          console.log(error)
           next(error);
      }
 };
