@@ -92,7 +92,7 @@ exports.createBooking = async (req, res, next) => {
 // {"fullName":"John Doe","mobileNumber":"1234567890","addressLine":"123 Street","city":"City","state":"State","pincode":"123456","country":"Country"}
 exports.getMyBookings = async (req, res, next) => {
      try {
-          const bookings = await Booking.find({ user: req.user.id })
+          const bookings = await Booking.find({ user: req.user.id, status: 'pending', })
                .sort('-createdAt')
                .populate({
                     path: 'product',
@@ -300,7 +300,7 @@ exports.getActiveOrders = async (req, res, next) => {
           const bookings = await Booking.find({
                user: req.user.id,
                status: 'confirmed',
-               "returnPhotos.0": { $exists: true }
+               // "returnPhotos.0": { $exists: true }
           })
                .sort('-createdAt')
                .populate({
