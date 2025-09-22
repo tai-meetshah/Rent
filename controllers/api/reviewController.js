@@ -181,7 +181,7 @@ exports.getMyReview = async (req, res, next) => {
           const filter = { user: req.user.id };
           if (productId) filter.product = productId;
 
-          const review = await Review.findOne(filter).populate({
+          const review = await Review.find(filter).populate({
                path: 'product',
                match: { isDeleted: false, isActive: true },
                populate: [
