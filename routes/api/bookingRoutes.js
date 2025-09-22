@@ -22,7 +22,11 @@ router.post('/:id/reupload-photo', upload.single('photo'), checkUser, bookingCon
 
 router.get('/active-orders', checkUser, bookingController.getActiveOrders);
 router.get('/order-history', checkUser, bookingController.getOrderHistory);
+router.get('/seller-order-history', checkUser, bookingController.getSellerOrderHistory);
 
 router.post('/sendEnquiry', checkUser, upload.single('image'), bookingController.sendEnquiry);
+router.post('/sendMsg/:id', checkUser, upload.single('image'), bookingController.sendMsg);
+router.get('/enquiryList/', checkUser, bookingController.enquiryList);
+router.get('/chatHistory/:id', checkUser, bookingController.chatHistory);
 
 module.exports = router;

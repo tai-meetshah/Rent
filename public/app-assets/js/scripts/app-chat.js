@@ -94,11 +94,29 @@ $(document).ready(function () {
 // Add message to chat
 function enter_chat(source) {
    var message = $(".message").val();
-   if (message != "") {
-      var html = '<div class="chat-text">' + "<p>" + message + "</p>" + "</div>";
-      $(".chat:last-child .chat-body").append(html);
+   var enquiryId = $("#eId").val();
+
+   if (message != "" && enquiryId) {
+      // Add message to UI immediately
+      var html = '<div class="chat chat-right m-0"><div class="chat-body"><div class="chat-text"><p>' + message + '</p></div></div></div>';
+      $(".chats").append(html);
       $(".message").val("");
       $(".chat-area").scrollTop($(".chat-area > .chats").height());
+
+      // Send message to server
+      $.ajax({
+         url: '/admin/enquire/sendChat/' + enquiryId,
+         type: 'POST',
+         data: { msg: message },
+         success: function (response) {
+            console.log('Message sent successfully');
+         },
+         error: function (xhr, status, error) {
+            console.error('Error sending message:', error);
+            // Optionally show error message to user
+            alert('Failed to send message. Please try again.');
+         }
+      });
    }
 }
 

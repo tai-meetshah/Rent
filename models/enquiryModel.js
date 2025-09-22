@@ -5,7 +5,7 @@ const enquirySchema = new mongoose.Schema(
     {
         user: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'users',
+            ref: 'User',
         },
         isViewed: {
             type: Boolean,

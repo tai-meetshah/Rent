@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Booking = require('../../models/Booking');
 const Product = require('../../models/product');
+const Review = require('../../models/reviewModel');
 const enquiryModel = require('../../models/enquiryModel');
 
 // Helpers
@@ -115,16 +116,26 @@ exports.getSellerBookings = async (req, res, next) => {
      try {
           const sellerId = req.user.id; // Assumes auth middleware sets req.user
 
-          // Fetch bookings where the product's owner is the current seller
-          const bookings = await Booking.find()
-               .populate({
-                    path: 'product',
-                    match: { user: sellerId, isDeleted: false, isActive: true }, // Filter products owned by seller
-                    populate: [
-                         { path: 'category', select: 'name' },
-                         { path: 'subcategory', select: 'name' },
-                    ],
-               })
+          const sellerObjectId = new mongoose.Types.ObjectId(sellerId);
+
+          const productIds = await Product.find({
+               user: sellerObjectId,
+               isDeleted: false,
+               isActive: true,
+          }).distinct('_id');
+
+          const bookings = await Booking.find({
+               status: 'pending',
+               product: { $in: productIds },
+          })
+               .populate([
+                    {
+                         path: 'product', populate: [
+                              { path: 'category', select: 'name' },
+                              { path: 'subcategory', select: 'name' },
+                         ]
+                    },
+               ])
                .sort({ createdAt: -1 });
 
           // const filteredBookings = bookings.filter(b => b.product !== null);
@@ -318,7 +329,7 @@ exports.getActiveOrders = async (req, res, next) => {
      }
 };
 
-// Order history: shows when any return photo is accepted (approved)
+// Order history: shows when any return photo is accepted (approved) used for renter who take product for rent for some days
 exports.getOrderHistory = async (req, res, next) => {
      try {
           const bookings = await Booking.find({
@@ -335,7 +346,60 @@ exports.getOrderHistory = async (req, res, next) => {
                });
 
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
-          res.json({ success: true, data: filtered });
+
+          const bookingIds = filtered.map(b => b._id);
+          const reviews = await Review.find({ user: req.user.id, booking: { $in: bookingIds } }).select('booking');
+          const reviewedSet = new Set(reviews.map(r => r.booking.toString()));
+
+          const data = filtered.map(b => ({
+               ...b.toObject(),
+               hasReview: reviewedSet.has(b._id.toString())
+          }));
+          res.json({ success: true, data: data });
+     } catch (error) {
+          next(error);
+     }
+};
+
+exports.getSellerOrderHistory = async (req, res, next) => {
+     try {
+          const sellerId = req.user.id;
+          const sellerObjectId = new mongoose.Types.ObjectId(sellerId);
+
+          const productIds = await Product.find({
+               user: sellerObjectId,
+               isDeleted: false,
+               isActive: true,
+          }).distinct('_id');
+
+          const bookings = await Booking.find({
+               product: { $in: productIds },
+               "returnPhotos.status": 'approved'
+          })
+               .sort('-createdAt')
+               .populate([
+                    {
+                         path: 'product',
+                         populate: [
+                              { path: 'category', select: 'name' },
+                              { path: 'subcategory', select: 'name' },
+                         ]
+                    },
+                    { path: 'user', select: 'name email image avatar' }
+               ]);
+
+          const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
+
+          const bookingIds = filtered.map(b => b._id);
+          const reviews = await Review.find({ booking: { $in: bookingIds } }).select('booking');
+          const reviewedSet = new Set(reviews.map(r => r.booking.toString()));
+
+          const data = filtered.map(b => ({
+               ...b.toObject(),
+               hasReview: reviewedSet.has(b._id.toString())
+          }));
+
+          res.json({ success: true, data });
      } catch (error) {
           next(error);
      }
@@ -411,7 +475,7 @@ exports.enquiryList = async (req, res) => {
 
           res.status(201).json({
                success: true,
-               message: req.t('chat_ended'),
+               // message: req.t('chat_ended'),
                data: data
           });
 

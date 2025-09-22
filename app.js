@@ -113,6 +113,7 @@ app.use(function (req, res, next) {
 //ADMIN ROUTES
 app.use('/admin', require('./routes/admin/authRoutes'));
 app.use('/admin/user', require('./routes/admin/userRoutes'));
+app.use('/admin/enquire', require('./routes/admin/enquireRoutes'));
 app.use('/admin/banner', require('./routes/admin/bannerRoutes'));
 app.use('/admin/category', require('./routes/admin/categoryRoutes'));
 app.use('/admin/', require('./routes/admin/productRoutes'));

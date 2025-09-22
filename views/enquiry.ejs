@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+    <%- include('_layouts/head') %>
+    <title> Order Enquiry List | <%= title %></title>
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/extensions/responsive/css/responsive.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/select.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/app-chat.css">
+
+    <style>
+        .is-un-read{
+            background-color: rgb(231, 231, 231);
+            font-weight: bold;
+        }
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            min-height: 100vh !important;
+            /* overflow: auto; */
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        .modal-content {
+            margin: auto;
+            border-radius: 8px;
+            margin: auto;
+            width: fit-content;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #imagePreview {
+            max-width: 100%;
+            height: 80vh;
+            object-fit: contain;
+        }
+
+    </style>
+
+</head>
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+    <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+        <div class="row">
+            <div class="content-wrapper-before blue-grey lighten-5"></div>
+            <div class="col s12">
+                <div class="container">
+                    <div class="chat-application">
+                        <div class="app-chat">
+                            <div class="content-area content-right">
+                                <div class="app-wrapper">
+
+                                    <div class="card card card-default scrollspy border-radius-6 fixed-width" style="height: 83vh;">
+                                        <div class="card-content chat-content p-0">
+
+                                            <!-- Content Area -->
+                                            <div class="chat-content-area" style="height: 82vh;">
+                                                <!-- Chat header -->
+                                                <div class="chat-header">
+                                                    <div class="row" style="width: 100%;">
+                                                        <div class="col s9">
+                                                            <i class="material-icons" style="margin-top: 0;cursor: pointer;" onclick="history.back()">arrow_back</i>
+                                                            <p class="m-0 blue-grey-text text-darken-4 font-weight-700">
+                                                                Enquiry Number: #<%= data.enquiryNumber %></p>
+                                                            <p class="m-0 chat-text"><%= data.user.name %> | <a href="mailto:<%= data.email %>"><%= data.user.email %> </a></p>
+                                                        </div>
+                                                        <% if(data.isEnded == false){ %>
+                                                        <div class="col s3 end" style="text-align: right;margin-top: 10px;">
+                                                            <a href="/admin/enquire/endChat/<%= data._id %>" style="color: red;"  onclick="return confirm('Are you sure want to end this chat?');">End chat</a>
+                                                        </div>
+                                                        <% } %>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Chat content area -->
+                                                <div class="chat-area" style="height: 55vh;padding: 20px 0% 20px 0%;">
+                                                    <div class="chats">
+                                                        <% if(data.image != undefined && data.image != "" ){ %>
+                                                        <div class="chat m-0">
+                                                            <div class="chat-body">
+                                                                <div class="chat-text">
+                                                                    <p><small>Attached image</small>
+                                                                        <img style="width: 100%;" src="<%= process.env.IMAGE_URL %><%= data.image %>" />
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <% } %>
+                                                        <% for( let i=0; i < data.chat.length; i++ ) { %>
+
+                                                            <% if(data.chat[i].sender == 'U'){ %>
+                                                            <div class="chat m-0">
+                                                                <div class="chat-body">
+                                                                    <div class="chat-text">
+                                                                        <p>
+                                                                            <% if(data.chat[i].type == "text"){ %>
+                                                                                <%= data.chat[i].msg %>
+                                                                            <% } else if(data.chat[i].type == "img") { %>
+                                                                                <img style="width: 100%;height: 100px; cursor: pointer" class="chat-image" src="<%= process.env.IMAGE_URL %><%= data.chat[i].msg %>" data-full-image="<%= process.env.IMAGE_URL %><%= data.chat[i].msg %>"/>
+                                                                            <% } else { %>
+                                                                               <%= data.chat[i].msg %></a>
+                                                                            <% } %>
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <% } else { %>
+                                                                <div class="chat chat-right m-0">
+                                                                    <div class="chat-body">
+                                                                        <div class="chat-text">
+                                                                            <p><%= data.chat[i].msg %></p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            <% } %>
+
+                                                        <% } %>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Chat footer -->
+                                                <div class="chat-footer">
+                                                    <% if(data.isEnded == false){ %>
+                                                        <form onsubmit="enter_chat();" action="javascript:void(0);" class="chat-input">
+                                                            <input type="hidden" id="eId" value="<%= data._id %>">
+                                                            <input type="text" placeholder="Type message here.." class="message mb-0" style="color: black;">
+                                                            <a class="btn waves-effect waves-light send" onclick="enter_chat();">Send</a>
+                                                        </form>
+                                                    <% } else { %>
+                                                        <div style="text-align: center;">
+                                                            <h6 style="color: red;font-weight: 900;">Chat was ended!</h6>
+                                                        </div>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="content-overlay"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup Modal -->
+    <div id="imageModal" class="modal">
+        <div class="modal-content">
+            <span id="closeModal" class="close">&times;</span>
+            <img id="imagePreview" style="width: 100%;" alt="Preview Image" />
+        </div>
+    </div>
+    <!-- END: Page Main-->
+
+    <%- include('_layouts/commonJs') %>
+
+    <script src="/app-assets/js/scripts/app-chat.js"></script>
+    <script src="/app-assets/vendors/data-tables/js/jquery.dataTables.min.js"></script>
+    <script src="/app-assets/js/scripts/data-tables.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const images = document.querySelectorAll(".chat-image");
+            const modal = document.getElementById("imageModal");
+            const modalImage = document.getElementById("imagePreview");
+            const closeModal = document.getElementById("closeModal");
+
+            images.forEach(image => {
+                image.addEventListener("click", function () {
+                    const fullImageUrl = this.getAttribute("data-full-image");
+                    modalImage.src = fullImageUrl;
+                    modal.style.display = "block"; // Show the modal
+                });
+            });
+
+            closeModal.addEventListener("click", function () {
+                modal.style.display = "none"; // Hide the modal
+            });
+
+            window.addEventListener("click", function (event) {
+                if (event.target === modal) {
+                    modal.style.display = "none"; // Hide the modal
+                }
+            });
+        });
+    </script>
+
+</body>
+
+</html>

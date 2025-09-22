@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+    <%- include('_layouts/head') %>
+    <title> Order Enquiry List | <%= title %></title>
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/extensions/responsive/css/responsive.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/select.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+
+</head>
+<!-- END: Head-->
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+    <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+        <div class="row">
+            <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+                <div class="container">
+                    <div class="row">
+                        <%- include('messages', { messages: messages }) %>
+                        <div class="col s12 m6 l6">
+                            <h6 class="breadcrumbs-title"><span>Manage Enquiries</span></h6>
+                        </div>
+                        <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                            <ol class="breadcrumbs mb-0">
+                                <li class="breadcrumb-item"><a href="/">Dashboard</a>
+                                </li>
+                                <li class="breadcrumb-item active">Enquiry List
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col s12">
+                <div class="container">
+                    <div class="section section-data-tables">
+                        <!-- Page Length Options -->
+                        <div class="row">
+                            <div class="col s12">
+                                <div class="card">
+                                    <div class="card-content">
+                                        <div class="row">
+                                            <div class="col s12 overflow">
+                                                <table id="page-length-option" class="display">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Sr</th>
+                                                            <th>Enquiry Number</th>
+                                                            <th>Name</th>
+                                                            <th>Email</th>
+                                                            <!-- <th>Contact No.</th> -->
+                                                            <th data-orderable="false">Chat</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <% for( let i=0; i < data.length; i++ ) { %>
+                                                        <tr>
+                                                            <td><%= i+1 %></td>
+                                                            <td><b>#<%= data[i].enquiryNumber %></b></td>
+                                                            <td><b><%= data[i].user.name %></b></td>
+                                                            <td><%= data[i].user.email %></td>
+                                                            <!-- <td><%= data[i].user.contactNo %></td> -->
+                                                            <td>
+                                                                <a href="/admin/enquire/chat/<%= data[i]._id %>"><i class="material-icons">chat</i>
+
+                                                                    <% if(data[i].chat.filter(chat => !chat.isRead && chat && chat.sender == 'U').length > 0){ %>
+                                                                        <span class="new red" style="padding: 10px 5px 0px 5px;border-radius: 50%;color: white;position: absolute;height: 10px;margin-top: -10px;"><%= data[i].chat.filter(chat => !chat.isRead && chat && chat.sender == 'U').length %></span>
+                                                                    <% } %>
+                                                                </a>
+                                                            </td>
+                                                        </tr>
+                                                        <% } %>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="content-overlay"></div>
+            </div>
+        </div>
+
+        <!-- MODEL-->
+        <div id="view-example">
+            <div class="row">
+                <div class="col s12">
+                    <div id="modal1" class="modal">
+                        <span style="padding-left: 10px; font-size: 20px;font-weight: bold;">Customer Enquiry</span>
+                        <hr/>
+                        <div class="modal-content" style="padding-bottom: 5px;">
+                            <p class="mt-1" id="orderIdM"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <!-- END: Page Main-->
+
+    <%- include('_layouts/commonJs') %>
+
+    <script src="/app-assets/vendors/data-tables/js/jquery.dataTables.min.js"></script>
+    <script src="/app-assets/js/scripts/data-tables.js"></script>
+    <script src="/app-assets/js/scripts/advance-ui-modals.js"></script>
+
+</body>
+
+</html>
