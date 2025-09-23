@@ -21,6 +21,7 @@ router.post('/review-photo', fileUpload(), checkUser, bookingController.reviewRe
 router.post('/:id/reupload-photo', upload.single('photo'), checkUser, bookingController.reuploadRejectedPhoto);
 
 router.get('/active-orders', checkUser, bookingController.getActiveOrders);
+router.get('/seller-active-orders', checkUser, bookingController.getSellerActiveOrders);
 router.get('/order-history', checkUser, bookingController.getOrderHistory);
 router.get('/seller-order-history', checkUser, bookingController.getSellerOrderHistory);
 

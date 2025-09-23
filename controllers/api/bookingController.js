@@ -251,6 +251,16 @@ exports.reviewReturnPhoto = async (req, res, next) => {
           } else {
                return res.status(400).json({ success: false, message: 'Invalid action' });
           }
+
+          const allPhotos = booking.returnPhotos || [];
+          const allApproved = allPhotos.length > 0 && allPhotos.every(p => p.status === 'approved');
+
+          if (allApproved) {
+               booking.allReturnPhotosVerify = true;
+          } else {
+               booking.allReturnPhotosVerify = false;
+          }
+
           await booking.save();
           res.json({ success: true, message: 'Photo reviewed.' });
      } catch (error) {
@@ -293,6 +303,9 @@ exports.reuploadRejectedPhoto = async (req, res, next) => {
           photo.rejectionReason = undefined;
           photo.uploadedAt = new Date();
 
+          // Since photo is now pending, set allReturnPhotosVerify to false
+          booking.allReturnPhotosVerify = false;
+
           await booking.save();
 
           res.json({
@@ -321,6 +334,42 @@ exports.getActiveOrders = async (req, res, next) => {
                          { path: 'subcategory', select: 'name' }
                     ]
                });
+
+          const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
+          res.json({ success: true, data: filtered });
+     } catch (error) {
+          next(error);
+     }
+};
+
+// Active orders for seller: status confirmed orders for seller's products
+exports.getSellerActiveOrders = async (req, res, next) => {
+     try {
+          const sellerId = req.user.id;
+          const sellerObjectId = new mongoose.Types.ObjectId(sellerId);
+
+          const productIds = await Product.find({
+               user: sellerObjectId,
+               isDeleted: false,
+               isActive: true,
+          }).distinct('_id');
+
+          const bookings = await Booking.find({
+               product: { $in: productIds },
+               status: 'confirmed',
+               // "returnPhotos.0": { $exists: true }
+          })
+               .sort('-createdAt')
+               .populate([
+                    {
+                         path: 'product',
+                         populate: [
+                              { path: 'category', select: 'name' },
+                              { path: 'subcategory', select: 'name' },
+                         ]
+                    },
+                    { path: 'user', select: 'name email image avatar' }
+               ]);
 
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
           res.json({ success: true, data: filtered });

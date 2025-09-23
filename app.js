@@ -8,9 +8,16 @@ const i18n = require('i18next');
 const i18nFsBackend = require('i18next-fs-backend');
 const i18nMiddleware = require('i18next-http-middleware');
 const globalErrorHandler = require('./controllers/errorController');
+const { createServer } = require('http')
+const { Server } = require('socket.io')
+const { socketHandler } = require('./socket.server')
 
 // Start express app
 const app = express();
+
+const httpServer = createServer(app);
+global.io = new Server(httpServer);
+socketHandler(global.io);
 
 // View engine
 app.set('view engine', 'ejs');
@@ -124,5 +131,11 @@ app.all('/*', (req, res) => res.status(404).render('404'));
 
 // 4) ERROR HANDLING
 app.use(globalErrorHandler);
+
+const port = process.env.PORT || 4001;
+
+httpServer.listen(port, () => {
+    console.log('Server started at this port:' + port);
+});
 
 module.exports = app;
