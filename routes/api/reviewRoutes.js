@@ -22,6 +22,12 @@ router.put(
 // Delete review
 router.delete('/:id', checkUser, reviewController.deleteReview);
 
+// Delete a review image (by file path or index)
+router.delete('/:id/image', checkUser, reviewController.deleteReviewImage);
+
+// Delete a review video
+router.delete('/:id/video', checkUser, reviewController.deleteReviewVideo);
+
 // List reviews for a product
 router.get('/product/:productId', checkUser, reviewController.getProductReviews);
 

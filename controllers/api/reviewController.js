@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Review = require('../../models/reviewModel');
 const Booking = require('../../models/Booking');
 const Product = require('../../models/product');
+const deleteFile = require('../../utils/deleteFile');
 
 // Multer storage for images and video (saved under /public/uploads)
 const storage = multer.diskStorage({
@@ -134,6 +135,68 @@ exports.updateReview = async (req, res, next) => {
           await recomputeProductRatings(reviewDoc.product);
 
           res.json({ success: true, data: updated });
+     } catch (error) {
+          next(error);
+     }
+};
+
+// DELETE /api/review/:id/image?file=/123.jpg OR ?idx=0
+exports.deleteReviewImage = async (req, res, next) => {
+     try {
+          const { id } = req.params;
+          const { file, idx } = req.query;
+
+          const reviewDoc = await Review.findById(id);
+          if (!reviewDoc) return res.status(404).json({ success: false, message: 'Review not found.' });
+          if (reviewDoc.user.toString() !== req.user.id.toString()) {
+               return res.status(403).json({ success: false, message: 'Not authorized.' });
+          }
+
+          if ((!file || file === 'undefined') && (idx === undefined || idx === '')) {
+               return res.status(400).json({ success: false, message: 'Provide image file path (?file=) or index (?idx=).' });
+          }
+
+          let removed;
+          if (file && file !== 'undefined') {
+               const position = reviewDoc.images.findIndex(p => p === file);
+               if (position === -1) return res.status(404).json({ success: false, message: 'Image not found on review.' });
+               removed = reviewDoc.images.splice(position, 1)[0];
+          } else {
+               const position = Number(idx);
+               if (Number.isNaN(position) || position < 0 || position >= reviewDoc.images.length) {
+                    return res.status(400).json({ success: false, message: 'Invalid image index.' });
+               }
+               removed = reviewDoc.images.splice(position, 1)[0];
+          }
+
+          await reviewDoc.save();
+          if (removed) deleteFile(removed);
+
+          res.json({ success: true, message: 'Image removed from review.' });
+     } catch (error) {
+          next(error);
+     }
+};
+
+// DELETE /api/review/:id/video
+exports.deleteReviewVideo = async (req, res, next) => {
+     try {
+          const { id } = req.params;
+
+          const reviewDoc = await Review.findById(id);
+          if (!reviewDoc) return res.status(404).json({ success: false, message: 'Review not found.' });
+          if (reviewDoc.user.toString() !== req.user.id.toString()) {
+               return res.status(403).json({ success: false, message: 'Not authorized.' });
+          }
+
+          if (!reviewDoc.video) return res.status(404).json({ success: false, message: 'No video to delete.' });
+
+          const toDelete = reviewDoc.video;
+          reviewDoc.video = undefined;
+          await reviewDoc.save();
+          deleteFile(toDelete);
+
+          res.json({ success: true, message: 'Video removed from review.' });
      } catch (error) {
           next(error);
      }

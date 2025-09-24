@@ -22,8 +22,27 @@ exports.checkAvailability = async (req, res, next) => {
           if (!productId || !Array.isArray(dates)) {
                return res.status(400).json({ success: false, message: 'productId and dates[] are required' });
           }
-          const product = await Product.findById(productId).select('_id');
+          const product = await Product.findById(productId).select('_id selectDate allDaysAvailable');
           if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
+
+          // Check if requested dates are available in product's selectDate
+          let datesAvailable = true;
+          if (!product.allDaysAvailable && product.selectDate && product.selectDate.length > 0) {
+               const requestedDates = dates.map(d => new Date(d.date || d));
+               const availableDates = product.selectDate.map(date => new Date(date));
+
+               // Check if all requested dates are in the available dates
+               datesAvailable = requestedDates.every(requestedDate =>
+                    availableDates.some(availableDate =>
+                         requestedDate.toDateString() === availableDate.toDateString()
+                    )
+               );
+          }
+
+          if (!datesAvailable) {
+               return res.json({ success: true, available: false, reason: 'Selected dates are not available for this product' });
+          }
+
           const isOverlap = await hasOverlappingBooking(productId, dates);
           return res.json({ success: true, available: !isOverlap });
      } catch (error) {
@@ -60,6 +79,26 @@ exports.createBooking = async (req, res, next) => {
 
           const product = await Product.findById(productId);
           if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
+
+          // Check if requested dates are available in product's selectDate
+          if (!product.allDaysAvailable && product.selectDate && product.selectDate.length > 0) {
+               const requestedDates = bookedDates.map(d => new Date(d.date || d));
+               const availableDates = product.selectDate.map(date => new Date(date));
+
+               // Check if all requested dates are in the available dates
+               const allDatesAvailable = requestedDates.every(requestedDate =>
+                    availableDates.some(availableDate =>
+                         requestedDate.toDateString() === availableDate.toDateString()
+                    )
+               );
+
+               if (!allDatesAvailable) {
+                    return res.status(400).json({
+                         success: false,
+                         message: 'Some selected dates are not available for this product.'
+                    });
+               }
+          }
 
           const overlap = await hasOverlappingBooking(productId, bookedDates);
           if (overlap) return res.status(409).json({ success: false, message: 'Selected dates are not available.' });
