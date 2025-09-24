@@ -89,7 +89,7 @@ exports.createReview = async (req, res, next) => {
 
           const doc = await Review.create({
                user: req.user.id,
-               vendor: booking.product.user, // product owner as vendor
+               // vendor: booking.product.user, // product owner as vendor
                product: booking.product._id,
                booking: booking._id,
                rating: Number(rating),
