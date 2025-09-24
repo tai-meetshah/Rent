@@ -66,7 +66,7 @@ exports.getProducts = async (req, res, next) => {
 
             filter.$or = [
                 { title: searchRegex },
-                { description: searchRegex },
+                // { description: searchRegex },
                 // { keywords: { $in: [search.toLowerCase()] } }, // if keywords stored in lowercase
                 {
                     $expr: {
