@@ -69,7 +69,6 @@ exports.createReview = async (req, res, next) => {
           const booking = await Booking.findById(bookingId).populate('product');
           if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
 
-          // Ensure the booking belongs to the current user
           if (booking.user.toString() !== req.user.id.toString()) {
                return res.status(403).json({ success: false, message: 'Not authorized for this booking.' });
           }
@@ -122,12 +121,18 @@ exports.updateReview = async (req, res, next) => {
           if (req.body.rating !== undefined) update.rating = Number(req.body.rating);
           if (req.body.review !== undefined) update.review = req.body.review;
 
-          // If files provided, replace media (simple overwrite strategy)
           if (req.files) {
                const newImages = (req.files.images || []).map(f => `/${f.filename}`);
                const newVideo = (req.files.video && req.files.video[0]) ? `/${req.files.video[0].filename}` : undefined;
 
-               if (newImages.length > 0) update.images = newImages;
+               if (newImages.length > 0) {
+                    const currentImages = Array.isArray(reviewDoc.images) ? reviewDoc.images : [];
+                    const combined = currentImages.concat(newImages);
+                    if (combined.length > 6) {
+                         return res.status(400).json({ success: false, message: 'You can have at most 6 images per review.' });
+                    }
+                    update.images = combined;
+               }
                if (newVideo !== undefined) update.video = newVideo;
           }
 
