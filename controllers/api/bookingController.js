@@ -3,6 +3,8 @@ const Booking = require('../../models/Booking');
 const Product = require('../../models/product');
 const Review = require('../../models/reviewModel');
 const enquiryModel = require('../../models/enquiryModel');
+const userNotificationModel = require('../../models/userNotificationModel');
+const { sendNotificationsToTokens } = require('../../utils/sendNotification');
 
 // Helpers
 async function hasOverlappingBooking(productId, dates) {
@@ -77,8 +79,9 @@ exports.createBooking = async (req, res, next) => {
           //      };
           // }
 
-          const product = await Product.findById(productId);
+          const product = await Product.findById(productId).populate('user', 'name fcmToken');
           if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
+
 
           // Check if requested dates are available in product's selectDate
           if (!product.allDaysAvailable && product.selectDate && product.selectDate.length > 0) {
@@ -121,6 +124,32 @@ exports.createBooking = async (req, res, next) => {
                address,
           });
 
+          // Send notification to seller about new booking
+          if (product.user) {
+               await sendNotificationsToTokens(
+                    `New booking request for ${product.title}`,
+                    `You have received a new booking request from ${req.user.name || 'a customer'}.`,
+                    [product.user.fcmToken],
+               );
+               await userNotificationModel.create({
+                    sentTo: [product.user._id],
+                    title: `New booking request for ${product.title}`,
+                    body: `You have received a new booking request from ${req.user.name || 'a customer'}.`,
+               });
+          }
+
+          if (req.user.fcmToken) {
+               await sendNotificationsToTokens(
+                    `Booking request for ${product.title}`,
+                    `Your booking request for ${product.title} has been received.`,
+                    [req.user.fcmToken],
+               );
+               await userNotificationModel.create({
+                    sentTo: [req.user.id],
+                    title: `Booking request for ${product.title}`,
+                    body: `Your booking request for ${product.title} has been received.`,
+               });
+          }
           res.status(201).json({ success: true, message: 'Booking created successfully.' });
      } catch (error) {
           console.log(error);
@@ -207,6 +236,13 @@ exports.cancelBooking = async (req, res, next) => {
           if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
           booking.status = 'cancelled';
           await booking.save();
+          // if (booking.product && booking.product.user) {
+          //      await sendNotification(
+          //           booking.product.user,
+          //           `Booking cancelled for ${booking.product.title}`,
+          //           `Booking has been cancelled by ${booking.user.name || 'the customer'}.`
+          //      );
+          // }
           res.json({ success: true, message: 'Booking cancelled.' });
      } catch (error) {
           next(error);
@@ -223,7 +259,7 @@ exports.updateStatus = async (req, res, next) => {
                return res.status(400).json({ success: false, message: 'Invalid status' });
           }
 
-          const booking = await Booking.findOne({ _id: bookingId }).populate('product');
+          const booking = await Booking.findOne({ _id: bookingId }).populate('product').populate('user', 'name');
           if (!booking) {
                return res.status(404).json({ success: false, message: 'Booking not found.' });
           }
@@ -236,6 +272,38 @@ exports.updateStatus = async (req, res, next) => {
           // Update and save status
           booking.status = status;
           await booking.save();
+
+          // Send notification to renter about status change
+          if (booking.user) {
+               let notificationMessage = '';
+               switch (status) {
+                    case 'confirmed':
+                         notificationMessage = `Your booking for ${booking.product.title} has been confirmed!`;
+                         break;
+                    case 'ongoing':
+                         notificationMessage = `Your booking for ${booking.product.title} is now ongoing.`;
+                         break;
+                    case 'completed':
+                         notificationMessage = `Your booking for ${booking.product.title} has been completed.`;
+                         break;
+                    case 'cancelled':
+                         notificationMessage = `Your booking for ${booking.product.title} has been cancelled by the seller.`;
+                         break;
+                    default:
+                         notificationMessage = `Your booking for ${booking.product.title} status has been updated to ${status}.`;
+               }
+
+               await sendNotificationsToTokens(
+                    `Booking Status Updated - ${booking.product.title}`,
+                    notificationMessage,
+                    [booking.user.fcmToken],
+               );
+               await userNotificationModel.create({
+                    sentTo: [booking.user._id],
+                    title: `Booking Status Updated - ${booking.product.title}`,
+                    body: notificationMessage,
+               });
+          }
 
           res.json({ success: true, message: 'Status updated.', booking });
      } catch (error) {
