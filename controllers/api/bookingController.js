@@ -277,7 +277,7 @@ exports.uploadReturnPhotos = async (req, res, next) => {
 exports.reviewReturnPhoto = async (req, res, next) => {
      try {
           const { bookingId, photoId, action, rejectionReason } = req.body;
-          const booking = await Booking.findOne({ _id: bookingId, user: req.user.id });
+          const booking = await Booking.findOne({ _id: bookingId });
           if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
           const photo = (booking.returnPhotos || []).id(photoId);
           if (!photo) return res.status(404).json({ success: false, message: 'Photo not found.' });
