@@ -11,6 +11,7 @@ const globalErrorHandler = require('./controllers/errorController');
 const { createServer } = require('http')
 const { Server } = require('socket.io')
 const { socketHandler } = require('./socket.server')
+const { sendNotificationsToTokens } = require('./utils/sendNotification');
 
 // Start express app
 const app = express();
@@ -128,6 +129,17 @@ app.use('/admin/cms', require('./routes/admin/cmsRoutes'));
 
 // 404 admin
 app.all('/*', (req, res) => res.status(404).render('404'));
+
+app.post('/send-notifications', async (req, res) => {
+    const { title, body, registrationTokens } = req.body;
+
+    try {
+        const response = await sendNotificationsToTokens(title, body, registrationTokens);
+        res.status(200).json({ success: true, response });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // 4) ERROR HANDLING
 app.use(globalErrorHandler);
