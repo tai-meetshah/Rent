@@ -421,6 +421,7 @@ exports.reuploadRejectedPhoto = async (req, res, next) => {
                photo: photo
           });
      } catch (error) {
+          console.log(error);
           next(error);
      }
 };
