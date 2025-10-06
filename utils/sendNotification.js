@@ -36,6 +36,8 @@ const sendNotificationsToTokens = async (
 
           const response = await Promise.all(sendPromises);
 
+          console.log('Successfully sent all messages', JSON.stringify(response, null, 2));
+
           console.log('Successfully sent all messages', response);
           return response;
      } catch (error) {
