@@ -55,9 +55,9 @@ const bookingSchema = new mongoose.Schema(
                     uploadedAt: { type: Date },
                },
           ],
-          allReturnPhotosVerify : {
-               type : Boolean,
-               default : false,
+          allReturnPhotosVerify: {
+               type: Boolean,
+               default: false,
           },
           verificationId: {
                type: String, // could be file upload ref or ID number
@@ -71,6 +71,9 @@ const bookingSchema = new mongoose.Schema(
                state: String,
                pincode: String,
                country: String,
+          },
+          cancellationReason: {
+               type: String,
           },
      },
      { timestamps: true }

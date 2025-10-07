@@ -662,3 +662,186 @@ exports.chatHistory = async (req, res, next) => {
           next(error);
      }
 };
+
+// Rental owner edit booking details
+exports.editBookingByRental = async (req, res, next) => {
+     try {
+          const { bookingId } = req.body;
+          let { bookedDates, deliveryType, pickupTime, notes, address } = req.body;
+
+          if (!bookingId) {
+               return res.status(400).json({ success: false, message: 'Booking ID is required' });
+          }
+
+          if (typeof bookedDates === 'string') {
+               try { bookedDates = JSON.parse(bookedDates); } catch (_) { }
+          }
+          if (typeof address === 'string') {
+               try { address = JSON.parse(address); } catch (_) { }
+          }
+
+          const booking = await Booking.findOne({ _id: bookingId }).populate('product').populate('user', 'name fcmToken');
+          console.log(booking.user);
+          console.log(req.user.id);
+
+          if (!booking) {
+               return res.status(404).json({ success: false, message: 'Booking not found.' });
+          }
+
+          const product = await Product.findById(booking.product).populate('user', 'name fcmToken');
+          if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
+
+          const isRentalOwner = booking.user?._id?.toString() === req.user.id.toString();
+          if (!isRentalOwner) {
+               return res.status(403).json({ success: false, message: 'Unauthorized: Only rental owner can edit this booking.' });
+          }
+
+          // Check if booking can be edited (only pending or confirmed bookings)
+          // if (!['pending', 'confirmed'].includes(booking.status)) {
+          //      return res.status(400).json({
+          //           success: false,
+          //           message: 'Booking can only be edited when status is pending or confirmed.'
+          //      });
+          // }
+
+          // If new dates are provided, check availability
+          if (bookedDates && Array.isArray(bookedDates)) {
+               // Check if requested dates are available in product's selectDate
+               if (!booking.product.allDaysAvailable && booking.product.selectDate && booking.product.selectDate.length > 0) {
+                    const requestedDates = bookedDates.map(d => new Date(d.date || d));
+                    const availableDates = booking.product.selectDate.map(date => new Date(date));
+
+                    const allDatesAvailable = requestedDates.every(requestedDate =>
+                         availableDates.some(availableDate =>
+                              requestedDate.toDateString() === availableDate.toDateString()
+                         )
+                    );
+
+                    if (!allDatesAvailable) {
+                         return res.status(400).json({
+                              success: false,
+                              message: 'Some selected dates are not available for this product.'
+                         });
+                    }
+               }
+
+               // Check for overlapping bookings (excluding current booking)
+               const justDates = bookedDates.map(d => new Date(d.date || d));
+               if (justDates.length > 0) {
+                    const overlap = await Booking.findOne({
+                         product: booking.product._id,
+                         _id: { $ne: bookingId },
+                         status: { $nin: ['cancelled', 'completed'] },
+                         "bookedDates.date": { $in: justDates }
+                    }).select('_id');
+
+                    if (overlap) {
+                         return res.status(409).json({
+                              success: false,
+                              message: 'Selected dates are not available.'
+                         });
+                    }
+               }
+
+               booking.bookedDates = bookedDates;
+          }
+
+          // Update other fields if provided
+          if (deliveryType) booking.deliveryType = deliveryType;
+          if (pickupTime !== undefined) booking.pickupTime = pickupTime;
+          if (notes !== undefined) booking.notes = notes;
+          if (address) booking.address = address;
+
+          await booking.save();
+
+          if (booking.user && booking.user.fcmToken) {
+               await sendNotificationsToTokens(
+                    `Booking Updated - ${booking.product.title}`,
+                    `Booking details for ${booking.product.title} have been updated by the rental user.`,
+                    [booking.user.fcmToken],
+               );
+               await userNotificationModel.create({
+                    sentTo: [booking.user._id],
+                    title: `Booking Updated - ${booking.product.title}`,
+                    body: `Booking details for ${booking.product.title} have been updated by the rental user.`,
+               });
+          }
+
+          if (product.user) {
+               await sendNotificationsToTokens(
+                    `Booking request changes for ${product.title}`,
+                    `You have received a booking request changes from ${req.user.name || 'a customer'}.`,
+                    [product.user.fcmToken],
+               );
+               await userNotificationModel.create({
+                    sentTo: [product.user._id],
+                    title: `Booking request changes for ${product.title}`,
+                    body: `You have received a booking request changes from ${req.user.name || 'a customer'}.`,
+               });
+          }
+          res.json({ success: true, message: 'Booking updated successfully.', booking });
+     } catch (error) {
+          console.log(error);
+          next(error);
+     }
+};
+
+exports.cancelBookingByRental = async (req, res, next) => {
+     try {
+          const { bookingId, reason } = req.body;
+
+          if (!bookingId) {
+               return res.status(400).json({ success: false, message: 'Booking ID is required' });
+          }
+
+          const booking = await Booking.findOne({ _id: bookingId }).populate('product').populate('user', 'name fcmToken');
+          if (!booking) {
+               return res.status(404).json({ success: false, message: 'Booking not found.' });
+          }
+
+          // Check if the current user is the rental owner (product owner)
+          const isRentalOwner = booking.user?._id?.toString() === req.user.id.toString();
+          if (!isRentalOwner) {
+               return res.status(403).json({ success: false, message: 'Unauthorized: Only rental owner can cancel this booking.' });
+          }
+
+          // Check if booking can be cancelled (not already completed or cancelled)
+          if (booking.status === 'completed') {
+               return res.status(400).json({
+                    success: false,
+                    message: 'Cannot cancel a completed booking.'
+               });
+          }
+
+          if (booking.status === 'cancelled') {
+               return res.status(400).json({
+                    success: false,
+                    message: 'Booking is already cancelled.'
+               });
+          }
+
+          // Update booking status
+          booking.status = 'cancelled';
+          if (reason) booking.cancellationReason = reason;
+          await booking.save();
+
+          // Send notification to renter about booking cancellation
+          if (booking.user && booking.user.fcmToken) {
+               await sendNotificationsToTokens(
+                    `Booking Cancelled - ${booking.product.title}`,
+                    `Your booking for ${booking.product.title} has been cancelled successfully.`,
+                    [booking.user.fcmToken],
+               );
+               await userNotificationModel.create({
+                    sentTo: [booking.user._id],
+                    title: `Booking Cancelled - ${booking.product.title}`,
+                    body: `Your booking for ${booking.product.title} has been cancelled successfully.`,
+               });
+          }
+
+          res.json({ success: true, message: 'Booking cancelled successfully.', booking });
+     } catch (error) {
+          console.log(error);
+          next(error);
+     }
+};
