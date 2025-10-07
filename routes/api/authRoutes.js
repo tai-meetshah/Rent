@@ -1,10 +1,24 @@
 const router = require('express').Router();
 const { upload } = require('../../controllers/uploadController');
 const authController = require('../../controllers/api/authController');
+const { sendNotificationsToTokens } = require('../../utils/sendNotification');
 
 // router.post('/user/sendOtp', upload.none(), authController.sendOtp);
 // router.post('/user/verifyOtp', upload.none(), authController.verifyOtp);
 // router.post('/user/resendOtp', upload.none(), authController.resendOtp);
+
+router.post('/send', upload.none(), async (req, res) => {
+
+    const { rt } = req.body;
+    let title = 'test title'
+    let body = 'test'
+    try {
+        const response = await sendNotificationsToTokens(title, body, rt);
+        res.status(200).json({ success: true, response });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 router.post('/user/socialLogin', upload.none(), authController.socialLogin);
 

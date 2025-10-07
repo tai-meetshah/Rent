@@ -11,6 +11,7 @@ const sendNotificationsToTokens = async (
 ) => {
      // Handle single token or array of tokens
      const tokens = Array.isArray(registrationTokens) ? registrationTokens : [registrationTokens];
+     console.log(tokens);
 
      // Filter out null/undefined tokens
      const validTokens = tokens.filter(token => token && token.trim() !== '');
@@ -22,8 +23,8 @@ const sendNotificationsToTokens = async (
      // Split registration tokens into batches
      const batchSize = 500;
      const tokenBatches = [];
-     for (let i = 0; i < registrationTokens.length; i += batchSize) {
-          tokenBatches.push(registrationTokens.slice(i, i + batchSize));
+     for (let i = 0; i < validTokens.length; i += batchSize) {
+          tokenBatches.push(validTokens.slice(i, i + batchSize));
      }
 
      const message = { notification: { title, body } };
