@@ -30,7 +30,7 @@ router.post('/sendMsg/:id', checkUser, upload.single('image'), bookingController
 router.get('/enquiryList/', checkUser, bookingController.enquiryList);
 router.get('/chatHistory/:id', checkUser, bookingController.chatHistory);
 
-router.post('/rental/edit-booking', fileUpload(), checkUser, bookingController.editBookingByRental);
+router.post('/rental/edit-booking', upload.single('verificationId'), checkUser, bookingController.editBookingByRental);
 router.post('/rental/cancel-booking', fileUpload(), checkUser, bookingController.cancelBookingByRental);
 
 module.exports = router;

@@ -681,8 +681,8 @@ exports.editBookingByRental = async (req, res, next) => {
           }
 
           const booking = await Booking.findOne({ _id: bookingId }).populate('product').populate('user', 'name fcmToken');
-          console.log(booking.user);
-          console.log(req.user.id);
+          // console.log(booking.user);
+          // console.log(req.user.id);
 
           if (!booking) {
                return res.status(404).json({ success: false, message: 'Booking not found.' });
@@ -744,6 +744,11 @@ exports.editBookingByRental = async (req, res, next) => {
                }
 
                booking.bookedDates = bookedDates;
+          }
+
+          // Handle verification ID file upload
+          if (req.file) {
+               booking.verificationId = `/${req.file.filename}`;
           }
 
           // Update other fields if provided
