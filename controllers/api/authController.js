@@ -6,6 +6,7 @@ const { isValidPhone } = require('../../utils/validation');
 const deleteFile = require('../../utils/deleteFile');
 const User = require('../../models/userModel');
 const otpModel = require('../../models/otpModel');
+const Product = require('../../models/product');
 const bcrypt = require('bcryptjs');
 const QRCode = require('qrcode');
 const fs = require('fs');
@@ -232,8 +233,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.facebookId
                     ? 'Please log in with Facebook.'
                     : user.appleId
-                    ? 'Please log in with Apple.'
-                    : 'Please log in with email.';
+                        ? 'Please log in with Apple.'
+                        : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (googleId !== user.googleId) {
@@ -246,8 +247,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.googleId
                     ? 'Please log in with Google.'
                     : user.appleId
-                    ? 'Please log in with Apple.'
-                    : 'Please log in with email.';
+                        ? 'Please log in with Apple.'
+                        : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (facebookId !== user.facebookId) {
@@ -260,8 +261,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.googleId
                     ? 'Please log in with Google.'
                     : user.facebookId
-                    ? 'Please log in with Facebook.'
-                    : 'Please log in with email.';
+                        ? 'Please log in with Facebook.'
+                        : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (appleId !== user.appleId) {
@@ -509,6 +510,13 @@ exports.editProfile = async (req, res, next) => {
 
 exports.deleteAccount = async (req, res, next) => {
     try {
+        // Set isDeleted to true for all products associated with this user
+        await Product.updateMany(
+            { user: req.user.id },
+            { isDeleted: true }
+        );
+
+        // Delete the user account
         await User.findByIdAndDelete(req.user.id);
 
         res.status(201).json({

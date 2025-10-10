@@ -1,6 +1,7 @@
 const User = require('../../models/userModel');
 const enquiryModel = require('../../models/enquiryModel');
 const sendNotification = require('../../utils/sendNotification');
+const Product = require('../../models/product');
 
 exports.getAllUsers = async (req, res) => {
     try {
@@ -56,6 +57,13 @@ exports.changeUserStatus = async (req, res) => {
 
 exports.getDeleteUser = async (req, res) => {
     try {
+        // Set isDeleted to true for all products associated with this user
+        await Product.updateMany(
+            { user: req.params.id },
+            { isDeleted: true }
+        );
+
+        // Delete the user
         await User.findByIdAndDelete(req.params.id);
 
         req.flash('green', 'User deleted successfully.');
