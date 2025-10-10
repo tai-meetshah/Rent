@@ -25,7 +25,7 @@ exports.getAllProduct = async (req, res, next) => {
     try {
         let categories = await Product.find({
             isDeleted: false,
-            isActive: true,
+            // isActive: true,
             user: req.user.id
         })
             .sort('-_id')
