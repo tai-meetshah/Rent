@@ -288,7 +288,7 @@ exports.getAllSubcategories = async (req, res, next) => {
                 $unwind: '$category',
             },
             {
-                $match:{
+                $match: {
                     'category.isDeleted': false,
                     'category.isActive': true,
                 }
@@ -876,6 +876,53 @@ exports.getFavouriteProducts = async (req, res, next) => {
 
         res.status(200).json({ success: true, data: products });
     } catch (error) {
+        next(error);
+    }
+}
+
+// Get booked dates for a specific product to disable them in calendar
+exports.getBookedDates = async (req, res, next) => {
+    try {
+        const { productId } = req.params;
+        if (!productId) {
+            return res.status(400).json({ success: false, message: 'Product ID is required.' });
+        }
+
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found.' });
+        }
+
+        // Get all bookings for this product that are not cancelled or completed
+        const bookings = await Booking.find({
+            product: productId,
+            status: { $nin: ['cancelled', 'completed'] }
+        }).select('bookedDates');
+
+        const bookedDates = [];
+        bookings.forEach(booking => {
+            if (booking.bookedDates && booking.bookedDates.length > 0) {
+                booking.bookedDates.forEach(dateObj => {
+                    if (dateObj.date) {
+                        // Convert to ISO string and add to array
+                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                        if (!bookedDates.includes(dateString)) {
+                            bookedDates.push(dateString);
+                        }
+                    }
+                });
+            }
+        });
+
+        bookedDates.sort();
+
+        res.status(200).json({
+            success: true,
+            bookedDates: bookedDates,
+            totalBookedDates: bookedDates.length
+        });
+    } catch (error) {
+        console.log(error);
         next(error);
     }
 }

@@ -58,4 +58,7 @@ router.post('/add-favourite', fileUpload(), checkUser, productController.addFavo
 router.post('/remove-favourite', fileUpload(), checkUser, productController.removeFavouriteProduct);
 router.get('/favourite-products', checkUser, productController.getFavouriteProducts);
 
+// Get booked dates for a product to disable them in calendar
+router.get('/booked-dates/:productId', checkUser, productController.getBookedDates);
+
 module.exports = router;
