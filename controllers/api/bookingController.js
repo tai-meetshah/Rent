@@ -432,7 +432,11 @@ exports.getActiveOrders = async (req, res, next) => {
           const bookings = await Booking.find({
                user: req.user.id,
                status: 'confirmed',
-               'returnPhotos.status': { $in: ['pending', 'rejected'] }
+               $or: [
+                    { returnPhotos: { $exists: false } },
+                    { returnPhotos: { $size: 0 } },
+                    { returnPhotos: { $not: { $elemMatch: { status: 'approved' } } } }
+               ]
           })
                .sort('-createdAt')
                .populate({
@@ -465,7 +469,11 @@ exports.getSellerActiveOrders = async (req, res, next) => {
           const bookings = await Booking.find({
                product: { $in: productIds },
                status: 'confirmed',
-               'returnPhotos.status': { $in: ['pending', 'rejected'] }
+               $or: [
+                    { returnPhotos: { $exists: false } },
+                    { returnPhotos: { $size: 0 } },
+                    { returnPhotos: { $not: { $elemMatch: { status: 'approved' } } } }
+               ]
           })
                .sort('-createdAt')
                .populate([
@@ -479,7 +487,7 @@ exports.getSellerActiveOrders = async (req, res, next) => {
                     { path: 'user', select: 'name email image avatar' }
                ]);
 
-          const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
+          const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted && b.user);
           res.json({ success: true, data: filtered });
      } catch (error) {
           next(error);
@@ -531,7 +539,8 @@ exports.getSellerOrderHistory = async (req, res, next) => {
 
           const bookings = await Booking.find({
                product: { $in: productIds },
-               "returnPhotos.status": 'approved'
+               "returnPhotos.status": 'approved',
+               user: { $ne: null }
           })
                .sort('-createdAt')
                .populate([
