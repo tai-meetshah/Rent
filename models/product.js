@@ -188,4 +188,122 @@ const ProductSchema = new mongoose.Schema(
 
 ProductSchema.index({ coordinates: '2dsphere' }, { background: true });
 
+// Method to calculate available stock
+ProductSchema.methods.getAvailableStock = async function () {
+    const Booking = require('./Booking');
+
+    try {
+        // Get total stock quantity
+        const totalStock = parseInt(this.stockQuantity) || 0;
+
+        // Count active bookings for this product
+        // Active bookings are those with status: pending, confirmed, or ongoing
+        const activeBookingsCount = await Booking.countDocuments({
+            product: this._id,
+            status: { $in: ['pending', 'confirmed', 'ongoing'] }
+        });
+
+        // Calculate available stock
+        const availableStock = Math.max(0, totalStock - activeBookingsCount);
+
+        return {
+            totalStock,
+            rentedStock: activeBookingsCount,
+            availableStock
+        };
+    } catch (error) {
+        console.error('Error calculating available stock:', error);
+        return {
+            totalStock: parseInt(this.stockQuantity) || 0,
+            rentedStock: 0,
+            availableStock: parseInt(this.stockQuantity) || 0
+        };
+    }
+};
+
+// Static method to get available stock for multiple products
+ProductSchema.statics.getAvailableStockForProducts = async function (productIds) {
+    const Booking = require('./Booking');
+
+    try {
+        // Get all products with their stock quantities
+        const products = await this.find({ _id: { $in: productIds } }).select('_id stockQuantity');
+
+        // Get booking counts for all products
+        const bookingCounts = await Booking.aggregate([
+            {
+                $match: {
+                    product: { $in: productIds },
+                    status: { $in: ['pending', 'confirmed', 'ongoing'] }
+                }
+            },
+            {
+                $group: {
+                    _id: '$product',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        // Create a map of product ID to booking count
+        const bookingCountMap = {};
+        bookingCounts.forEach(item => {
+            bookingCountMap[item._id.toString()] = item.count;
+        });
+
+        // Calculate available stock for each product
+        const result = {};
+        products.forEach(product => {
+            const totalStock = parseInt(product.stockQuantity) || 0;
+            const rentedStock = bookingCountMap[product._id.toString()] || 0;
+            const availableStock = Math.max(0, totalStock - rentedStock);
+
+            result[product._id.toString()] = {
+                totalStock,
+                rentedStock,
+                availableStock
+            };
+        });
+
+        return result;
+    } catch (error) {
+        console.error('Error calculating available stock for products:', error);
+        return {};
+    }
+};
+
+// Static method to get total rental count (including historical) for multiple products
+ProductSchema.statics.getTotalRentalCountForProducts = async function (productIds) {
+    const Booking = require('./Booking');
+
+    try {
+        // Get total booking counts for all products (including completed bookings)
+        const totalBookingCounts = await Booking.aggregate([
+            {
+                $match: {
+                    product: { $in: productIds },
+                    status: { $in: ['pending', 'confirmed', 'ongoing', 'completed'] }
+                }
+            },
+            {
+                $group: {
+                    _id: '$product',
+                    totalRentals: { $sum: 1 }
+                }
+            }
+        ]);
+
+        // Create a map of product ID to total rental count
+        const totalRentalMap = {};
+        totalBookingCounts.forEach(item => {
+            totalRentalMap[item._id.toString()] = item.totalRentals;
+        });
+
+        return totalRentalMap;
+    } catch (error) {
+        console.error('Error calculating total rental count for products:', error);
+        return {};
+    }
+};
+
 module.exports = new mongoose.model('Product', ProductSchema);

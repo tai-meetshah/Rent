@@ -432,7 +432,7 @@ exports.getActiveOrders = async (req, res, next) => {
           const bookings = await Booking.find({
                user: req.user.id,
                status: 'confirmed',
-               // "returnPhotos.0": { $exists: true }
+               'returnPhotos.status': { $in: ['pending', 'rejected'] }
           })
                .sort('-createdAt')
                .populate({
@@ -465,7 +465,7 @@ exports.getSellerActiveOrders = async (req, res, next) => {
           const bookings = await Booking.find({
                product: { $in: productIds },
                status: 'confirmed',
-               // "returnPhotos.0": { $exists: true }
+               'returnPhotos.status': { $in: ['pending', 'rejected'] }
           })
                .sort('-createdAt')
                .populate([

@@ -61,4 +61,6 @@ router.get('/favourite-products', checkUser, productController.getFavouriteProdu
 // Get booked dates for a product to disable them in calendar
 router.get('/booked-dates/:productId', checkUser, productController.getBookedDates);
 
+router.get('/stock-info/:productId', checkUser, productController.getProductStockInfo);
+
 module.exports = router;

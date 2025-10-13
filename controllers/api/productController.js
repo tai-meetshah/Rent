@@ -32,7 +32,20 @@ exports.getAllProduct = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        res.json({ success: true, data: categories });
+        // Get available stock for all products
+        const productIds = categories.map(p => p._id);
+        const stockData = await Product.getAvailableStockForProducts(productIds);
+
+        const data = categories.map(p => ({
+            ...p.toObject(),
+            stockInfo: stockData[p._id.toString()] || {
+                totalStock: parseInt(p.stockQuantity) || 0,
+                rentedStock: 0,
+                availableStock: parseInt(p.stockQuantity) || 0
+            }
+        }));
+
+        res.json({ success: true, data });
     } catch (error) {
         next(error);
     }
@@ -125,6 +138,8 @@ exports.getProducts = async (req, res, next) => {
 
         // Sorting
         let sortOption = { _id: -1 };
+        let needsRentalSorting = false;
+
         if (sortBy) {
             switch (sortBy) {
                 case 'priceLowToHigh':
@@ -141,6 +156,10 @@ exports.getProducts = async (req, res, next) => {
                     break;
                 case 'mostPopular':
                     sortOption = { totalRating: -1 };
+                    break;
+                case 'mostRented':
+                    needsRentalSorting = true;
+                    sortOption = { _id: -1 }; // Default sort for initial fetch
                     break;
             }
         }
@@ -164,11 +183,35 @@ exports.getProducts = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
+        // Get available stock for all products
+        const productIds = products.map(p => p._id);
+        const stockData = await Product.getAvailableStockForProducts(productIds);
+
+        // Get total rental count for sorting (including historical rentals)
+        let totalRentalData = {};
+        if (needsRentalSorting) {
+            totalRentalData = await Product.getTotalRentalCountForProducts(productIds);
+        }
+
         const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
-        const data = products.map(p => ({
+        let data = products.map(p => ({
             ...p.toObject(),
-            isFavourite: favouriteSet.has(p._id.toString())
+            isFavourite: favouriteSet.has(p._id.toString()),
+            stockInfo: stockData[p._id.toString()] || {
+                totalStock: parseInt(p.stockQuantity) || 0,
+                rentedStock: 0,
+                availableStock: parseInt(p.stockQuantity) || 0
+            },
+            totalRentals: totalRentalData[p._id.toString()] || 0
         }));
+
+        if (needsRentalSorting) {
+            data = data.sort((a, b) => {
+                const aTotalRentals = a.totalRentals || 0;
+                const bTotalRentals = b.totalRentals || 0;
+                return bTotalRentals - aTotalRentals; // Descending order (most rented first)
+            });
+        }
 
         res.json({ success: true, data });
     } catch (error) {
@@ -210,10 +253,19 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
+        // Get available stock for all products
+        const productIds = products.map(p => p._id);
+        const stockData = await Product.getAvailableStockForProducts(productIds);
+
         const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
         const data = products.map(p => ({
             ...p.toObject(),
-            isFavourite: favouriteSet.has(p._id.toString())
+            isFavourite: favouriteSet.has(p._id.toString()),
+            stockInfo: stockData[p._id.toString()] || {
+                totalStock: parseInt(p.stockQuantity) || 0,
+                rentedStock: 0,
+                availableStock: parseInt(p.stockQuantity) || 0
+            }
         }));
 
         // console.log(products);
@@ -240,8 +292,15 @@ exports.getFeatureProductById = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Product not found.' });
         }
 
+        // Get available stock for this product
+        const stockInfo = await product.getAvailableStock();
+
         const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
-        const data = { ...product.toObject(), isFavourite: favouriteSet.has(product._id.toString()) };
+        const data = {
+            ...product.toObject(),
+            isFavourite: favouriteSet.has(product._id.toString()),
+            stockInfo
+        };
 
         res.json({ success: true, data });
     } catch (error) {
@@ -874,11 +933,51 @@ exports.getFavouriteProducts = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
+        // const productIds = products.map(p => p._id);
+        // const stockData = await Product.getAvailableStockForProducts(productIds);
+
+        // const data = products.map(p => ({
+        //     ...p.toObject(),
+        //     stockInfo: stockData[p._id.toString()] || {
+        //         totalStock: parseInt(p.stockQuantity) || 0,
+        //         rentedStock: 0,
+        //         availableStock: parseInt(p.stockQuantity) || 0
+        //     }
+        // }));
+
+        // res.status(200).json({ success: true, data });
+
         res.status(200).json({ success: true, data: products });
     } catch (error) {
         next(error);
     }
 }
+
+exports.getProductStockInfo = async (req, res, next) => {
+    try {
+        const { productId } = req.params;
+        if (!productId) {
+            return res.status(400).json({ success: false, message: 'Product ID is required.' });
+        }
+
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found.' });
+        }
+
+        // Get available stock for this product
+        const stockInfo = await product.getAvailableStock();
+
+        res.status(200).json({
+            success: true,
+            productId: product._id,
+            stockInfo
+        });
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+};
 
 // Get booked dates for a specific product to disable them in calendar
 exports.getBookedDates = async (req, res, next) => {
