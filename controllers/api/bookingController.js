@@ -433,9 +433,11 @@ exports.getActiveOrders = async (req, res, next) => {
                user: req.user.id,
                status: 'confirmed',
                $or: [
-                    { returnPhotos: { $exists: false } },
-                    { returnPhotos: { $size: 0 } },
-                    { returnPhotos: { $not: { $elemMatch: { status: 'approved' } } } }
+                         { returnPhotos: { $exists: false } },
+                         { returnPhotos: { $size: 0 } },
+                         { returnPhotos: { $elemMatch: { status: 'pending' } } },
+                         { returnPhotos: { $elemMatch: { status: 'rejected' } } },
+                         { returnPhotos: { $elemMatch: { status: { $exists: false } } } }
                ]
           })
                .sort('-createdAt')
@@ -466,13 +468,16 @@ exports.getSellerActiveOrders = async (req, res, next) => {
                isActive: true,
           }).distinct('_id');
 
+          // Check for every returnPhotos status - find bookings that need attention
           const bookings = await Booking.find({
                product: { $in: productIds },
                status: 'confirmed',
                $or: [
                     { returnPhotos: { $exists: false } },
                     { returnPhotos: { $size: 0 } },
-                    { returnPhotos: { $not: { $elemMatch: { status: 'approved' } } } }
+                    { returnPhotos: { $elemMatch: { status: 'pending' } } },
+                    { returnPhotos: { $elemMatch: { status: 'rejected' } } },
+                    { returnPhotos: { $elemMatch: { status: { $exists: false } } } }
                ]
           })
                .sort('-createdAt')
@@ -499,7 +504,8 @@ exports.getOrderHistory = async (req, res, next) => {
      try {
           const bookings = await Booking.find({
                user: req.user.id,
-               "returnPhotos.status": 'approved'
+               // "returnPhotos.status": 'approved'
+               allReturnPhotosVerify : true
           })
                .sort('-createdAt')
                .populate({
@@ -539,7 +545,8 @@ exports.getSellerOrderHistory = async (req, res, next) => {
 
           const bookings = await Booking.find({
                product: { $in: productIds },
-               "returnPhotos.status": 'approved',
+               // "returnPhotos.status": 'approved',
+               allReturnPhotosVerify : true,
                user: { $ne: null }
           })
                .sort('-createdAt')
