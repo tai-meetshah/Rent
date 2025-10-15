@@ -992,19 +992,29 @@ exports.getBookedDates = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Product not found.' });
         }
 
+        const totalStock = parseInt(product.stockQuantity) || 0;
+
         // Get all bookings for this product that are not cancelled or completed
         const bookings = await Booking.find({
             product: productId,
             status: { $nin: ['cancelled', 'completed'] }
         }).select('bookedDates');
 
+        // Count bookings for each date
+        const dateBookingCounts = {};
         const bookedDates = [];
+
         bookings.forEach(booking => {
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
-                        // Convert to ISO string and add to array
                         const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+
+                        if (!dateBookingCounts[dateString]) {
+                            dateBookingCounts[dateString] = 0;
+                        }
+                        dateBookingCounts[dateString]++;
+
                         if (!bookedDates.includes(dateString)) {
                             bookedDates.push(dateString);
                         }
@@ -1013,15 +1023,30 @@ exports.getBookedDates = async (req, res, next) => {
             }
         });
 
+        // Create detailed availability information using an array
+        const dateAvailability = bookedDates.map(dateString => {
+            const bookedCount = dateBookingCounts[dateString] || 0;
+            const availableCount = Math.max(0, totalStock - bookedCount);
+
+            return {
+                date: dateString,
+                booked: bookedCount,
+                available: availableCount,
+                total: totalStock,
+                // isFullyBooked: availableCount === 0
+            };
+        });
+
         bookedDates.sort();
 
         res.status(200).json({
             success: true,
             bookedDates: bookedDates,
-            totalBookedDates: bookedDates.length
+            dateAvailability: dateAvailability
         });
     } catch (error) {
         console.log(error);
         next(error);
     }
 }
+

@@ -18,14 +18,67 @@ async function hasOverlappingBooking(productId, dates) {
      return Boolean(overlap);
 }
 
+async function checkStockAvailabilityForDates(productId, requestedDates, totalStock) {
+     try {
+          // Get all active bookings for this product that overlap with requested dates
+          const overlappingBookings = await Booking.find({
+               product: productId,
+               status: { $in: ['pending', 'confirmed', 'ongoing'] },
+               "bookedDates.date": { $in: requestedDates }
+          }).select('bookedDates');
+
+          // Count how many items are booked for each requested date
+          const dateBookingCounts = {};
+          requestedDates.forEach(date => {
+               dateBookingCounts[date.toISOString().split('T')[0]] = 0;
+          });
+
+          // Count bookings for each date
+          overlappingBookings.forEach(booking => {
+               booking.bookedDates.forEach(dateObj => {
+                    if (dateObj.date) {
+                         const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                         if (dateBookingCounts.hasOwnProperty(dateString)) {
+                              dateBookingCounts[dateString]++;
+                         }
+                    }
+               });
+          });
+
+          // Find the maximum number of bookings for any single date
+          const maxBookedForAnyDate = Math.max(...Object.values(dateBookingCounts));
+          const availableStock = Math.max(0, totalStock - maxBookedForAnyDate);
+
+          return {
+               available: availableStock > 0,
+               availableStock: availableStock,
+               bookedStock: maxBookedForAnyDate,
+               dateBookingCounts: dateBookingCounts
+          };
+     } catch (error) {
+          console.error('Error checking stock availability:', error);
+          return {
+               available: false,
+               availableStock: 0,
+               bookedStock: totalStock,
+               dateBookingCounts: {}
+          };
+     }
+}
+
 exports.checkAvailability = async (req, res, next) => {
      try {
           const { productId, dates } = req.body;
           if (!productId || !Array.isArray(dates)) {
                return res.status(400).json({ success: false, message: 'productId and dates[] are required' });
           }
-          const product = await Product.findById(productId).select('_id selectDate allDaysAvailable');
+          const product = await Product.findById(productId).select('_id selectDate allDaysAvailable stockQuantity');
           if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
+
+          const totalStock = parseInt(product.stockQuantity) || 0;
+          if (totalStock <= 0) {
+               return res.json({ success: true, available: false, reason: 'Product is out of stock' });
+          }
 
           // Check if requested dates are available in product's selectDate
           let datesAvailable = true;
@@ -45,8 +98,33 @@ exports.checkAvailability = async (req, res, next) => {
                return res.json({ success: true, available: false, reason: 'Selected dates are not available for this product' });
           }
 
+          // Check stock availability for the requested dates
+          const requestedDates = dates.map(d => new Date(d.date || d));
+          const stockAvailability = await checkStockAvailabilityForDates(productId, requestedDates, totalStock);
+
+          if (!stockAvailability.available) {
+               return res.json({
+                    success: true,
+                    available: false,
+                    reason: `Insufficient stock. Only ${stockAvailability.availableStock} items available for the selected dates.`,
+                    stockInfo: {
+                         totalStock: totalStock,
+                         availableStock: stockAvailability.availableStock,
+                         bookedStock: stockAvailability.bookedStock
+                    }
+               });
+          }
+
           const isOverlap = await hasOverlappingBooking(productId, dates);
-          return res.json({ success: true, available: !isOverlap });
+          return res.json({
+               success: true,
+               available: !isOverlap,
+               stockInfo: {
+                    totalStock: totalStock,
+                    availableStock: stockAvailability.availableStock,
+                    bookedStock: stockAvailability.bookedStock
+               }
+          });
      } catch (error) {
           next(error);
      }
@@ -82,6 +160,25 @@ exports.createBooking = async (req, res, next) => {
           const product = await Product.findById(productId).populate('user', 'name fcmToken');
           if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
 
+          // Check stock availability for the requested dates
+          const totalStock = parseInt(product.stockQuantity) || 0;
+          if (totalStock <= 0) {
+               return res.status(400).json({
+                    success: false,
+                    message: 'This product is currently out of stock.'
+               });
+          }
+
+          // Check if there's enough stock for the requested dates
+          const requestedDates = bookedDates.map(d => new Date(d.date || d));
+          const stockAvailability = await checkStockAvailabilityForDates(productId, requestedDates, totalStock);
+
+          if (!stockAvailability.available) {
+               return res.status(409).json({
+                    success: false,
+                    message: `Insufficient stock. Only ${stockAvailability.availableStock} items available for the selected dates. Total stock: ${totalStock}, Already booked: ${stockAvailability.bookedStock}`
+               });
+          }
 
           // Check if requested dates are available in product's selectDate
           if (!product.allDaysAvailable && product.selectDate && product.selectDate.length > 0) {
@@ -433,11 +530,11 @@ exports.getActiveOrders = async (req, res, next) => {
                user: req.user.id,
                status: 'confirmed',
                $or: [
-                         { returnPhotos: { $exists: false } },
-                         { returnPhotos: { $size: 0 } },
-                         { returnPhotos: { $elemMatch: { status: 'pending' } } },
-                         { returnPhotos: { $elemMatch: { status: 'rejected' } } },
-                         { returnPhotos: { $elemMatch: { status: { $exists: false } } } }
+                    { returnPhotos: { $exists: false } },
+                    { returnPhotos: { $size: 0 } },
+                    { returnPhotos: { $elemMatch: { status: 'pending' } } },
+                    { returnPhotos: { $elemMatch: { status: 'rejected' } } },
+                    { returnPhotos: { $elemMatch: { status: { $exists: false } } } }
                ]
           })
                .sort('-createdAt')
@@ -505,7 +602,7 @@ exports.getOrderHistory = async (req, res, next) => {
           const bookings = await Booking.find({
                user: req.user.id,
                // "returnPhotos.status": 'approved'
-               allReturnPhotosVerify : true
+               allReturnPhotosVerify: true
           })
                .sort('-createdAt')
                .populate({
@@ -546,7 +643,7 @@ exports.getSellerOrderHistory = async (req, res, next) => {
           const bookings = await Booking.find({
                product: { $in: productIds },
                // "returnPhotos.status": 'approved',
-               allReturnPhotosVerify : true,
+               allReturnPhotosVerify: true,
                user: { $ne: null }
           })
                .sort('-createdAt')
