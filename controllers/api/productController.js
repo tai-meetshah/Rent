@@ -1002,22 +1002,19 @@ exports.getBookedDates = async (req, res, next) => {
 
         // Count bookings for each date
         const dateBookingCounts = {};
-        const bookedDates = [];
+        const bookedDates = (product.selectDate || []).map(date =>
+            new Date(date).toISOString().split('T')[0]
+        );
 
         bookings.forEach(booking => {
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
                         const dateString = new Date(dateObj.date).toISOString().split('T')[0];
-
                         if (!dateBookingCounts[dateString]) {
                             dateBookingCounts[dateString] = 0;
                         }
                         dateBookingCounts[dateString]++;
-
-                        if (!bookedDates.includes(dateString)) {
-                            bookedDates.push(dateString);
-                        }
                     }
                 });
             }
@@ -1049,4 +1046,3 @@ exports.getBookedDates = async (req, res, next) => {
         next(error);
     }
 }
-
