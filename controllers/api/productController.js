@@ -23,27 +23,40 @@ exports.getAllCategories = async (req, res, next) => {
 // one user product
 exports.getAllProduct = async (req, res, next) => {
     try {
-        let categories = await Product.find({
+        const { fromDate } = req.query;
+
+        const from = fromDate ? new Date(fromDate) : new Date();
+        from.setHours(0, 0, 0, 0); // normalize
+
+        let products = await Product.find({
             isDeleted: false,
-            // isActive: true,
             user: req.user.id
         })
             .sort('-_id')
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        // Get available stock for all products
-        const productIds = categories.map(p => p._id);
+        // Get stock info
+        const productIds = products.map(p => p._id);
         const stockData = await Product.getAvailableStockForProducts(productIds);
 
-        const data = categories.map(p => ({
-            ...p.toObject(),
-            stockInfo: stockData[p._id.toString()] || {
-                totalStock: parseInt(p.stockQuantity) || 0,
-                rentedStock: 0,
-                availableStock: parseInt(p.stockQuantity) || 0
-            }
-        }));
+        const data = products.map(p => {
+            const filteredDates = (p.selectDate || []).filter(date => {
+                const d = new Date(date);
+                d.setHours(0, 0, 0, 0);
+                return d >= from;
+            });
+
+            return {
+                ...p.toObject(),
+                selectDate: filteredDates,
+                stockInfo: stockData[p._id.toString()] || {
+                    totalStock: parseInt(p.stockQuantity) || 0,
+                    rentedStock: 0,
+                    availableStock: parseInt(p.stockQuantity) || 0
+                }
+            };
+        });
 
         res.json({ success: true, data });
     } catch (error) {
