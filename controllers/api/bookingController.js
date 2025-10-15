@@ -160,49 +160,6 @@ exports.createBooking = async (req, res, next) => {
           const product = await Product.findById(productId).populate('user', 'name fcmToken');
           if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
 
-          // Check stock availability for the requested dates
-          const totalStock = parseInt(product.stockQuantity) || 0;
-          if (totalStock <= 0) {
-               return res.status(400).json({
-                    success: false,
-                    message: 'This product is currently out of stock.'
-               });
-          }
-
-          // Check if there's enough stock for the requested dates
-          const requestedDates = bookedDates.map(d => new Date(d.date || d));
-          const stockAvailability = await checkStockAvailabilityForDates(productId, requestedDates, totalStock);
-
-          if (!stockAvailability.available) {
-               return res.status(409).json({
-                    success: false,
-                    message: `Insufficient stock. Only ${stockAvailability.availableStock} items available for the selected dates. Total stock: ${totalStock}, Already booked: ${stockAvailability.bookedStock}`
-               });
-          }
-
-          // Check if requested dates are available in product's selectDate
-          if (!product.allDaysAvailable && product.selectDate && product.selectDate.length > 0) {
-               const requestedDates = bookedDates.map(d => new Date(d.date || d));
-               const availableDates = product.selectDate.map(date => new Date(date));
-
-               // Check if all requested dates are in the available dates
-               const allDatesAvailable = requestedDates.every(requestedDate =>
-                    availableDates.some(availableDate =>
-                         requestedDate.toDateString() === availableDate.toDateString()
-                    )
-               );
-
-               if (!allDatesAvailable) {
-                    return res.status(400).json({
-                         success: false,
-                         message: 'Some selected dates are not available for this product.'
-                    });
-               }
-          }
-
-          const overlap = await hasOverlappingBooking(productId, bookedDates);
-          if (overlap) return res.status(409).json({ success: false, message: 'Selected dates are not available.' });
-
           const verificationImagePath = req.file ? `/${req.file.filename}` : undefined;
 
           await Booking.create({
