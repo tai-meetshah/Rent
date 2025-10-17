@@ -72,7 +72,7 @@ exports.getProducts = async (req, res, next) => {
             subcategoryId,
             latitude,
             longitude,
-            distance, // in meters, e.g. 5000 = 5km
+            distance, // meters (e.g. 5000 = 5km)
             minPrice,
             maxPrice,
             rentalDuration,
@@ -86,14 +86,13 @@ exports.getProducts = async (req, res, next) => {
             isActive: true,
         };
 
+        // 🔍 Search filter
         if (search) {
-            const searchRegex = new RegExp(search, 'i'); // case-insensitive
+            const searchRegex = new RegExp(search, 'i');
             const searchLower = search.toLowerCase();
 
             filter.$or = [
                 { title: searchRegex },
-                // { description: searchRegex },
-                // { keywords: { $in: [search.toLowerCase()] } }, // if keywords stored in lowercase
                 {
                     $expr: {
                         $gt: [
@@ -118,48 +117,39 @@ exports.getProducts = async (req, res, next) => {
             ];
         }
 
-        // Category filter
-        if (categoryId) {
-            filter.category = categoryId;
-        }
+        // 🏷️ Category & Subcategory filters
+        if (categoryId) filter.category = categoryId;
 
-        // Subcategory filter
         if (subcategoryId) {
             const subcategories = Array.isArray(subcategoryId)
                 ? subcategoryId
                 : subcategoryId.split(',').map(id => id.trim());
-
             filter.subcategory = { $in: subcategories };
         }
 
-        // Price filter
+        // 💰 Price range filter
         if (minPrice || maxPrice) {
-            filter['price'] = {};
-            if (minPrice) filter['price'].$gte = Number(minPrice);
-            if (maxPrice) filter['price'].$lte = Number(maxPrice);
+            filter.price = {};
+            if (minPrice) filter.price.$gte = Number(minPrice);
+            if (maxPrice) filter.price.$lte = Number(maxPrice);
         }
 
-        if (inStock !== undefined) {
-            filter.inStock = inStock === 'true';
-        }
+        // 🏬 In stock filter
+        if (inStock !== undefined) filter.inStock = inStock === 'true';
 
-        // Rental Duration filter (example logic, depends on your schema)
-        if (rentalDuration) {
-            filter.keywords = { $in: [rentalDuration] };
-        }
+        // 🕒 Rental duration (if used as keyword)
+        if (rentalDuration) filter.keywords = { $in: [rentalDuration] };
 
-
-        // Sorting
+        // 🔽 Sorting setup
         let sortOption = { _id: -1 };
         let needsRentalSorting = false;
-
         if (sortBy) {
             switch (sortBy) {
                 case 'priceLowToHigh':
-                    sortOption = { 'price': 1 };
+                    sortOption = { price: 1 };
                     break;
                 case 'priceHighToLow':
-                    sortOption = { 'price': -1 };
+                    sortOption = { price: -1 };
                     break;
                 case 'ratingHighToLow':
                     sortOption = { avgRating: -1 };
@@ -172,12 +162,12 @@ exports.getProducts = async (req, res, next) => {
                     break;
                 case 'mostRented':
                     needsRentalSorting = true;
-                    sortOption = { _id: -1 }; // Default sort for initial fetch
+                    sortOption = { _id: -1 };
                     break;
             }
         }
 
-        // Geospatial location filter
+        // 📍 Location filter
         if (latitude && longitude) {
             const maxDistance = distance ? Number(distance) : 10000;
             filter.coordinates = {
@@ -191,54 +181,97 @@ exports.getProducts = async (req, res, next) => {
             };
         }
 
+        // 🧩 Fetch products
         const products = await Product.find(filter)
             .sort(sortOption)
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        // Get available stock for all products
         const productIds = products.map(p => p._id);
-        const stockData = await Product.getAvailableStockForProducts(productIds);
 
-        // Get total rental count for sorting (including historical rentals)
-        let totalRentalData = {};
+        // 📦 Fetch all bookings for those products
+        const bookings = await Booking.find({
+            product: { $in: productIds },
+            status: { $nin: ['cancelled', 'completed'] }
+        }).select('product bookedDates');
+
+        // 🧮 Aggregate booking counts by date for each product
+        const bookingCountsByProduct = {};
+        bookings.forEach(booking => {
+            const productId = booking.product.toString();
+            if (!bookingCountsByProduct[productId]) {
+                bookingCountsByProduct[productId] = {};
+            }
+
+            if (booking.bookedDates?.length > 0) {
+                booking.bookedDates.forEach(dateObj => {
+                    if (dateObj.date) {
+                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                        bookingCountsByProduct[productId][dateString] =
+                            (bookingCountsByProduct[productId][dateString] || 0) + 1;
+                    }
+                });
+            }
+        });
+
+        // 🧡 Favourites
+        const favouriteSet = new Set(
+            ((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString())
+        );
+
+        // 📊 Map product data with computed stockInfo
+        let data = products.map(p => {
+            const totalStock = parseInt(p.stockQuantity) || 0;
+            const productBookings = bookingCountsByProduct[p._id.toString()] || {};
+
+            const maxBookedForAnyDate = Object.keys(productBookings).length > 0
+                ? Math.max(...Object.values(productBookings))
+                : 0;
+
+            const minBookedForAnyDate = Object.keys(productBookings).length > 0
+                ? Math.min(...Object.values(productBookings))
+                : 0;
+
+            const rentedStock = maxBookedForAnyDate;
+            const availableStock = Math.max(0, totalStock - minBookedForAnyDate);
+
+            const stockInfo = {
+                totalStock,
+                rentedStock,
+                availableStock
+            };
+
+            return {
+                ...p.toObject(),
+                isFavourite: favouriteSet.has(p._id.toString()),
+                stockInfo,
+                totalRentals: 0 // placeholder, may fill below if sorting by most rented
+            };
+        });
+
+        // 📈 If sorting by total rentals
         if (needsRentalSorting) {
-            totalRentalData = await Product.getTotalRentalCountForProducts(productIds);
-        }
-
-        const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
-        let data = products.map(p => ({
-            ...p.toObject(),
-            isFavourite: favouriteSet.has(p._id.toString()),
-            stockInfo: stockData[p._id.toString()] || {
-                totalStock: parseInt(p.stockQuantity) || 0,
-                rentedStock: 0,
-                availableStock: parseInt(p.stockQuantity) || 0
-            },
-            totalRentals: totalRentalData[p._id.toString()] || 0
-        }));
-
-        if (needsRentalSorting) {
-            data = data.sort((a, b) => {
-                const aTotalRentals = a.totalRentals || 0;
-                const bTotalRentals = b.totalRentals || 0;
-                return bTotalRentals - aTotalRentals; // Descending order (most rented first)
-            });
+            const totalRentalData = await Product.getTotalRentalCountForProducts(productIds);
+            data = data.map(p => ({
+                ...p,
+                totalRentals: totalRentalData[p._id.toString()] || 0
+            }));
+            data = data.sort((a, b) => (b.totalRentals || 0) - (a.totalRentals || 0));
         }
 
         res.json({ success: true, data });
     } catch (error) {
+        console.error("error", error);
         next(error);
     }
 };
+
 
 
 exports.getAllFeatureProduct = async (req, res, next) => {
     try {
         const { latitude, longitude, distance } = req.body;
 
-        // console.log(latitude, longitude, distance, 'latitude and longitude');
-        // console.log('--------------------------------');
         const filter = {
             isDeleted: false,
             publish: true,
@@ -246,10 +279,9 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             user: { $ne: req.user.id }
         };
 
-        // Geospatial location filter
+        // 🔍 Geospatial filter
         if (latitude && longitude) {
             const maxDistance = distance ? Number(distance) : 10000; // default 10km
-            // console.log(maxDistance);
             filter.coordinates = {
                 $near: {
                     $geometry: {
@@ -266,28 +298,73 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        // Get available stock for all products
+        // 📦 Get all bookings for these products in one query
         const productIds = products.map(p => p._id);
-        const stockData = await Product.getAvailableStockForProducts(productIds);
+        const bookings = await Booking.find({
+            product: { $in: productIds },
+            status: { $nin: ['cancelled', 'completed'] }
+        }).select('product bookedDates');
 
-        const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
-        const data = products.map(p => ({
-            ...p.toObject(),
-            isFavourite: favouriteSet.has(p._id.toString()),
-            stockInfo: stockData[p._id.toString()] || {
-                totalStock: parseInt(p.stockQuantity) || 0,
-                rentedStock: 0,
-                availableStock: parseInt(p.stockQuantity) || 0
+        // 🧮 Build booking counts for each product
+        const bookingCountsByProduct = {};
+
+        bookings.forEach(booking => {
+            const productId = booking.product.toString();
+            if (!bookingCountsByProduct[productId]) {
+                bookingCountsByProduct[productId] = {};
             }
-        }));
 
-        // console.log(products);
+            if (booking.bookedDates && booking.bookedDates.length > 0) {
+                booking.bookedDates.forEach(dateObj => {
+                    if (dateObj.date) {
+                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                        bookingCountsByProduct[productId][dateString] =
+                            (bookingCountsByProduct[productId][dateString] || 0) + 1;
+                    }
+                });
+            }
+        });
+
+        // 💚 Favourite products
+        const favouriteSet = new Set(
+            ((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString())
+        );
+
+        const data = products.map(p => {
+            const totalStock = parseInt(p.stockQuantity) || 0;
+            const productBookings = bookingCountsByProduct[p._id.toString()] || {};
+
+            const maxBookedForAnyDate = Object.keys(productBookings).length > 0
+                ? Math.max(...Object.values(productBookings))
+                : 0;
+
+            const minBookedForAnyDate = Object.keys(productBookings).length > 0
+                ? Math.min(...Object.values(productBookings))
+                : 0;
+
+            const rentedStock = maxBookedForAnyDate;
+            const availableStock = Math.max(0, totalStock - minBookedForAnyDate);
+
+            const stockInfo = {
+                totalStock,
+                rentedStock,
+                availableStock
+            };
+
+            return {
+                ...p.toObject(),
+                isFavourite: favouriteSet.has(p._id.toString()),
+                stockInfo
+            };
+        });
+
         res.json({ success: true, data });
     } catch (error) {
         console.log("error", error);
         next(error);
     }
 };
+
 
 exports.getFeatureProductById = async (req, res, next) => {
     try {
@@ -298,15 +375,57 @@ exports.getFeatureProductById = async (req, res, next) => {
             isActive: true,
             user: { $ne: req.user.id }
         })
-            .populate('category subcategory')  // Populate category and subcategory details
-            .select('-__v -isDeleted -step');  // Exclude unnecessary fields
+            .populate('category subcategory')
+            .select('-__v -isDeleted -step');
 
         if (!product) {
             return res.status(404).json({ success: false, message: 'Product not found.' });
         }
 
-        // Get available stock for this product
-        const stockInfo = await product.getAvailableStock();
+        // Get total stock
+        const totalStock = parseInt(product.stockQuantity) || 0;
+
+        // Get all bookings for this product that are not cancelled or completed
+        const bookings = await Booking.find({
+            product: req.params.productId,
+            status: { $nin: ['cancelled', 'completed'] }
+        }).select('bookedDates');
+
+        // Count bookings for each date
+        const dateBookingCounts = {};
+
+        bookings.forEach(booking => {
+            if (booking.bookedDates && booking.bookedDates.length > 0) {
+                booking.bookedDates.forEach(dateObj => {
+                    if (dateObj.date) {
+                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                        dateBookingCounts[dateString] = (dateBookingCounts[dateString] || 0) + 1;
+                    }
+                });
+            }
+        });
+
+        // console.log('dateBookingCounts', dateBookingCounts);
+
+        // Find the MAXIMUM number of bookings for any single date
+        // This represents the worst-case scenario for availability
+        const maxBookedForAnyDate = Object.keys(dateBookingCounts).length > 0
+            ? Math.max(...Object.values(dateBookingCounts))
+            : 0;
+
+        const minBookedForAnyDate = Object.keys(dateBookingCounts).length > 0
+            ? Math.min(...Object.values(dateBookingCounts))
+            : 0;
+
+        // Calculate available stock based on the MOST booked date
+        const rentedStock = maxBookedForAnyDate;
+        const availableStock = Math.max(0, totalStock - minBookedForAnyDate);
+
+        const stockInfo = {
+            totalStock,
+            rentedStock,      // Should be 3 (max of 3, 2, 2)
+            availableStock    // Should be 0 (3 - 3)
+        };
 
         const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
         const data = {
