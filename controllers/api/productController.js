@@ -233,7 +233,10 @@ exports.getProducts = async (req, res, next) => {
                 : 0;
 
             const rentedStock = maxBookedForAnyDate;
-            const availableStock = Math.max(0, totalStock - minBookedForAnyDate);
+            const availableStock = Math.max(
+                0,
+                totalStock - maxBookedForAnyDate
+            );
 
             const stockInfo = {
                 totalStock,
@@ -343,7 +346,10 @@ exports.getAllFeatureProduct = async (req, res, next) => {
                 : 0;
 
             const rentedStock = maxBookedForAnyDate;
-            const availableStock = Math.max(0, totalStock - minBookedForAnyDate);
+            const availableStock = Math.max(
+                0,
+                totalStock - maxBookedForAnyDate
+            );
 
             const stockInfo = {
                 totalStock,
@@ -384,6 +390,7 @@ exports.getFeatureProductById = async (req, res, next) => {
 
         // Get total stock
         const totalStock = parseInt(product.stockQuantity) || 0;
+        console.log('totalStock: ', totalStock);
 
         // Get all bookings for this product that are not cancelled or completed
         const bookings = await Booking.find({
@@ -405,7 +412,7 @@ exports.getFeatureProductById = async (req, res, next) => {
             }
         });
 
-        // console.log('dateBookingCounts', dateBookingCounts);
+        console.log('dateBookingCounts', dateBookingCounts);
 
         // Find the MAXIMUM number of bookings for any single date
         // This represents the worst-case scenario for availability
@@ -419,7 +426,7 @@ exports.getFeatureProductById = async (req, res, next) => {
 
         // Calculate available stock based on the MOST booked date
         const rentedStock = maxBookedForAnyDate;
-        const availableStock = Math.max(0, totalStock - minBookedForAnyDate);
+        const availableStock = Math.max(0, totalStock - maxBookedForAnyDate);
 
         const stockInfo = {
             totalStock,
@@ -813,19 +820,26 @@ exports.editProductStep1 = async (req, res, next) => {
 
 exports.editProductStep2 = async (req, res, next) => {
     try {
-        const { productId, oLatitude, oLongitude, oCancellationCharges } = req.body;
+        const { productId, oLatitude, oLongitude, oCancellationCharges } =
+            req.body;
         if (!productId) {
             return res.status(400).json({
                 success: false,
-                message: "productId pass.",
+                message: 'productId pass.',
             });
         }
 
         // Whitelisted Step 2 fields
         const allowedFields = [
-            'oName', 'oEmail', 'oLatitude',
-            'oLongitude', 'oCancellationCharges', 'oRentingOut',
-            'oRulesPolicy', 'oLocation', 'publish'
+            'oName',
+            'oEmail',
+            'oLatitude',
+            'oLongitude',
+            'oCancellationCharges',
+            'oRentingOut',
+            'oRulesPolicy',
+            'oLocation',
+            'publish',
         ];
 
         const updateData = {};
@@ -837,9 +851,10 @@ exports.editProductStep2 = async (req, res, next) => {
         });
 
         if (oCancellationCharges) {
-            updateData.oCancellationCharges = typeof oCancellationCharges === 'string'
-                ? JSON.parse(oCancellationCharges)
-                : oCancellationCharges;
+            updateData.oCancellationCharges =
+                typeof oCancellationCharges === 'string'
+                    ? JSON.parse(oCancellationCharges)
+                    : oCancellationCharges;
         }
 
         if (oLatitude && oLongitude) {
@@ -849,12 +864,16 @@ exports.editProductStep2 = async (req, res, next) => {
             };
         }
 
-        updateData.step = "2";
+        updateData.step = '2';
 
-        const updated = await Product.findByIdAndUpdate(productId, updateData, { new: true });
+        const updated = await Product.findByIdAndUpdate(productId, updateData, {
+            new: true,
+        });
 
         if (!updated) {
-            return res.status(404).json({ success: false, message: "Product not found" });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found' });
         }
 
         const responseFields = {
@@ -869,13 +888,13 @@ exports.editProductStep2 = async (req, res, next) => {
             oRulesPolicy: updated.oRulesPolicy,
             oCancellationCharges: updated.oCancellationCharges,
             step: updated.step,
-            publish: updated.publish
+            publish: updated.publish,
         };
 
         res.status(200).json({
             success: true,
-            message: "Step 2: Owner info updated successfully.",
-            data: responseFields
+            message: 'Step 2: Owner info updated successfully.',
+            data: responseFields,
         });
     } catch (error) {
         next(error);
@@ -1140,6 +1159,7 @@ exports.getBookedDates = async (req, res, next) => {
             product: productId,
             status: { $nin: ['cancelled', 'completed'] }
         }).select('bookedDates');
+            console.log(' bookings: ', JSON.stringify(bookings));
 
         // Count bookings for each date
         const dateBookingCounts = {};
@@ -1160,6 +1180,7 @@ exports.getBookedDates = async (req, res, next) => {
                 });
             }
         });
+        console.log('dateBookingCounts: ', dateBookingCounts);
 
         // Create detailed availability information using an array
         const dateAvailability = bookedDates.map(dateString => {
@@ -1174,6 +1195,7 @@ exports.getBookedDates = async (req, res, next) => {
                 // isFullyBooked: availableCount === 0
             };
         });
+            console.log('dateAvailability: ', dateAvailability);
 
         bookedDates.sort();
 

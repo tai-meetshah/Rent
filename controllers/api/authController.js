@@ -5,6 +5,7 @@ const generateCode = require('../../utils/generateCode');
 const { isValidPhone } = require('../../utils/validation');
 const deleteFile = require('../../utils/deleteFile');
 const User = require('../../models/userModel');
+const userNotificationModel = require('../../models/userNotificationModel');
 const otpModel = require('../../models/otpModel');
 const Product = require('../../models/product');
 const bcrypt = require('bcryptjs');
@@ -233,8 +234,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.facebookId
                     ? 'Please log in with Facebook.'
                     : user.appleId
-                        ? 'Please log in with Apple.'
-                        : 'Please log in with email.';
+                    ? 'Please log in with Apple.'
+                    : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (googleId !== user.googleId) {
@@ -247,8 +248,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.googleId
                     ? 'Please log in with Google.'
                     : user.appleId
-                        ? 'Please log in with Apple.'
-                        : 'Please log in with email.';
+                    ? 'Please log in with Apple.'
+                    : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (facebookId !== user.facebookId) {
@@ -261,8 +262,8 @@ exports.socialLogin = async (req, res, next) => {
                 const errorMessage = user.googleId
                     ? 'Please log in with Google.'
                     : user.facebookId
-                        ? 'Please log in with Facebook.'
-                        : 'Please log in with email.';
+                    ? 'Please log in with Facebook.'
+                    : 'Please log in with email.';
                 return next(createError.BadRequest(errorMessage));
             }
             if (appleId !== user.appleId) {
@@ -511,10 +512,7 @@ exports.editProfile = async (req, res, next) => {
 exports.deleteAccount = async (req, res, next) => {
     try {
         // Set isDeleted to true for all products associated with this user
-        await Product.updateMany(
-            { user: req.user.id },
-            { isDeleted: true }
-        );
+        await Product.updateMany({ user: req.user.id }, { isDeleted: true });
 
         // Delete the user account
         await User.findByIdAndDelete(req.user.id);
@@ -565,6 +563,42 @@ exports.changeLanguage = async (req, res, next) => {
         });
     } catch (error) {
         console.log(error);
+        next(error);
+    }
+};
+
+exports.notificationListUser = async (req, res, next) => {
+    try {
+        const notifications = await userNotificationModel
+            .find({
+                sentTo: req.user._id,
+            })
+            .sort({ createdAt: -1 })
+            .select('-expireAt -__v -sentTo')
+            .lean();
+        if (!notifications)
+            return next(createError.BadRequest('Notification not found.'));
+
+        res.json({
+            success: true,
+            message: 'Notifications retrieved successfully.',
+            notifications,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.clearNotifications = async (req, res, next) => {
+    try {
+        await userNotificationModel.deleteMany({ sentTo: req.user._id });
+
+        res.status(200).json({
+            success: true,
+            message: 'All notifications cleared successfully.',
+        });
+    } catch (error) {
+        console.error(error);
         next(error);
     }
 };

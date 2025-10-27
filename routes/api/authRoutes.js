@@ -65,5 +65,16 @@ router.delete(
     upload.none(),
     authController.deleteAccount
 );
-
+router.get(
+    '/notification-list',
+    upload.none(),
+    authController.checkUser,
+    authController.notificationListUser
+);
+router.delete(
+    '/notification-clear',
+    upload.none(),
+    authController.checkUser,
+    authController.clearNotifications
+);
 module.exports = router;

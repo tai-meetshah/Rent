@@ -68,7 +68,15 @@ async function checkStockAvailabilityForDates(productId, requestedDates, totalSt
 
 exports.checkAvailability = async (req, res, next) => {
      try {
-          const { productId, dates } = req.body;
+          let { productId, dates } = req.body;
+          console.log('req.body: ', req.body);
+                    if (typeof dates === 'string') {
+                        try {
+                            dates = JSON.parse(dates);
+                        } catch (_) {}
+                    }
+          console.log('dates: ', dates);
+
           if (!productId || !Array.isArray(dates)) {
                return res.status(400).json({ success: false, message: 'productId and dates[] are required' });
           }
@@ -133,6 +141,7 @@ exports.checkAvailability = async (req, res, next) => {
 exports.createBooking = async (req, res, next) => {
      try {
           const { productId, deliveryType, pickupTime, advancePayment, totalPrice, notes } = req.body;
+          console.log(req.body);
           let { bookedDates, address } = req.body;
           // Accept bookedDates as JSON string or array
           if (typeof bookedDates === 'string') {
@@ -158,11 +167,12 @@ exports.createBooking = async (req, res, next) => {
           // }
 
           const product = await Product.findById(productId).populate('user', 'name fcmToken');
+          // console.log('product: ', product);
           if (!product) return res.status(404).json({ success: false, message: 'Product not found.' });
 
           const verificationImagePath = req.file ? `/${req.file.filename}` : undefined;
 
-          await Booking.create({
+           let data =   await Booking.create({
                product: productId,
                user: req.user.id,
                bookedDates,
@@ -177,6 +187,7 @@ exports.createBooking = async (req, res, next) => {
                notes,
                address,
           });
+          // console.log('data: ', data);
 
           // Send notification to seller about new booking
           if (product.user) {
