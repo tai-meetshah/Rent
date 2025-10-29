@@ -4,6 +4,7 @@ const Product = require('../../models/product');
 const SearchHistory = require('../../models/SearchHistory');
 const userModel = require('../../models/userModel');
 const Booking = require('../../models/Booking');
+const Review = require('../../models/reviewModel');
 
 exports.getAllCategories = async (req, res, next) => {
     try {
@@ -20,7 +21,7 @@ exports.getAllCategories = async (req, res, next) => {
     }
 };
 
-// one user product
+// one user product - WITH REVIEWS
 exports.getAllProduct = async (req, res, next) => {
     try {
         const { fromDate } = req.query;
@@ -30,7 +31,7 @@ exports.getAllProduct = async (req, res, next) => {
 
         let products = await Product.find({
             isDeleted: false,
-            user: req.user.id
+            user: req.user.id,
         })
             .sort('-_id')
             .populate('category subcategory')
@@ -38,7 +39,30 @@ exports.getAllProduct = async (req, res, next) => {
 
         // Get stock info
         const productIds = products.map(p => p._id);
-        const stockData = await Product.getAvailableStockForProducts(productIds);
+        const stockData = await Product.getAvailableStockForProducts(
+            productIds
+        );
+
+        // 📝 Get all reviews for these products
+        const reviews = await Review.find({
+            product: { $in: productIds },
+        })
+            .populate('user', 'name photo email')
+            .select('-__v')
+            .sort('-createdAt');
+
+        // Filter out reviews with null users
+        const validReviews = reviews.filter(r => r.user !== null);
+
+        // Create a map of product reviews
+        const reviewsByProduct = {};
+        validReviews.forEach(review => {
+            const productId = review.product.toString();
+            if (!reviewsByProduct[productId]) {
+                reviewsByProduct[productId] = [];
+            }
+            reviewsByProduct[productId].push(review);
+        });
 
         const data = products.map(p => {
             const filteredDates = (p.selectDate || []).filter(date => {
@@ -47,14 +71,18 @@ exports.getAllProduct = async (req, res, next) => {
                 return d >= from;
             });
 
+            // Get reviews for this product
+            const productReviews = reviewsByProduct[p._id.toString()] || [];
+
             return {
                 ...p.toObject(),
                 selectDate: filteredDates,
                 stockInfo: stockData[p._id.toString()] || {
                     totalStock: parseInt(p.stockQuantity) || 0,
                     rentedStock: 0,
-                    availableStock: parseInt(p.stockQuantity) || 0
-                }
+                    availableStock: parseInt(p.stockQuantity) || 0,
+                },
+                reviews: productReviews,
             };
         });
 
@@ -64,7 +92,7 @@ exports.getAllProduct = async (req, res, next) => {
     }
 };
 
-// Get all the products not one user only /all-product
+// Get all the products not one user only /all-product - WITH REVIEWS
 exports.getProducts = async (req, res, next) => {
     try {
         const {
@@ -99,21 +127,21 @@ exports.getProducts = async (req, res, next) => {
                             {
                                 $size: {
                                     $filter: {
-                                        input: "$keywords",
-                                        as: "keyword",
+                                        input: '$keywords',
+                                        as: 'keyword',
                                         cond: {
                                             $eq: [
-                                                { $toLower: "$$keyword" },
-                                                searchLower
-                                            ]
-                                        }
-                                    }
-                                }
+                                                { $toLower: '$$keyword' },
+                                                searchLower,
+                                            ],
+                                        },
+                                    },
+                                },
                             },
-                            0
-                        ]
-                    }
-                }
+                            0,
+                        ],
+                    },
+                },
             ];
         }
 
@@ -173,7 +201,7 @@ exports.getProducts = async (req, res, next) => {
             filter.coordinates = {
                 $near: {
                     $geometry: {
-                        type: "Point",
+                        type: 'Point',
                         coordinates: [Number(longitude), Number(latitude)],
                     },
                     $maxDistance: maxDistance,
@@ -192,8 +220,29 @@ exports.getProducts = async (req, res, next) => {
         // 📦 Fetch all bookings for those products
         const bookings = await Booking.find({
             product: { $in: productIds },
-            status: { $nin: ['cancelled', 'completed'] }
+            status: { $nin: ['cancelled', 'completed'] },
         }).select('product bookedDates');
+
+        // 📝 Get all reviews for these products
+        const reviews = await Review.find({
+            product: { $in: productIds },
+        })
+            .populate('user', 'name photo email')
+            .select('-__v')
+            .sort('-createdAt');
+
+        // Filter out reviews with null users
+        const validReviews = reviews.filter(r => r.user !== null);
+
+        // Create a map of product reviews
+        const reviewsByProduct = {};
+        validReviews.forEach(review => {
+            const productId = review.product.toString();
+            if (!reviewsByProduct[productId]) {
+                reviewsByProduct[productId] = [];
+            }
+            reviewsByProduct[productId].push(review);
+        });
 
         // 🧮 Aggregate booking counts by date for each product
         const bookingCountsByProduct = {};
@@ -206,9 +255,12 @@ exports.getProducts = async (req, res, next) => {
             if (booking.bookedDates?.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
-                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                        const dateString = new Date(dateObj.date)
+                            .toISOString()
+                            .split('T')[0];
                         bookingCountsByProduct[productId][dateString] =
-                            (bookingCountsByProduct[productId][dateString] || 0) + 1;
+                            (bookingCountsByProduct[productId][dateString] ||
+                                0) + 1;
                     }
                 });
             }
@@ -216,21 +268,26 @@ exports.getProducts = async (req, res, next) => {
 
         // 🧡 Favourites
         const favouriteSet = new Set(
-            ((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString())
+            (req.user && req.user.favourites ? req.user.favourites : []).map(
+                id => id.toString()
+            )
         );
 
-        // 📊 Map product data with computed stockInfo
+        // 📊 Map product data with computed stockInfo and reviews
         let data = products.map(p => {
             const totalStock = parseInt(p.stockQuantity) || 0;
-            const productBookings = bookingCountsByProduct[p._id.toString()] || {};
+            const productBookings =
+                bookingCountsByProduct[p._id.toString()] || {};
 
-            const maxBookedForAnyDate = Object.keys(productBookings).length > 0
-                ? Math.max(...Object.values(productBookings))
-                : 0;
+            const maxBookedForAnyDate =
+                Object.keys(productBookings).length > 0
+                    ? Math.max(...Object.values(productBookings))
+                    : 0;
 
-            const minBookedForAnyDate = Object.keys(productBookings).length > 0
-                ? Math.min(...Object.values(productBookings))
-                : 0;
+            const minBookedForAnyDate =
+                Object.keys(productBookings).length > 0
+                    ? Math.min(...Object.values(productBookings))
+                    : 0;
 
             const rentedStock = maxBookedForAnyDate;
             const availableStock = Math.max(
@@ -241,36 +298,42 @@ exports.getProducts = async (req, res, next) => {
             const stockInfo = {
                 totalStock,
                 rentedStock,
-                availableStock
+                availableStock,
             };
+
+            // Get reviews for this product
+            const productReviews = reviewsByProduct[p._id.toString()] || [];
 
             return {
                 ...p.toObject(),
                 isFavourite: favouriteSet.has(p._id.toString()),
                 stockInfo,
-                totalRentals: 0 // placeholder, may fill below if sorting by most rented
+                totalRentals: 0,
+                reviews: productReviews,
             };
         });
 
         // 📈 If sorting by total rentals
         if (needsRentalSorting) {
-            const totalRentalData = await Product.getTotalRentalCountForProducts(productIds);
+            const totalRentalData =
+                await Product.getTotalRentalCountForProducts(productIds);
             data = data.map(p => ({
                 ...p,
-                totalRentals: totalRentalData[p._id.toString()] || 0
+                totalRentals: totalRentalData[p._id.toString()] || 0,
             }));
-            data = data.sort((a, b) => (b.totalRentals || 0) - (a.totalRentals || 0));
+            data = data.sort(
+                (a, b) => (b.totalRentals || 0) - (a.totalRentals || 0)
+            );
         }
 
         res.json({ success: true, data });
     } catch (error) {
-        console.error("error", error);
+        console.error('error', error);
         next(error);
     }
 };
 
-
-
+// Feature products - WITH REVIEWS
 exports.getAllFeatureProduct = async (req, res, next) => {
     try {
         const { latitude, longitude, distance } = req.body;
@@ -279,7 +342,7 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             isDeleted: false,
             publish: true,
             isActive: true,
-            user: { $ne: req.user.id }
+            user: { $ne: req.user.id },
         };
 
         // 🔍 Geospatial filter
@@ -288,7 +351,7 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             filter.coordinates = {
                 $near: {
                     $geometry: {
-                        type: "Point",
+                        type: 'Point',
                         coordinates: [Number(longitude), Number(latitude)],
                     },
                     $maxDistance: maxDistance,
@@ -305,8 +368,29 @@ exports.getAllFeatureProduct = async (req, res, next) => {
         const productIds = products.map(p => p._id);
         const bookings = await Booking.find({
             product: { $in: productIds },
-            status: { $nin: ['cancelled', 'completed'] }
+            status: { $nin: ['cancelled', 'completed'] },
         }).select('product bookedDates');
+
+        // 📝 Get all reviews for these products
+        const reviews = await Review.find({
+            product: { $in: productIds },
+        })
+            .populate('user', 'name photo email')
+            .select('-__v')
+            .sort('-createdAt');
+
+        // Filter out reviews with null users
+        const validReviews = reviews.filter(r => r.user !== null);
+
+        // Create a map of product reviews
+        const reviewsByProduct = {};
+        validReviews.forEach(review => {
+            const productId = review.product.toString();
+            if (!reviewsByProduct[productId]) {
+                reviewsByProduct[productId] = [];
+            }
+            reviewsByProduct[productId].push(review);
+        });
 
         // 🧮 Build booking counts for each product
         const bookingCountsByProduct = {};
@@ -320,9 +404,12 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
-                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                        const dateString = new Date(dateObj.date)
+                            .toISOString()
+                            .split('T')[0];
                         bookingCountsByProduct[productId][dateString] =
-                            (bookingCountsByProduct[productId][dateString] || 0) + 1;
+                            (bookingCountsByProduct[productId][dateString] ||
+                                0) + 1;
                     }
                 });
             }
@@ -330,20 +417,25 @@ exports.getAllFeatureProduct = async (req, res, next) => {
 
         // 💚 Favourite products
         const favouriteSet = new Set(
-            ((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString())
+            (req.user && req.user.favourites ? req.user.favourites : []).map(
+                id => id.toString()
+            )
         );
 
         const data = products.map(p => {
             const totalStock = parseInt(p.stockQuantity) || 0;
-            const productBookings = bookingCountsByProduct[p._id.toString()] || {};
+            const productBookings =
+                bookingCountsByProduct[p._id.toString()] || {};
 
-            const maxBookedForAnyDate = Object.keys(productBookings).length > 0
-                ? Math.max(...Object.values(productBookings))
-                : 0;
+            const maxBookedForAnyDate =
+                Object.keys(productBookings).length > 0
+                    ? Math.max(...Object.values(productBookings))
+                    : 0;
 
-            const minBookedForAnyDate = Object.keys(productBookings).length > 0
-                ? Math.min(...Object.values(productBookings))
-                : 0;
+            const minBookedForAnyDate =
+                Object.keys(productBookings).length > 0
+                    ? Math.min(...Object.values(productBookings))
+                    : 0;
 
             const rentedStock = maxBookedForAnyDate;
             const availableStock = Math.max(
@@ -354,23 +446,26 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             const stockInfo = {
                 totalStock,
                 rentedStock,
-                availableStock
+                availableStock,
             };
+
+            // Get reviews for this product
+            const productReviews = reviewsByProduct[p._id.toString()] || [];
 
             return {
                 ...p.toObject(),
                 isFavourite: favouriteSet.has(p._id.toString()),
-                stockInfo
+                stockInfo,
+                reviews: productReviews,
             };
         });
 
         res.json({ success: true, data });
     } catch (error) {
-        console.log("error", error);
+        console.log('error', error);
         next(error);
     }
 };
-
 
 exports.getFeatureProductById = async (req, res, next) => {
     try {
@@ -379,13 +474,15 @@ exports.getFeatureProductById = async (req, res, next) => {
             isDeleted: false,
             publish: true,
             isActive: true,
-            user: { $ne: req.user.id }
+            user: { $ne: req.user.id },
         })
             .populate('category subcategory')
             .select('-__v -isDeleted -step');
 
         if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found.' });
         }
 
         // Get total stock
@@ -395,7 +492,7 @@ exports.getFeatureProductById = async (req, res, next) => {
         // Get all bookings for this product that are not cancelled or completed
         const bookings = await Booking.find({
             product: req.params.productId,
-            status: { $nin: ['cancelled', 'completed'] }
+            status: { $nin: ['cancelled', 'completed'] },
         }).select('bookedDates');
 
         // Count bookings for each date
@@ -405,8 +502,11 @@ exports.getFeatureProductById = async (req, res, next) => {
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
-                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
-                        dateBookingCounts[dateString] = (dateBookingCounts[dateString] || 0) + 1;
+                        const dateString = new Date(dateObj.date)
+                            .toISOString()
+                            .split('T')[0];
+                        dateBookingCounts[dateString] =
+                            (dateBookingCounts[dateString] || 0) + 1;
                     }
                 });
             }
@@ -416,13 +516,15 @@ exports.getFeatureProductById = async (req, res, next) => {
 
         // Find the MAXIMUM number of bookings for any single date
         // This represents the worst-case scenario for availability
-        const maxBookedForAnyDate = Object.keys(dateBookingCounts).length > 0
-            ? Math.max(...Object.values(dateBookingCounts))
-            : 0;
+        const maxBookedForAnyDate =
+            Object.keys(dateBookingCounts).length > 0
+                ? Math.max(...Object.values(dateBookingCounts))
+                : 0;
 
-        const minBookedForAnyDate = Object.keys(dateBookingCounts).length > 0
-            ? Math.min(...Object.values(dateBookingCounts))
-            : 0;
+        const minBookedForAnyDate =
+            Object.keys(dateBookingCounts).length > 0
+                ? Math.min(...Object.values(dateBookingCounts))
+                : 0;
 
         // Calculate available stock based on the MOST booked date
         const rentedStock = maxBookedForAnyDate;
@@ -430,15 +532,19 @@ exports.getFeatureProductById = async (req, res, next) => {
 
         const stockInfo = {
             totalStock,
-            rentedStock,      // Should be 3 (max of 3, 2, 2)
-            availableStock    // Should be 0 (3 - 3)
+            rentedStock, // Should be 3 (max of 3, 2, 2)
+            availableStock, // Should be 0 (3 - 3)
         };
 
-        const favouriteSet = new Set(((req.user && req.user.favourites) ? req.user.favourites : []).map(id => id.toString()));
+        const favouriteSet = new Set(
+            (req.user && req.user.favourites ? req.user.favourites : []).map(
+                id => id.toString()
+            )
+        );
         const data = {
             ...product.toObject(),
             isFavourite: favouriteSet.has(product._id.toString()),
-            stockInfo
+            stockInfo,
         };
 
         res.json({ success: true, data });
@@ -471,7 +577,7 @@ exports.getAllSubcategories = async (req, res, next) => {
             {
                 $match: {
                     isDeleted: false,
-                    isActive: true
+                    isActive: true,
                 },
             },
             {
@@ -489,7 +595,7 @@ exports.getAllSubcategories = async (req, res, next) => {
                 $match: {
                     'category.isDeleted': false,
                     'category.isActive': true,
-                }
+                },
             },
             {
                 $sort: { 'category.name': 1, name: 1 }, // Sort by category name, then subcategory name
@@ -509,9 +615,9 @@ exports.getAllSubcategories = async (req, res, next) => {
             },
             {
                 $sort: {
-                    name: 1
-                }
-            }
+                    name: 1,
+                },
+            },
         ]);
 
         res.json({ success: true, categories });
@@ -520,60 +626,11 @@ exports.getAllSubcategories = async (req, res, next) => {
     }
 };
 
-// exports.getAllSubcategories = async (req, res, next) => {
-//     try {
-//         const categories = await Subcategory.aggregate([
-//             {
-//                 $match: {
-//                     isDeleted: false, // Only non-deleted subcategories
-//                 },
-//             },
-//             {
-//                 $lookup: {
-//                     from: 'categories',
-//                     let: { categoryId: '$category' },
-//                     pipeline: [
-//                         {
-//                             $match: {
-//                                 $expr: {
-//                                     $and: [
-//                                         { $eq: ['$_id', '$$categoryId'] },
-//                                         { $eq: ['$isDeleted', false] }, // Only non-deleted categories
-//                                     ],
-//                                 },
-//                             },
-//                         },
-//                     ],
-//                     as: 'category',
-//                 },
-//             },
-//             {
-//                 $unwind: '$category',
-//             },
-//             {
-//                 $group: {
-//                     _id: '$category._id',
-//                     name: { $first: '$category.name' },
-//                     image: { $first: '$category.image' },
-//                     subcategories: {
-//                         $push: {
-//                             _id: '$_id',
-//                             name: '$name',
-//                         },
-//                     },
-//                 },
-//             },
-//         ]);
-
-//         res.json({ success: true, categories });
-//     } catch (error) {
-//         next(error);
-//     }
-// };
-
 exports.createProductStep1 = async (req, res, next) => {
     try {
-        const images = req.files ? req.files.map(file => `/${file.filename}`) : [];
+        const images = req.files
+            ? req.files.map(file => `/${file.filename}`)
+            : [];
 
         const {
             title,
@@ -597,9 +654,14 @@ exports.createProductStep1 = async (req, res, next) => {
         } = req.body;
 
         // Parse fields that come as JSON strings
-        const parsedSlabs = typeof slabs === 'string' ? JSON.parse(slabs) : slabs;
-        const parsedSelectDate = typeof selectDate === 'string' ? JSON.parse(selectDate) : selectDate;
-        const parsedKeywords = typeof keywords === 'string' ? JSON.parse(keywords) : keywords;
+        const parsedSlabs =
+            typeof slabs === 'string' ? JSON.parse(slabs) : slabs;
+        const parsedSelectDate =
+            typeof selectDate === 'string'
+                ? JSON.parse(selectDate)
+                : selectDate;
+        const parsedKeywords =
+            typeof keywords === 'string' ? JSON.parse(keywords) : keywords;
 
         const latitude = parseFloat(req.body.latitude);
         const longitude = parseFloat(req.body.longitude);
@@ -633,7 +695,7 @@ exports.createProductStep1 = async (req, res, next) => {
                 type: 'Point',
                 coordinates: [longitude, latitude],
             },
-            user: req.user.id
+            user: req.user.id,
         });
 
         const savedProduct = await newProduct.save();
@@ -664,7 +726,7 @@ exports.createProductStep2 = async (req, res, next) => {
             oRulesPolicy,
             oLocation,
             productId,
-            publish
+            publish,
         } = req.body;
 
         // Prepare update object
@@ -676,32 +738,43 @@ exports.createProductStep2 = async (req, res, next) => {
             oLocation,
             oRentingOut,
             oRulesPolicy,
-            step: "2",
-            publish
+            step: '2',
+            publish,
         };
 
         const product = await Product.findById(productId);
         if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found.' });
         }
 
-        if (!product.deposit && (oCancellationCharges !== null && oCancellationCharges !== undefined)) {
-            return res.status(400).json({ success: false, message: 'Cancellation charges are only allowed when a deposit is set.' });
+        if (
+            !product.deposit &&
+            oCancellationCharges !== null &&
+            oCancellationCharges !== undefined
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    'Cancellation charges are only allowed when a deposit is set.',
+            });
         }
 
         // GeoJSON point
         if (oLatitude && oLongitude) {
             updateData.oCoordinates = {
                 type: 'Point',
-                coordinates: [parseFloat(oLongitude), parseFloat(oLatitude)]
+                coordinates: [parseFloat(oLongitude), parseFloat(oLatitude)],
             };
         }
 
         // Parse cancellation charges
         if (oCancellationCharges) {
-            updateData.oCancellationCharges = typeof oCancellationCharges === 'string'
-                ? JSON.parse(oCancellationCharges)
-                : oCancellationCharges;
+            updateData.oCancellationCharges =
+                typeof oCancellationCharges === 'string'
+                    ? JSON.parse(oCancellationCharges)
+                    : oCancellationCharges;
         }
 
         const updatedProduct = await Product.findByIdAndUpdate(
@@ -711,7 +784,9 @@ exports.createProductStep2 = async (req, res, next) => {
         );
 
         if (!updatedProduct) {
-            return res.status(404).json({ success: false, message: 'Product not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found.' });
         }
 
         const responseFields = {
@@ -726,7 +801,7 @@ exports.createProductStep2 = async (req, res, next) => {
             oRulesPolicy: updatedProduct.oRulesPolicy,
             oCancellationCharges: updatedProduct.oCancellationCharges,
             step: updatedProduct.step,
-            publish: updatedProduct.publish
+            publish: updatedProduct.publish,
         };
 
         res.status(200).json({
@@ -734,12 +809,10 @@ exports.createProductStep2 = async (req, res, next) => {
             message: 'Step 2: Owner information updated.',
             data: responseFields,
         });
-
     } catch (error) {
         next(error);
     }
 };
-
 
 exports.editProductStep1 = async (req, res, next) => {
     try {
@@ -748,16 +821,32 @@ exports.editProductStep1 = async (req, res, next) => {
             slabs,
             selectDate,
             keywords,
-            latitude, price,
-            longitude
+            latitude,
+            price,
+            longitude,
         } = req.body;
 
-        const images = req.files ? req.files.map(file => `/${file.filename}`) : undefined;
+        const images = req.files
+            ? req.files.map(file => `/${file.filename}`)
+            : undefined;
 
         const allowedFields = [
-            'title', 'category', 'subcategory', 'description', 'feature', 'ideal',
-            'inStock', 'stockQuantity', 'deposit', 'depositAmount', 'deliverProduct',
-            'deliver', 'allDaysAvailable', 'location', 'publish', 'price'
+            'title',
+            'category',
+            'subcategory',
+            'description',
+            'feature',
+            'ideal',
+            'inStock',
+            'stockQuantity',
+            'deposit',
+            'depositAmount',
+            'deliverProduct',
+            'deliver',
+            'allDaysAvailable',
+            'location',
+            'publish',
+            'price',
         ];
 
         const updateData = {};
@@ -770,19 +859,25 @@ exports.editProductStep1 = async (req, res, next) => {
         });
 
         if (slabs !== undefined) {
-            updateData.slabs = typeof slabs === 'string' ? JSON.parse(slabs) : slabs;
+            updateData.slabs =
+                typeof slabs === 'string' ? JSON.parse(slabs) : slabs;
         }
 
         if (selectDate !== undefined) {
-            updateData.selectDate = typeof selectDate === 'string' ? JSON.parse(selectDate) : selectDate;
+            updateData.selectDate =
+                typeof selectDate === 'string'
+                    ? JSON.parse(selectDate)
+                    : selectDate;
         }
 
         if (keywords !== undefined) {
-            updateData.keywords = typeof keywords === 'string' ? JSON.parse(keywords) : keywords;
+            updateData.keywords =
+                typeof keywords === 'string' ? JSON.parse(keywords) : keywords;
         }
 
         if (latitude !== undefined) updateData.latitude = parseFloat(latitude);
-        if (longitude !== undefined) updateData.longitude = parseFloat(longitude);
+        if (longitude !== undefined)
+            updateData.longitude = parseFloat(longitude);
 
         if (latitude && longitude) {
             updateData.coordinates = {
@@ -794,24 +889,30 @@ exports.editProductStep1 = async (req, res, next) => {
         if (images && images.length > 0) {
             const existingProduct = await Product.findById(productId);
             if (!existingProduct) {
-                return res.status(404).json({ success: false, message: "Product not found" });
+                return res
+                    .status(404)
+                    .json({ success: false, message: 'Product not found' });
             }
 
             updateData.images = [...existingProduct.images, ...images];
         }
 
-        updateData.step = "1";
+        updateData.step = '1';
 
-        const updated = await Product.findByIdAndUpdate(productId, updateData, { new: true });
+        const updated = await Product.findByIdAndUpdate(productId, updateData, {
+            new: true,
+        });
 
         if (!updated) {
-            return res.status(404).json({ success: false, message: "Product not found" });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found' });
         }
 
         res.status(200).json({
             success: true,
-            message: "Step 1: Product updated successfully.",
-            data: updated
+            message: 'Step 1: Product updated successfully.',
+            data: updated,
         });
     } catch (error) {
         next(error);
@@ -901,7 +1002,6 @@ exports.editProductStep2 = async (req, res, next) => {
     }
 };
 
-
 exports.deleteProductImg = async (req, res, next) => {
     try {
         const { imagePath, productId } = req.body;
@@ -911,21 +1011,23 @@ exports.deleteProductImg = async (req, res, next) => {
         product.images = product.images.filter(img => img !== imagePath);
         await product.save();
 
-        res.json({ success: true, message: "Image removed successfully" });
+        res.json({ success: true, message: 'Image removed successfully' });
     } catch (error) {
         next(error);
     }
-}
+};
 
 exports.cancellProduct = async (req, res, next) => {
     try {
         const { productId } = req.body;
         const product = await Product.findById(productId);
         if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found.' });
         }
 
-        product.isDeleted = true
+        product.isDeleted = true;
 
         await product.save();
 
@@ -940,10 +1042,12 @@ exports.deleteProduct = async (req, res, next) => {
         const { productId } = req.body;
         const product = await Product.findById(productId);
         if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found.' });
         }
 
-        product.isDeleted = true
+        product.isDeleted = true;
 
         await product.save();
 
@@ -951,8 +1055,6 @@ exports.deleteProduct = async (req, res, next) => {
             { favourites: productId },
             { $pull: { favourites: productId } }
         );
-
-
 
         res.json({ success: true, message: 'Product deleted successfully.' });
     } catch (error) {
@@ -965,11 +1067,14 @@ exports.activeDeactiveProduct = async (req, res, next) => {
         const { productId, status } = req.body;
         const product = await Product.findById(productId);
 
-        product.isActive = status
+        product.isActive = status;
 
-        await product.save()
+        await product.save();
 
-        res.json({ success: true, message: 'Product status updated successfully.' });
+        res.json({
+            success: true,
+            message: 'Product status updated successfully.',
+        });
     } catch (error) {
         next(error);
     }
@@ -981,7 +1086,9 @@ exports.saveSearch = async (req, res, next) => {
         const { term } = req.body;
 
         if (!term || !term.trim()) {
-            return res.status(400).json({ success: false, message: 'Search term is required' });
+            return res
+                .status(400)
+                .json({ success: false, message: 'Search term is required' });
         }
 
         await SearchHistory.create({
@@ -1013,9 +1120,14 @@ exports.deleteSearchTerm = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        let deleted = await SearchHistory.findOneAndDelete({ _id: id, userId: req.user.id });
+        let deleted = await SearchHistory.findOneAndDelete({
+            _id: id,
+            userId: req.user.id,
+        });
         if (!deleted) {
-            return res.status(404).json({ success: false, message: 'Term not found' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Term not found' });
         }
 
         res.status(200).json({ success: true, message: 'Term deleted' });
@@ -1029,10 +1141,15 @@ exports.clearSearchHistory = async (req, res, next) => {
     try {
         let deleted = await SearchHistory.deleteMany({ userId: req.user.id });
         if (!deleted) {
-            return res.status(404).json({ success: false, message: 'Search history not found' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Search history not found' });
         }
 
-        res.status(200).json({ success: true, message: 'Search history cleared' });
+        res.status(200).json({
+            success: true,
+            message: 'Search history cleared',
+        });
     } catch (error) {
         next(error);
     }
@@ -1043,86 +1160,94 @@ exports.addFavouriteProduct = async (req, res, next) => {
         const { productId } = req.body;
         const product = await Product.findById(productId);
         if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found.' });
         }
 
         const user = await userModel.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'User not found.' });
         }
 
         user.favourites.push(productId);
         await user.save();
 
-        res.status(200).json({ success: true, message: 'Product added to favourites.' });
+        res.status(200).json({
+            success: true,
+            message: 'Product added to favourites.',
+        });
     } catch (error) {
         next(error);
     }
-}
+};
 
 exports.removeFavouriteProduct = async (req, res, next) => {
     try {
         const { productId } = req.body;
         const product = await Product.findById(productId);
         if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found.' });
         }
 
         const user = await userModel.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'User not found.' });
         }
 
-        user.favourites = user.favourites.filter(id => id.toString() !== productId);
+        user.favourites = user.favourites.filter(
+            id => id.toString() !== productId
+        );
         await user.save();
 
-        res.status(200).json({ success: true, message: 'Product removed from favourites.' });
+        res.status(200).json({
+            success: true,
+            message: 'Product removed from favourites.',
+        });
     } catch (error) {
         next(error);
     }
-}
+};
 
 exports.getFavouriteProducts = async (req, res, next) => {
     try {
         const user = await userModel.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'User not found.' });
         }
 
         const products = await Product.find({ _id: { $in: user.favourites } })
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        // const productIds = products.map(p => p._id);
-        // const stockData = await Product.getAvailableStockForProducts(productIds);
-
-        // const data = products.map(p => ({
-        //     ...p.toObject(),
-        //     stockInfo: stockData[p._id.toString()] || {
-        //         totalStock: parseInt(p.stockQuantity) || 0,
-        //         rentedStock: 0,
-        //         availableStock: parseInt(p.stockQuantity) || 0
-        //     }
-        // }));
-
-        // res.status(200).json({ success: true, data });
-
         res.status(200).json({ success: true, data: products });
     } catch (error) {
         next(error);
     }
-}
+};
 
 exports.getProductStockInfo = async (req, res, next) => {
     try {
         const { productId } = req.params;
         if (!productId) {
-            return res.status(400).json({ success: false, message: 'Product ID is required.' });
+            return res
+                .status(400)
+                .json({ success: false, message: 'Product ID is required.' });
         }
 
         const product = await Product.findById(productId);
         if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found.' });
         }
 
         // Get available stock for this product
@@ -1131,7 +1256,7 @@ exports.getProductStockInfo = async (req, res, next) => {
         res.status(200).json({
             success: true,
             productId: product._id,
-            stockInfo
+            stockInfo,
         });
     } catch (error) {
         console.log(error);
@@ -1144,12 +1269,16 @@ exports.getBookedDates = async (req, res, next) => {
     try {
         const { productId } = req.params;
         if (!productId) {
-            return res.status(400).json({ success: false, message: 'Product ID is required.' });
+            return res
+                .status(400)
+                .json({ success: false, message: 'Product ID is required.' });
         }
 
         const product = await Product.findById(productId);
         if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found.' });
         }
 
         const totalStock = parseInt(product.stockQuantity) || 0;
@@ -1157,21 +1286,23 @@ exports.getBookedDates = async (req, res, next) => {
         // Get all bookings for this product that are not cancelled or completed
         const bookings = await Booking.find({
             product: productId,
-            status: { $nin: ['cancelled', 'completed'] }
+            status: { $nin: ['cancelled', 'completed'] },
         }).select('bookedDates');
-            console.log(' bookings: ', JSON.stringify(bookings));
+        console.log(' bookings: ', JSON.stringify(bookings));
 
         // Count bookings for each date
         const dateBookingCounts = {};
-        const bookedDates = (product.selectDate || []).map(date =>
-            new Date(date).toISOString().split('T')[0]
+        const bookedDates = (product.selectDate || []).map(
+            date => new Date(date).toISOString().split('T')[0]
         );
 
         bookings.forEach(booking => {
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
-                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                        const dateString = new Date(dateObj.date)
+                            .toISOString()
+                            .split('T')[0];
                         if (!dateBookingCounts[dateString]) {
                             dateBookingCounts[dateString] = 0;
                         }
@@ -1180,7 +1311,6 @@ exports.getBookedDates = async (req, res, next) => {
                 });
             }
         });
-        console.log('dateBookingCounts: ', dateBookingCounts);
 
         // Create detailed availability information using an array
         const dateAvailability = bookedDates.map(dateString => {
@@ -1192,20 +1322,18 @@ exports.getBookedDates = async (req, res, next) => {
                 booked: bookedCount,
                 available: availableCount,
                 total: totalStock,
-                // isFullyBooked: availableCount === 0
             };
         });
-            console.log('dateAvailability: ', dateAvailability);
 
         bookedDates.sort();
 
         res.status(200).json({
             success: true,
             bookedDates: bookedDates,
-            dateAvailability: dateAvailability
+            dateAvailability: dateAvailability,
         });
     } catch (error) {
         console.log(error);
         next(error);
     }
-}
+};
