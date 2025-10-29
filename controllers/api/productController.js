@@ -217,11 +217,10 @@ exports.getProducts = async (req, res, next) => {
 
         const productIds = products.map(p => p._id);
 
-        // 📦 Fetch all bookings for those products
-        const bookings = await Booking.find({
-            product: { $in: productIds },
-            status: { $nin: ['cancelled', 'completed'] },
-        }).select('product bookedDates');
+        // 📦 Fetch stock info for products (uses booking aggregation internally and respects selectDate)
+        const stockData = await Product.getAvailableStockForProducts(
+            productIds
+        );
 
         // 📝 Get all reviews for these products
         const reviews = await Review.find({
@@ -244,27 +243,7 @@ exports.getProducts = async (req, res, next) => {
             reviewsByProduct[productId].push(review);
         });
 
-        // 🧮 Aggregate booking counts by date for each product
-        const bookingCountsByProduct = {};
-        bookings.forEach(booking => {
-            const productId = booking.product.toString();
-            if (!bookingCountsByProduct[productId]) {
-                bookingCountsByProduct[productId] = {};
-            }
-
-            if (booking.bookedDates?.length > 0) {
-                booking.bookedDates.forEach(dateObj => {
-                    if (dateObj.date) {
-                        const dateString = new Date(dateObj.date)
-                            .toISOString()
-                            .split('T')[0];
-                        bookingCountsByProduct[productId][dateString] =
-                            (bookingCountsByProduct[productId][dateString] ||
-                                0) + 1;
-                    }
-                });
-            }
-        });
+        // NOTE: stockData contains per-product { totalStock, rentedStock, availableStock }
 
         // 🧡 Favourites
         const favouriteSet = new Set(
@@ -275,30 +254,10 @@ exports.getProducts = async (req, res, next) => {
 
         // 📊 Map product data with computed stockInfo and reviews
         let data = products.map(p => {
-            const totalStock = parseInt(p.stockQuantity) || 0;
-            const productBookings =
-                bookingCountsByProduct[p._id.toString()] || {};
-
-            const maxBookedForAnyDate =
-                Object.keys(productBookings).length > 0
-                    ? Math.max(...Object.values(productBookings))
-                    : 0;
-
-            const minBookedForAnyDate =
-                Object.keys(productBookings).length > 0
-                    ? Math.min(...Object.values(productBookings))
-                    : 0;
-
-            const rentedStock = maxBookedForAnyDate;
-            const availableStock = Math.max(
-                0,
-                totalStock - maxBookedForAnyDate
-            );
-
-            const stockInfo = {
-                totalStock,
-                rentedStock,
-                availableStock,
+            const stockInfo = stockData[p._id.toString()] || {
+                totalStock: parseInt(p.stockQuantity) || 0,
+                rentedStock: 0,
+                availableStock: parseInt(p.stockQuantity) || 0,
             };
 
             // Get reviews for this product
@@ -364,12 +323,11 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        // 📦 Get all bookings for these products in one query
+        // 📦 Fetch stock info for products (uses booking aggregation internally and respects selectDate)
         const productIds = products.map(p => p._id);
-        const bookings = await Booking.find({
-            product: { $in: productIds },
-            status: { $nin: ['cancelled', 'completed'] },
-        }).select('product bookedDates');
+        const stockData = await Product.getAvailableStockForProducts(
+            productIds
+        );
 
         // 📝 Get all reviews for these products
         const reviews = await Review.find({
@@ -392,28 +350,7 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             reviewsByProduct[productId].push(review);
         });
 
-        // 🧮 Build booking counts for each product
-        const bookingCountsByProduct = {};
-
-        bookings.forEach(booking => {
-            const productId = booking.product.toString();
-            if (!bookingCountsByProduct[productId]) {
-                bookingCountsByProduct[productId] = {};
-            }
-
-            if (booking.bookedDates && booking.bookedDates.length > 0) {
-                booking.bookedDates.forEach(dateObj => {
-                    if (dateObj.date) {
-                        const dateString = new Date(dateObj.date)
-                            .toISOString()
-                            .split('T')[0];
-                        bookingCountsByProduct[productId][dateString] =
-                            (bookingCountsByProduct[productId][dateString] ||
-                                0) + 1;
-                    }
-                });
-            }
-        });
+        // NOTE: stockData contains per-product { totalStock, rentedStock, availableStock }
 
         // 💚 Favourite products
         const favouriteSet = new Set(
@@ -423,30 +360,10 @@ exports.getAllFeatureProduct = async (req, res, next) => {
         );
 
         const data = products.map(p => {
-            const totalStock = parseInt(p.stockQuantity) || 0;
-            const productBookings =
-                bookingCountsByProduct[p._id.toString()] || {};
-
-            const maxBookedForAnyDate =
-                Object.keys(productBookings).length > 0
-                    ? Math.max(...Object.values(productBookings))
-                    : 0;
-
-            const minBookedForAnyDate =
-                Object.keys(productBookings).length > 0
-                    ? Math.min(...Object.values(productBookings))
-                    : 0;
-
-            const rentedStock = maxBookedForAnyDate;
-            const availableStock = Math.max(
-                0,
-                totalStock - maxBookedForAnyDate
-            );
-
-            const stockInfo = {
-                totalStock,
-                rentedStock,
-                availableStock,
+            const stockInfo = stockData[p._id.toString()] || {
+                totalStock: parseInt(p.stockQuantity) || 0,
+                rentedStock: 0,
+                availableStock: parseInt(p.stockQuantity) || 0,
             };
 
             // Get reviews for this product
@@ -485,56 +402,8 @@ exports.getFeatureProductById = async (req, res, next) => {
                 .json({ success: false, message: 'Product not found.' });
         }
 
-        // Get total stock
-        const totalStock = parseInt(product.stockQuantity) || 0;
-        console.log('totalStock: ', totalStock);
-
-        // Get all bookings for this product that are not cancelled or completed
-        const bookings = await Booking.find({
-            product: req.params.productId,
-            status: { $nin: ['cancelled', 'completed'] },
-        }).select('bookedDates');
-
-        // Count bookings for each date
-        const dateBookingCounts = {};
-
-        bookings.forEach(booking => {
-            if (booking.bookedDates && booking.bookedDates.length > 0) {
-                booking.bookedDates.forEach(dateObj => {
-                    if (dateObj.date) {
-                        const dateString = new Date(dateObj.date)
-                            .toISOString()
-                            .split('T')[0];
-                        dateBookingCounts[dateString] =
-                            (dateBookingCounts[dateString] || 0) + 1;
-                    }
-                });
-            }
-        });
-
-        console.log('dateBookingCounts', dateBookingCounts);
-
-        // Find the MAXIMUM number of bookings for any single date
-        // This represents the worst-case scenario for availability
-        const maxBookedForAnyDate =
-            Object.keys(dateBookingCounts).length > 0
-                ? Math.max(...Object.values(dateBookingCounts))
-                : 0;
-
-        const minBookedForAnyDate =
-            Object.keys(dateBookingCounts).length > 0
-                ? Math.min(...Object.values(dateBookingCounts))
-                : 0;
-
-        // Calculate available stock based on the MOST booked date
-        const rentedStock = maxBookedForAnyDate;
-        const availableStock = Math.max(0, totalStock - maxBookedForAnyDate);
-
-        const stockInfo = {
-            totalStock,
-            rentedStock, // Should be 3 (max of 3, 2, 2)
-            availableStock, // Should be 0 (3 - 3)
-        };
+        // Use product instance helper which respects selectDate when computing availability
+        const stockInfo = await product.getAvailableStock();
 
         const favouriteSet = new Set(
             (req.user && req.user.favourites ? req.user.favourites : []).map(
@@ -1288,7 +1157,6 @@ exports.getBookedDates = async (req, res, next) => {
             product: productId,
             status: { $nin: ['cancelled', 'completed'] },
         }).select('bookedDates');
-        console.log(' bookings: ', JSON.stringify(bookings));
 
         // Count bookings for each date
         const dateBookingCounts = {};

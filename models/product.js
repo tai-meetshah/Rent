@@ -181,7 +181,7 @@ const ProductSchema = new mongoose.Schema(
         step: {
             type: String,
         },
-        publish: { type: Boolean, default: false, },
+        publish: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
@@ -199,7 +199,7 @@ ProductSchema.methods.getAvailableStock = async function () {
         // Get all active bookings for this product
         const bookings = await Booking.find({
             product: this._id,
-            status: { $nin: ['cancelled', 'completed'] }
+            status: { $nin: ['cancelled', 'completed'] },
         }).select('bookedDates');
 
         // Count bookings for each date
@@ -209,7 +209,9 @@ ProductSchema.methods.getAvailableStock = async function () {
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
-                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                        const dateString = new Date(dateObj.date)
+                            .toISOString()
+                            .split('T')[0];
                         if (!dateBookingCounts[dateString]) {
                             dateBookingCounts[dateString] = 0;
                         }
@@ -219,11 +221,25 @@ ProductSchema.methods.getAvailableStock = async function () {
             }
         });
 
-        // Find the MAXIMUM number of bookings for any single date
-        // This is the worst-case scenario for availability
-        const maxBookedForAnyDate = Object.keys(dateBookingCounts).length > 0
-            ? Math.max(...Object.values(dateBookingCounts))
-            : 0;
+        // Determine which dates to consider when computing the "max booked".
+        // The single-product booked-dates API uses `product.selectDate` as the
+        // reference set of dates to report availability for. To keep
+        // getAvailableStock consistent, filter booking counts to only those
+        // dates if selectDate is present. If selectDate is empty, consider
+        // all booking dates.
+        const selectDateSet = (this.selectDate || []).map(
+            d => new Date(d).toISOString().split('T')[0]
+        );
+
+        const relevantCounts = Object.keys(dateBookingCounts)
+            .filter(
+                date =>
+                    selectDateSet.length === 0 || selectDateSet.includes(date)
+            )
+            .map(d => dateBookingCounts[d]);
+
+        const maxBookedForAnyDate =
+            relevantCounts.length > 0 ? Math.max(...relevantCounts) : 0;
 
         const rentedStock = maxBookedForAnyDate;
         const availableStock = Math.max(0, totalStock - rentedStock);
@@ -231,30 +247,34 @@ ProductSchema.methods.getAvailableStock = async function () {
         return {
             totalStock,
             rentedStock,
-            availableStock
+            availableStock,
         };
     } catch (error) {
         console.error('Error calculating available stock:', error);
         return {
             totalStock: parseInt(this.stockQuantity) || 0,
             rentedStock: 0,
-            availableStock: parseInt(this.stockQuantity) || 0
+            availableStock: parseInt(this.stockQuantity) || 0,
         };
     }
 };
 
 // Static method to get available stock for multiple products
-ProductSchema.statics.getAvailableStockForProducts = async function (productIds) {
+ProductSchema.statics.getAvailableStockForProducts = async function (
+    productIds
+) {
     const Booking = require('./Booking');
 
     try {
-        // Get all products with their stock quantities
-        const products = await this.find({ _id: { $in: productIds } }).select('_id stockQuantity');
+        // Get all products with their stock quantities and selectDate
+        const products = await this.find({ _id: { $in: productIds } }).select(
+            '_id stockQuantity selectDate'
+        );
 
         // Get all active bookings for these products
         const bookings = await Booking.find({
             product: { $in: productIds },
-            status: { $nin: ['cancelled', 'completed'] }
+            status: { $nin: ['cancelled', 'completed'] },
         }).select('product bookedDates');
 
         // Create a map to store date booking counts for each product
@@ -271,7 +291,9 @@ ProductSchema.statics.getAvailableStockForProducts = async function (productIds)
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
-                        const dateString = new Date(dateObj.date).toISOString().split('T')[0];
+                        const dateString = new Date(dateObj.date)
+                            .toISOString()
+                            .split('T')[0];
                         if (!productDateCounts[productIdStr][dateString]) {
                             productDateCounts[productIdStr][dateString] = 0;
                         }
@@ -281,19 +303,30 @@ ProductSchema.statics.getAvailableStockForProducts = async function (productIds)
             }
         });
 
-        // Calculate available stock for each product based on MAXIMUM bookings on any date
+        // Calculate available stock for each product based on MAXIMUM bookings on any relevant date
         const result = {};
         products.forEach(product => {
             const totalStock = parseInt(product.stockQuantity) || 0;
             const productIdStr = product._id.toString();
 
-            // Get all booking counts for this product's dates
-            const dateCounts = Object.values(productDateCounts[productIdStr] || {});
+            // If the product has selectDate defined, only consider booking counts for those dates
+            const selectDateSet = (product.selectDate || []).map(
+                d => new Date(d).toISOString().split('T')[0]
+            );
 
-            // Find the maximum bookings on any single date
-            const maxBookedForAnyDate = dateCounts.length > 0
-                ? Math.max(...dateCounts)
-                : 0;
+            const allDateCounts = productDateCounts[productIdStr] || {};
+
+            const relevantCounts = Object.keys(allDateCounts)
+                .filter(
+                    date =>
+                        selectDateSet.length === 0 ||
+                        selectDateSet.includes(date)
+                )
+                .map(d => allDateCounts[d]);
+
+            // Find the maximum bookings on any single relevant date
+            const maxBookedForAnyDate =
+                relevantCounts.length > 0 ? Math.max(...relevantCounts) : 0;
 
             const rentedStock = maxBookedForAnyDate;
             const availableStock = Math.max(0, totalStock - rentedStock);
@@ -301,7 +334,7 @@ ProductSchema.statics.getAvailableStockForProducts = async function (productIds)
             result[productIdStr] = {
                 totalStock,
                 rentedStock,
-                availableStock
+                availableStock,
             };
         });
 
@@ -313,7 +346,9 @@ ProductSchema.statics.getAvailableStockForProducts = async function (productIds)
 };
 
 // Static method to get total rental count (including historical) for multiple products
-ProductSchema.statics.getTotalRentalCountForProducts = async function (productIds) {
+ProductSchema.statics.getTotalRentalCountForProducts = async function (
+    productIds
+) {
     const Booking = require('./Booking');
 
     try {
@@ -322,15 +357,17 @@ ProductSchema.statics.getTotalRentalCountForProducts = async function (productId
             {
                 $match: {
                     product: { $in: productIds },
-                    status: { $in: ['pending', 'confirmed', 'ongoing', 'completed'] }
-                }
+                    status: {
+                        $in: ['pending', 'confirmed', 'ongoing', 'completed'],
+                    },
+                },
             },
             {
                 $group: {
                     _id: '$product',
-                    totalRentals: { $sum: 1 }
-                }
-            }
+                    totalRentals: { $sum: 1 },
+                },
+            },
         ]);
 
         // Create a map of product ID to total rental count
@@ -341,9 +378,79 @@ ProductSchema.statics.getTotalRentalCountForProducts = async function (productId
 
         return totalRentalMap;
     } catch (error) {
-        console.error('Error calculating total rental count for products:', error);
+        console.error(
+            'Error calculating total rental count for products:',
+            error
+        );
         return {};
     }
+};
+
+// Pure helper: compute available stock map from in-memory product and booking arrays.
+// Useful for unit tests and verifying logic without DB access.
+// products: [{ _id, stockQuantity, selectDate }]
+// bookings: [{ product, bookedDates: [{ date: Date }] }]
+ProductSchema.statics.computeAvailableStockFromData = function (
+    products,
+    bookings
+) {
+    // Build date counts per product
+    const productDateCounts = {};
+
+    products.forEach(product => {
+        const id = product._id.toString();
+        productDateCounts[id] = {};
+    });
+
+    bookings.forEach(booking => {
+        const productIdStr = booking.product.toString();
+        if (!productDateCounts[productIdStr]) return; // ignore bookings for products not in list
+        if (booking.bookedDates && booking.bookedDates.length > 0) {
+            booking.bookedDates.forEach(dateObj => {
+                if (dateObj.date) {
+                    const dateString = new Date(dateObj.date)
+                        .toISOString()
+                        .split('T')[0];
+                    if (!productDateCounts[productIdStr][dateString]) {
+                        productDateCounts[productIdStr][dateString] = 0;
+                    }
+                    productDateCounts[productIdStr][dateString]++;
+                }
+            });
+        }
+    });
+
+    const result = {};
+    products.forEach(product => {
+        const totalStock = parseInt(product.stockQuantity) || 0;
+        const productIdStr = product._id.toString();
+        const selectDateSet = (product.selectDate || []).map(
+            d => new Date(d).toISOString().split('T')[0]
+        );
+
+        const allDateCounts = productDateCounts[productIdStr] || {};
+
+        const relevantCounts = Object.keys(allDateCounts)
+            .filter(
+                date =>
+                    selectDateSet.length === 0 || selectDateSet.includes(date)
+            )
+            .map(d => allDateCounts[d]);
+
+        const maxBookedForAnyDate =
+            relevantCounts.length > 0 ? Math.max(...relevantCounts) : 0;
+
+        const rentedStock = maxBookedForAnyDate;
+        const availableStock = Math.max(0, totalStock - rentedStock);
+
+        result[productIdStr] = {
+            totalStock,
+            rentedStock,
+            availableStock,
+        };
+    });
+
+    return result;
 };
 
 module.exports = new mongoose.model('Product', ProductSchema);
