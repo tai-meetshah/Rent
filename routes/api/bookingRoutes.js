@@ -5,9 +5,9 @@ const { checkUser } = require('../../controllers/api/authController');
 
 const bookingController = require('../../controllers/api/bookingController');
 
-router.get('/:id/return-photos', (req, res) => {
-    res.send('Return photos route works!');
-});
+// router.get('/:id/return-photos', (req, res) => {
+//     res.send('Return photos route works!');
+// });
 router.post('/check-availability', fileUpload(), checkUser, bookingController.checkAvailability);
 // Accept image for verificationId using multer single upload
 router.post('/my-bookings', upload.single('verificationId'), checkUser, bookingController.createBooking);
