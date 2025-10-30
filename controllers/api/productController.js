@@ -1104,7 +1104,7 @@ exports.getFavouriteProducts = async (req, res, next) => {
             productsStockMap[p._id.toString()] = parseInt(p.stockQuantity) || 0;
         });
 
-        // const stockData = await calculateBulkProductStock(productIds, productsStockMap);
+        const stockData = await calculateBulkProductStock(productIds, productsStockMap);
 
         // 📝 Get all reviews for these products
         const reviews = await Review.find({
@@ -1132,11 +1132,11 @@ exports.getFavouriteProducts = async (req, res, next) => {
 
             return {
                 ...p.toObject(),
-                // stockInfo: stockData[p._id.toString()] || {
-                //     totalStock: parseInt(p.stockQuantity) || 0,
-                //     rentedStock: 0,
-                //     availableStock: parseInt(p.stockQuantity) || 0
-                // },
+                stockInfo: stockData[p._id.toString()] || {
+                    totalStock: parseInt(p.stockQuantity) || 0,
+                    rentedStock: 0,
+                    availableStock: parseInt(p.stockQuantity) || 0
+                },
                 reviews: productReviews
             };
         });
