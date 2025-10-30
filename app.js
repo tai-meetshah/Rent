@@ -91,6 +91,11 @@ app.use('/app-assets/*', (req, res) => res.status(404).end());
 // 404 uploads
 app.use('/uploads/*', (req, res) => res.status(404).end());
 
+app.use((req, res, next) => {
+    console.log('Incoming request:', req.method, req.originalUrl);
+    next();
+});
+
 // 2) API ROUTES
 app.use('/api/auth', require('./routes/api/authRoutes'));
 app.use('/api/cms', require('./routes/api/cmsRoutes'));
