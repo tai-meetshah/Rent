@@ -1104,7 +1104,9 @@ exports.getFavouriteProducts = async (req, res, next) => {
             productsStockMap[p._id.toString()] = parseInt(p.stockQuantity) || 0;
         });
 
-        const stockData = await calculateBulkProductStock(productIds, productsStockMap);
+                const stockData = await Product.getAvailableStockForProducts(
+                    productIds
+                );
 
         // 📝 Get all reviews for these products
         const reviews = await Review.find({
