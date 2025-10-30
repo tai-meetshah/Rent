@@ -602,3 +602,22 @@ exports.clearNotifications = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.markNotificationRead = async (req, res, next) => {
+    try {
+        await userNotificationModel.updateMany(
+            {
+                sentTo: req.user._id,
+                readBy: { $ne: req.user._id },
+            },
+            { $addToSet: { readBy: req.user._id } }
+        );
+
+        res.json({
+            success: true,
+            message: 'All notifications marked as read.',
+        });
+    } catch (error) {
+        next(error);
+    }
+};

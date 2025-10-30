@@ -77,4 +77,10 @@ router.delete(
     authController.checkUser,
     authController.clearNotifications
 );
+router.post(
+    '/notifications-read',
+    upload.none(),
+    authController.checkUser,
+    authController.markNotificationRead
+);
 module.exports = router;
