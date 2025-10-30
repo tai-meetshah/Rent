@@ -9,7 +9,7 @@ exports.upload = multer({
             cb(null, Date.now() + file.originalname.replaceAll(' ', ''));
         },
     }),
-    limits: { fileSize: 1024 * 1024 * 10 },
+    limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2 GB
     fileFilter: (req, file, cb) => {
         // reject a file
         if (
