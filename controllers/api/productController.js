@@ -1088,20 +1088,64 @@ exports.getFavouriteProducts = async (req, res, next) => {
     try {
         const user = await userModel.findById(req.user.id);
         if (!user) {
-            return res
-                .status(404)
-                .json({ success: false, message: 'User not found.' });
+            return res.status(404).json({ success: false, message: 'User not found.' });
         }
 
         const products = await Product.find({ _id: { $in: user.favourites } })
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
-        res.status(200).json({ success: true, data: products });
+        // Get product IDs
+        const productIds = products.map(p => p._id);
+
+        // Get stock info using centralized utility
+        const productsStockMap = {};
+        products.forEach(p => {
+            productsStockMap[p._id.toString()] = parseInt(p.stockQuantity) || 0;
+        });
+
+        // const stockData = await calculateBulkProductStock(productIds, productsStockMap);
+
+        // 📝 Get all reviews for these products
+        const reviews = await Review.find({
+            product: { $in: productIds }
+        })
+            .populate('user', 'name photo email')
+            .select('-__v')
+            .sort('-createdAt');
+
+        const validReviews = reviews.filter(r => r.user !== null);
+
+        // Create a map of product reviews
+        const reviewsByProduct = {};
+        validReviews.forEach(review => {
+            const productId = review.product.toString();
+            if (!reviewsByProduct[productId]) {
+                reviewsByProduct[productId] = [];
+            }
+            reviewsByProduct[productId].push(review);
+        });
+
+        // Map products with stock info and reviews
+        const data = products.map(p => {
+            const productReviews = reviewsByProduct[p._id.toString()] || [];
+
+            return {
+                ...p.toObject(),
+                // stockInfo: stockData[p._id.toString()] || {
+                //     totalStock: parseInt(p.stockQuantity) || 0,
+                //     rentedStock: 0,
+                //     availableStock: parseInt(p.stockQuantity) || 0
+                // },
+                reviews: productReviews
+            };
+        });
+
+        res.status(200).json({ success: true, data });
     } catch (error) {
         next(error);
     }
-};
+}
 
 exports.getProductStockInfo = async (req, res, next) => {
     try {
