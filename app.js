@@ -114,6 +114,7 @@ app.use('/api/auth', require('./routes/api/authRoutes'));
 app.use('/api/cms', require('./routes/api/cmsRoutes'));
 app.use('/api/product', require('./routes/api/productRoutes'));
 app.use('/api/booking', require('./routes/api/bookingRoutes'));
+app.use('/api/book', require('./routes/api/book'));
 app.use('/api/review', require('./routes/api/reviewRoutes'));
 // app.use('/api/staff-self', require('./routes/api/selfStaff'));
 // app.use('/api/branch', require('./routes/api/branchRoutes'));
