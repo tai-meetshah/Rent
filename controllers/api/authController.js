@@ -579,10 +579,22 @@ exports.notificationListUser = async (req, res, next) => {
         if (!notifications)
             return next(createError.BadRequest('Notification not found.'));
 
+        const unreadCount = notifications.filter(
+            notification =>
+                !notification.readBy.some(
+                    userId => userId.toString() === req.user._id.toString()
+                )
+        ).length;
+
+        const notificationsWithoutReadBy = notifications.map(notification => {
+            const { readBy, ...rest } = notification;
+            return rest;
+        });
+
         res.json({
             success: true,
-            message: 'Notifications retrieved successfully.',
-            notifications,
+            unreadCount,
+            notifications: notificationsWithoutReadBy,
         });
     } catch (error) {
         next(error);
