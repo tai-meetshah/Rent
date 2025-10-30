@@ -209,6 +209,10 @@ exports.getProducts = async (req, res, next) => {
             };
         }
 
+        if (needsRentalSorting && req.user?._id) {
+            filter.user = { $ne: req.user._id }; // <-- correct field name from Product schema
+        }
+
         // 🧩 Fetch products
         const products = await Product.find(filter)
             .sort(sortOption)

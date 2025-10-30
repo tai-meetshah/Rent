@@ -91,24 +91,6 @@ app.use('/app-assets/*', (req, res) => res.status(404).end());
 // 404 uploads
 app.use('/uploads/*', (req, res) => res.status(404).end());
 
-app.use((req, res, next) => {
-    console.log('Incoming request:', req.method, req.originalUrl);
-    next();
-});
-// Debug all registered routes
-app._router.stack.forEach((middleware) => {
-    if (middleware.route) { // routes registered directly on the app
-        console.log('Route:', Object.keys(middleware.route.methods).join(', ').toUpperCase(), middleware.route.path);
-    } else if (middleware.name === 'router') { // router middleware
-        middleware.handle.stack.forEach((handler) => {
-            if (handler.route) {
-                console.log('Route:', Object.keys(handler.route.methods).join(', ').toUpperCase(), handler.route.path);
-            }
-        });
-    }
-});
-
-
 // 2) API ROUTES
 app.use('/api/auth', require('./routes/api/authRoutes'));
 app.use('/api/cms', require('./routes/api/cmsRoutes'));
