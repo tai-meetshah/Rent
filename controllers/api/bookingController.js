@@ -395,14 +395,19 @@ exports.updatePaymentStatus = async (req, res, next) => {
 exports.uploadReturnPhotos = async (req, res, next) => {
      try {
           const { id } = req.params; // bookingId
+          console.log('id: ', id);
           const booking = await Booking.findOne({ _id: id, user: req.user.id });
           if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
           const files = req.files || [];
+          console.log('files: ', files);
           const photos = files.map(f => ({ url: `/${f.filename}`, status: 'pending', uploadedAt: new Date() }));
+          console.log('photos: ', photos);
           booking.returnPhotos.push(...photos);
+          console.log('booking: ', booking);
           await booking.save();
           res.status(201).json({ success: true, message: 'Photos uploaded.', photos: booking.returnPhotos });
      } catch (error) {
+          console.log('error: ', error);
           next(error);
      }
 };
