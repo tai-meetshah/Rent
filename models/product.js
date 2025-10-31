@@ -1,17 +1,9 @@
 const mongoose = require('mongoose');
-// const validator = require('validator');
-// const validate = require('../utils/validation.json');
-
-// const toTitleCase = x =>
-//     x.replace(
-//         /\w\S*/g,
-//         txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
-//     );
 
 const chargeSlabSchema = new mongoose.Schema({
-    from: { type: Number, required: true }, // e.g. 0
-    to: { type: Number, required: true }, // e.g. 25
-    amount: { type: Number, required: true }, // e.g. 100
+    from: { type: Number, required: true },
+    to: { type: Number, required: true },
+    amount: { type: Number, required: true },
 });
 
 const ProductSchema = new mongoose.Schema(
@@ -36,7 +28,6 @@ const ProductSchema = new mongoose.Schema(
         subcategory: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                // required: [true, 'Subcategory is required.'],
                 ref: 'Subcategory',
             },
         ],
@@ -46,7 +37,6 @@ const ProductSchema = new mongoose.Schema(
             trim: true,
         },
         feature: {
-            //key features
             type: String,
             trim: true,
         },
@@ -58,7 +48,6 @@ const ProductSchema = new mongoose.Schema(
             type: Number,
             trim: true,
         },
-
         inStock: { type: Boolean, required: true },
         stockQuantity: {
             type: String,
@@ -66,32 +55,18 @@ const ProductSchema = new mongoose.Schema(
                 return this.inStock;
             },
         },
-
         deposit: { type: Boolean, required: true },
         depositAmount: {
             type: String,
-            // required: function () {
-            //     return this.inStock;
-            // },
         },
-
-        deliverProduct: { type: Boolean, required: true }, //deliverProduct to renter
-
+        deliverProduct: { type: Boolean, required: true },
         slabs: [chargeSlabSchema],
-        deliver: { type: String, required: true }, //car bike
-
+        deliver: { type: String, required: true },
         selectDate: [{ type: Date }],
         allDaysAvailable: { type: Boolean, default: false },
         keywords: [{ type: String, required: true }],
-
         images: {
             type: [String],
-            // validate: {
-            //     validator: function (images) {
-            //         return images.length <= 6;
-            //     },
-            //     message: 'Maximum 6 images allowed.',
-            // },
         },
         review: {
             type: mongoose.Schema.Types.ObjectId,
@@ -105,13 +80,11 @@ const ProductSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
-
         isDeleted: { type: Boolean, default: false, select: false },
         isActive: {
             type: Boolean,
             default: true,
         },
-
         coordinates: {
             type: {
                 type: String,
@@ -139,7 +112,6 @@ const ProductSchema = new mongoose.Schema(
         oEmail: {
             type: String,
             lowercase: true,
-            // validate: [validator.isEmail, validate.emailInvalid],
         },
         oCoordinates: {
             type: {
@@ -165,11 +137,11 @@ const ProductSchema = new mongoose.Schema(
             {
                 hoursBefore: {
                     type: String,
-                    required: true, // e.g. 24 or 12
+                    required: true,
                 },
                 chargeAmount: {
                     type: String,
-                    required: true, // e.g. 50 or 100
+                    required: true,
                 },
             },
         ],
@@ -177,7 +149,6 @@ const ProductSchema = new mongoose.Schema(
         oRulesPolicy: {
             type: String,
         },
-
         step: {
             type: String,
         },
@@ -193,8 +164,62 @@ ProductSchema.methods.getAvailableStock = async function () {
     const Booking = require('./Booking');
 
     try {
-        // Get total stock quantity
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const totalStock = parseInt(this.stockQuantity) || 0;
+
+        if (this.allDaysAvailable) {
+            const bookings = await Booking.find({
+                product: this._id,
+                status: { $nin: ['cancelled', 'completed'] },
+            }).select('bookedDates');
+
+            const dateBookingCounts = {};
+            bookings.forEach(booking => {
+                if (booking.bookedDates && booking.bookedDates.length > 0) {
+                    booking.bookedDates.forEach(dateObj => {
+                        if (dateObj.date) {
+                            const dateString = new Date(dateObj.date)
+                                .toISOString()
+                                .split('T')[0];
+                            if (!dateBookingCounts[dateString]) {
+                                dateBookingCounts[dateString] = 0;
+                            }
+                            dateBookingCounts[dateString]++;
+                        }
+                    });
+                }
+            });
+
+            const maxBookedForAnyDate = Object.keys(dateBookingCounts).length > 0
+                ? Math.max(...Object.values(dateBookingCounts))
+                : 0;
+
+            const rentedStock = maxBookedForAnyDate;
+            const availableStock = Math.max(0, totalStock - rentedStock);
+
+            return {
+                totalStock,
+                rentedStock,
+                availableStock,
+            };
+        }
+
+        const futureDates = (this.selectDate || [])
+            .filter(date => {
+                const d = new Date(date);
+                d.setHours(0, 0, 0, 0);
+                return d >= today;
+            });
+
+        if (this.selectDate && this.selectDate.length > 0 && futureDates.length === 0) {
+            return {
+                totalStock,
+                rentedStock: totalStock,
+                availableStock: 0,
+            };
+        }
 
         // Get all active bookings for this product
         const bookings = await Booking.find({
@@ -204,7 +229,6 @@ ProductSchema.methods.getAvailableStock = async function () {
 
         // Count bookings for each date
         const dateBookingCounts = {};
-
         bookings.forEach(booking => {
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
@@ -221,13 +245,7 @@ ProductSchema.methods.getAvailableStock = async function () {
             }
         });
 
-        // Determine which dates to consider when computing the "max booked".
-        // The single-product booked-dates API uses `product.selectDate` as the
-        // reference set of dates to report availability for. To keep
-        // getAvailableStock consistent, filter booking counts to only those
-        // dates if selectDate is present. If selectDate is empty, consider
-        // all booking dates.
-        const selectDateSet = (this.selectDate || []).map(
+        const selectDateSet = futureDates.map(
             d => new Date(d).toISOString().split('T')[0]
         );
 
@@ -266,9 +284,13 @@ ProductSchema.statics.getAvailableStockForProducts = async function (
     const Booking = require('./Booking');
 
     try {
+        // Get current date (normalized to start of day)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         // Get all products with their stock quantities and selectDate
         const products = await this.find({ _id: { $in: productIds } }).select(
-            '_id stockQuantity selectDate'
+            '_id stockQuantity selectDate allDaysAvailable'
         );
 
         // Get all active bookings for these products
@@ -309,10 +331,40 @@ ProductSchema.statics.getAvailableStockForProducts = async function (
             const totalStock = parseInt(product.stockQuantity) || 0;
             const productIdStr = product._id.toString();
 
-            // If the product has selectDate defined, only consider booking counts for those dates
-            const selectDateSet = (product.selectDate || []).map(
-                d => new Date(d).toISOString().split('T')[0]
-            );
+            // If allDaysAvailable is true, product is always available (ignore selectDate)
+            if (product.allDaysAvailable) {
+                const allDateCounts = productDateCounts[productIdStr] || {};
+                const relevantCounts = Object.values(allDateCounts);
+                const maxBookedForAnyDate =
+                    relevantCounts.length > 0 ? Math.max(...relevantCounts) : 0;
+                const rentedStock = maxBookedForAnyDate;
+                const availableStock = Math.max(0, totalStock - rentedStock);
+
+                result[productIdStr] = {
+                    totalStock,
+                    rentedStock,
+                    availableStock,
+                };
+                return;
+            }
+
+            let selectDateSet = (product.selectDate || [])
+                .map(d => {
+                    const date = new Date(d);
+                    date.setHours(0, 0, 0, 0);
+                    return { date, dateString: date.toISOString().split('T')[0] };
+                })
+                .filter(dateObj => dateObj.date >= today) // Only include today and future dates
+                .map(dateObj => dateObj.dateString);
+
+            if (product.selectDate && product.selectDate.length > 0 && selectDateSet.length === 0) {
+                result[productIdStr] = {
+                    totalStock,
+                    rentedStock: totalStock,
+                    availableStock: 0,
+                };
+                return;
+            }
 
             const allDateCounts = productDateCounts[productIdStr] || {};
 
@@ -387,13 +439,14 @@ ProductSchema.statics.getTotalRentalCountForProducts = async function (
 };
 
 // Pure helper: compute available stock map from in-memory product and booking arrays.
-// Useful for unit tests and verifying logic without DB access.
-// products: [{ _id, stockQuantity, selectDate }]
-// bookings: [{ product, bookedDates: [{ date: Date }] }]
 ProductSchema.statics.computeAvailableStockFromData = function (
     products,
     bookings
 ) {
+    // Get current date (normalized to start of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     // Build date counts per product
     const productDateCounts = {};
 
@@ -404,7 +457,7 @@ ProductSchema.statics.computeAvailableStockFromData = function (
 
     bookings.forEach(booking => {
         const productIdStr = booking.product.toString();
-        if (!productDateCounts[productIdStr]) return; // ignore bookings for products not in list
+        if (!productDateCounts[productIdStr]) return;
         if (booking.bookedDates && booking.bookedDates.length > 0) {
             booking.bookedDates.forEach(dateObj => {
                 if (dateObj.date) {
@@ -424,7 +477,43 @@ ProductSchema.statics.computeAvailableStockFromData = function (
     products.forEach(product => {
         const totalStock = parseInt(product.stockQuantity) || 0;
         const productIdStr = product._id.toString();
-        const selectDateSet = (product.selectDate || []).map(
+
+        // If allDaysAvailable is true, don't filter by dates
+        if (product.allDaysAvailable) {
+            const allDateCounts = productDateCounts[productIdStr] || {};
+            const relevantCounts = Object.values(allDateCounts);
+            const maxBookedForAnyDate =
+                relevantCounts.length > 0 ? Math.max(...relevantCounts) : 0;
+            const rentedStock = maxBookedForAnyDate;
+            const availableStock = Math.max(0, totalStock - rentedStock);
+
+            result[productIdStr] = {
+                totalStock,
+                rentedStock,
+                availableStock,
+            };
+            return;
+        }
+
+        // Filter selectDate to only include today and future dates
+        const futureDates = (product.selectDate || [])
+            .filter(date => {
+                const d = new Date(date);
+                d.setHours(0, 0, 0, 0);
+                return d >= today;
+            });
+
+        // If selectDate was defined but all dates are in the past, mark as unavailable
+        if (product.selectDate && product.selectDate.length > 0 && futureDates.length === 0) {
+            result[productIdStr] = {
+                totalStock,
+                rentedStock: totalStock,
+                availableStock: 0,
+            };
+            return;
+        }
+
+        const selectDateSet = futureDates.map(
             d => new Date(d).toISOString().split('T')[0]
         );
 

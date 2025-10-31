@@ -19,7 +19,7 @@ router.get('/seller-bookings', checkUser, bookingController.getSellerBookings);
 router.post('/status', fileUpload(), checkUser, bookingController.updateStatus); //By seller
 router.post('/payment-status', fileUpload(), checkUser, bookingController.updatePaymentStatus);
 
-router.post('/:id/return-photos', upload.array('photos', 6), checkUser, bookingController.uploadReturnPhotos);
+router.post('/:id/return-photos', upload.array('photos', 10), checkUser, bookingController.uploadReturnPhotos);
 router.post('/review-photo', fileUpload(), checkUser, bookingController.reviewReturnPhoto);
 router.post('/:id/reupload-photo', upload.single('photo'), checkUser, bookingController.reuploadRejectedPhoto);
 
