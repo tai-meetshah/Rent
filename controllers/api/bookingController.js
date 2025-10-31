@@ -206,13 +206,13 @@ exports.createBooking = async (req, res, next) => {
           if (req.user.fcmToken) {
                await sendNotificationsToTokens(
                     `Booking request for ${product.title}`,
-                    `Your booking request for ${product.title} has been send.`,
+                    `Your booking request for ${product.title} has been sent.`,
                     [req.user.fcmToken],
                );
                await userNotificationModel.create({
                     sentTo: [req.user.id],
                     title: `Booking request for ${product.title}`,
-                    body: `Your booking request for ${product.title} has been send.`,
+                    body: `Your booking request for ${product.title} has been sent.`,
                });
           }
           res.status(201).json({ success: true, message: 'Booking created successfully.' });
