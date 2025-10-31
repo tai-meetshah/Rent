@@ -112,6 +112,7 @@ exports.getProducts = async (req, res, next) => {
         const filter = {
             isDeleted: false,
             isActive: true,
+            user: { $ne: req.user.id },
         };
 
         // 🔍 Search filter
@@ -408,6 +409,7 @@ exports.getFeatureProductById = async (req, res, next) => {
 
         // Use product instance helper which respects selectDate when computing availability
         const stockInfo = await product.getAvailableStock();
+        console.log('stockInfo: ', stockInfo);
 
         const favouriteSet = new Set(
             (req.user && req.user.favourites ? req.user.favourites : []).map(
