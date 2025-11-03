@@ -625,17 +625,17 @@ exports.createProductStep2 = async (req, res, next) => {
                 .json({ success: false, message: 'Product not found.' });
         }
 
-        if (
-            !product.deposit &&
-            oCancellationCharges !== null &&
-            oCancellationCharges !== undefined
-        ) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    'Cancellation charges are only allowed when a deposit is set.',
-            });
-        }
+        // if (
+        //     !product.deposit &&
+        //     oCancellationCharges !== null &&
+        //     oCancellationCharges !== undefined
+        // ) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         message:
+        //             'Cancellation charges are only allowed when a deposit is set.',
+        //     });
+        // }
 
         // GeoJSON point
         if (oLatitude && oLongitude) {
