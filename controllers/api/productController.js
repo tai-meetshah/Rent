@@ -113,6 +113,7 @@ exports.getProducts = async (req, res, next) => {
             isDeleted: false,
             isActive: true,
             user: { $ne: req.user.id },
+            publish: true,
         };
 
         // 🔍 Search filter

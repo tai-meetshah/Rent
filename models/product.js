@@ -137,11 +137,11 @@ const ProductSchema = new mongoose.Schema(
             {
                 hoursBefore: {
                     type: String,
-                    required: true,
+                    // required: true,
                 },
                 chargeAmount: {
                     type: String,
-                    required: true,
+                    // required: true,
                 },
             },
         ],

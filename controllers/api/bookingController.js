@@ -513,7 +513,7 @@ exports.getActiveOrders = async (req, res, next) => {
               .sort('-createdAt')
               .populate({
                   path: 'product',
-                  select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+               //    select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
                   populate: [
                       { path: 'category', select: 'name' },
                       { path: 'subcategory', select: 'name' },
@@ -559,7 +559,7 @@ exports.getSellerActiveOrders = async (req, res, next) => {
               .populate([
                   {
                       path: 'product',
-                      select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                    //   select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
                       populate: [
                           { path: 'category', select: 'name' },
                           { path: 'subcategory', select: 'name' },
@@ -590,7 +590,8 @@ exports.getOrderHistory = async (req, res, next) => {
                          { path: 'category', select: 'name' },
                          { path: 'subcategory', select: 'name' }
                     ]
-               }).select('isDeleted');
+               });
+           //    }).select('isDeleted');
 
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
 
@@ -629,7 +630,7 @@ exports.getSellerOrderHistory = async (req, res, next) => {
               .populate([
                   {
                       path: 'product',
-                      select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                    //   select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
                       populate: [
                           { path: 'category', select: 'name' },
                           { path: 'subcategory', select: 'name' },
