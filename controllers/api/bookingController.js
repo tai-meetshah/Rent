@@ -496,24 +496,29 @@ exports.reuploadRejectedPhoto = async (req, res, next) => {
 exports.getActiveOrders = async (req, res, next) => {
      try {
           const bookings = await Booking.find({
-               user: req.user.id,
-               status: 'confirmed',
-               $or: [
-                    { returnPhotos: { $exists: false } },
-                    { returnPhotos: { $size: 0 } },
-                    { returnPhotos: { $elemMatch: { status: 'pending' } } },
-                    { returnPhotos: { $elemMatch: { status: 'rejected' } } },
-                    { returnPhotos: { $elemMatch: { status: { $exists: false } } } }
-               ]
+              user: req.user.id,
+              status: 'confirmed',
+              $or: [
+                  { returnPhotos: { $exists: false } },
+                  { returnPhotos: { $size: 0 } },
+                  { returnPhotos: { $elemMatch: { status: 'pending' } } },
+                  { returnPhotos: { $elemMatch: { status: 'rejected' } } },
+                  {
+                      returnPhotos: {
+                          $elemMatch: { status: { $exists: false } },
+                      },
+                  },
+              ],
           })
-               .sort('-createdAt')
-               .populate({
-                    path: 'product',
-                    populate: [
-                         { path: 'category', select: 'name' },
-                         { path: 'subcategory', select: 'name' }
-                    ]
-               });
+              .sort('-createdAt')
+              .populate({
+                  path: 'product',
+                  select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                  populate: [
+                      { path: 'category', select: 'name' },
+                      { path: 'subcategory', select: 'name' },
+                  ],
+              });
 
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
           res.json({ success: true, data: filtered });
@@ -536,27 +541,32 @@ exports.getSellerActiveOrders = async (req, res, next) => {
 
           // Check for every returnPhotos status - find bookings that need attention
           const bookings = await Booking.find({
-               product: { $in: productIds },
-               status: 'confirmed',
-               $or: [
-                    { returnPhotos: { $exists: false } },
-                    { returnPhotos: { $size: 0 } },
-                    { returnPhotos: { $elemMatch: { status: 'pending' } } },
-                    { returnPhotos: { $elemMatch: { status: 'rejected' } } },
-                    { returnPhotos: { $elemMatch: { status: { $exists: false } } } }
-               ]
+              product: { $in: productIds },
+              status: 'confirmed',
+              $or: [
+                  { returnPhotos: { $exists: false } },
+                  { returnPhotos: { $size: 0 } },
+                  { returnPhotos: { $elemMatch: { status: 'pending' } } },
+                  { returnPhotos: { $elemMatch: { status: 'rejected' } } },
+                  {
+                      returnPhotos: {
+                          $elemMatch: { status: { $exists: false } },
+                      },
+                  },
+              ],
           })
-               .sort('-createdAt')
-               .populate([
-                    {
-                         path: 'product',
-                         populate: [
-                              { path: 'category', select: 'name' },
-                              { path: 'subcategory', select: 'name' },
-                         ]
-                    },
-                    { path: 'user', select: 'name email image avatar' }
-               ]);
+              .sort('-createdAt')
+              .populate([
+                  {
+                      path: 'product',
+                      select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                      populate: [
+                          { path: 'category', select: 'name' },
+                          { path: 'subcategory', select: 'name' },
+                      ],
+                  },
+                  { path: 'user', select: 'name email image avatar' },
+              ]);
 
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted && b.user);
           res.json({ success: true, data: filtered });
@@ -580,7 +590,7 @@ exports.getOrderHistory = async (req, res, next) => {
                          { path: 'category', select: 'name' },
                          { path: 'subcategory', select: 'name' }
                     ]
-               });
+               }).select('isDeleted');
 
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
 
@@ -610,22 +620,23 @@ exports.getSellerOrderHistory = async (req, res, next) => {
           }).distinct('_id');
 
           const bookings = await Booking.find({
-               product: { $in: productIds },
-               // "returnPhotos.status": 'approved',
-               allReturnPhotosVerify: true,
-               user: { $ne: null }
+              product: { $in: productIds },
+              // "returnPhotos.status": 'approved',
+              allReturnPhotosVerify: true,
+              user: { $ne: null },
           })
-               .sort('-createdAt')
-               .populate([
-                    {
-                         path: 'product',
-                         populate: [
-                              { path: 'category', select: 'name' },
-                              { path: 'subcategory', select: 'name' },
-                         ]
-                    },
-                    { path: 'user', select: 'name email image avatar' }
-               ]);
+              .sort('-createdAt')
+              .populate([
+                  {
+                      path: 'product',
+                      select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                      populate: [
+                          { path: 'category', select: 'name' },
+                          { path: 'subcategory', select: 'name' },
+                      ],
+                  },
+                  { path: 'user', select: 'name email image avatar' },
+              ]);
 
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
 
