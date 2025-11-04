@@ -92,6 +92,7 @@ exports.getAllProduct = async (req, res, next) => {
     }
 };
 
+// out of rent yes hoy tyare location check na krvu aama add j krvi show krvi
 // Get all the products not one user only /all-product - WITH REVIEWS
 exports.getProducts = async (req, res, next) => {
     try {
@@ -197,29 +198,67 @@ exports.getProducts = async (req, res, next) => {
             }
         }
 
-        // 📍 Location filter
+        // 📍 Location filter - Handle separately to avoid $near inside $or issue
+        let products = [];
+
         if (latitude && longitude) {
             const maxDistance = distance ? Number(distance) : 10000;
-            filter.coordinates = {
-                $near: {
-                    $geometry: {
-                        type: 'Point',
-                        coordinates: [Number(longitude), Number(latitude)],
+
+            const nearbyFilter = {
+                ...filter,
+                coordinates: {
+                    $near: {
+                        $geometry: {
+                            type: 'Point',
+                            coordinates: [Number(longitude), Number(latitude)],
+                        },
+                        $maxDistance: maxDistance,
                     },
-                    $maxDistance: maxDistance,
                 },
             };
-        }
 
-        if (needsRentalSorting && req.user?._id) {
-            filter.user = { $ne: req.user._id }; // <-- correct field name from Product schema
-        }
+            const deliveryFilter = {
+                ...filter,
+                oRentingOut: true,
+            };
 
-        // 🧩 Fetch products
-        const products = await Product.find(filter)
-            .sort(sortOption)
-            .populate('category subcategory')
-            .select('-__v -isDeleted');
+            const [nearbyProducts, deliveryProducts] = await Promise.all([
+                Product.find(nearbyFilter)
+                    .sort(sortOption)
+                    .populate('category subcategory')
+                    .select('-__v -isDeleted')
+                    .lean(),
+                Product.find(deliveryFilter)
+                    .sort(sortOption)
+                    .populate('category subcategory')
+                    .select('-__v -isDeleted')
+                    .lean(),
+            ]);
+
+            // Merge and deduplicate (using Set with _id as key)
+            const productMap = new Map();
+
+            // Add nearby products first
+            nearbyProducts.forEach(p => {
+                productMap.set(p._id.toString(), p);
+            });
+
+            // Add delivery products (won't duplicate if already exists)
+            deliveryProducts.forEach(p => {
+                if (!productMap.has(p._id.toString())) {
+                    productMap.set(p._id.toString(), p);
+                }
+            });
+
+            products = Array.from(productMap.values());
+        } else {
+            // No location filter - get all products
+            products = await Product.find(filter)
+                .sort(sortOption)
+                .populate('category subcategory')
+                .select('-__v -isDeleted')
+                .lean();
+        }
 
         const productIds = products.map(p => p._id);
 
@@ -249,8 +288,6 @@ exports.getProducts = async (req, res, next) => {
             reviewsByProduct[productId].push(review);
         });
 
-        // NOTE: stockData contains per-product { totalStock, rentedStock, availableStock }
-
         // 🧡 Favourites
         const favouriteSet = new Set(
             (req.user && req.user.favourites ? req.user.favourites : []).map(
@@ -270,7 +307,7 @@ exports.getProducts = async (req, res, next) => {
             const productReviews = reviewsByProduct[p._id.toString()] || [];
 
             return {
-                ...p.toObject(),
+                ...p,
                 isFavourite: favouriteSet.has(p._id.toString()),
                 stockInfo,
                 totalRentals: 0,
@@ -310,24 +347,64 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             user: { $ne: req.user.id },
         };
 
-        // 🔍 Geospatial filter
+        // 📍 Location filter - Handle separately to avoid $near inside $or issue
+        let products = [];
+
         if (latitude && longitude) {
-            const maxDistance = distance ? Number(distance) : 10000; // default 10km
-            filter.coordinates = {
-                $near: {
-                    $geometry: {
-                        type: 'Point',
-                        coordinates: [Number(longitude), Number(latitude)],
+            const maxDistance = distance ? Number(distance) : 10000;
+
+            const nearbyFilter = {
+                ...filter,
+                coordinates: {
+                    $near: {
+                        $geometry: {
+                            type: 'Point',
+                            coordinates: [Number(longitude), Number(latitude)],
+                        },
+                        $maxDistance: maxDistance,
                     },
-                    $maxDistance: maxDistance,
                 },
             };
-        }
 
-        const products = await Product.find(filter)
-            .sort('-createdAt')
-            .populate('category subcategory')
-            .select('-__v -isDeleted');
+            const deliveryFilter = {
+                ...filter,
+                oRentingOut: true,
+            };
+
+            const [nearbyProducts, deliveryProducts] = await Promise.all([
+                Product.find(nearbyFilter)
+                    .sort('-createdAt')
+                    .populate('category subcategory')
+                    .select('-__v -isDeleted')
+                    .lean(),
+                Product.find(deliveryFilter)
+                    .sort('-createdAt')
+                    .populate('category subcategory')
+                    .select('-__v -isDeleted')
+                    .lean(),
+            ]);
+
+            const productMap = new Map();
+
+            nearbyProducts.forEach(p => {
+                productMap.set(p._id.toString(), p);
+            });
+
+            deliveryProducts.forEach(p => {
+                if (!productMap.has(p._id.toString())) {
+                    productMap.set(p._id.toString(), p);
+                }
+            });
+
+            products = Array.from(productMap.values());
+        } else {
+            // No location filter - get all feature products
+            products = await Product.find(filter)
+                .sort('-createdAt')
+                .populate('category subcategory')
+                .select('-__v -isDeleted')
+                .lean();
+        }
 
         // 📦 Fetch stock info for products (uses booking aggregation internally and respects selectDate)
         const productIds = products.map(p => p._id);
@@ -356,8 +433,6 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             reviewsByProduct[productId].push(review);
         });
 
-        // NOTE: stockData contains per-product { totalStock, rentedStock, availableStock }
-
         // 💚 Favourite products
         const favouriteSet = new Set(
             (req.user && req.user.favourites ? req.user.favourites : []).map(
@@ -376,7 +451,7 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             const productReviews = reviewsByProduct[p._id.toString()] || [];
 
             return {
-                ...p.toObject(),
+                ...p,
                 isFavourite: favouriteSet.has(p._id.toString()),
                 stockInfo,
                 reviews: productReviews,
