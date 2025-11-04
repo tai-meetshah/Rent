@@ -226,16 +226,19 @@ exports.createBooking = async (req, res, next) => {
 // {"fullName":"John Doe","mobileNumber":"1234567890","addressLine":"123 Street","city":"City","state":"State","pincode":"123456","country":"Country"}
 exports.getMyBookings = async (req, res, next) => {
      try {
-          const bookings = await Booking.find({ user: req.user.id, status: 'pending', })
-               .sort('-createdAt')
-               .populate({
-                    path: 'product',
-                    // match: { isDeleted: false, isActive: true },
-                    populate: [
-                         { path: 'category', select: 'name' },
-                         { path: 'subcategory', select: 'name' }
-                    ]
-               })
+          const bookings = await Booking.find({
+              user: req.user.id,
+              status: { $in: ['pending', 'cancelled'] },
+          })
+              .sort('-createdAt')
+              .populate({
+                  path: 'product',
+                  // match: { isDeleted: false, isActive: true },
+                  populate: [
+                      { path: 'category', select: 'name' },
+                      { path: 'subcategory', select: 'name' },
+                  ],
+              });
           const filteredBookings = bookings.filter(booking => booking.product && booking.product.isActive && !booking.product.isDeleted);
 
           res.json({ success: true, data: filteredBookings });
@@ -258,7 +261,7 @@ exports.getSellerBookings = async (req, res, next) => {
           }).distinct('_id');
 
           const bookings = await Booking.find({
-               status: 'pending',
+               status: { $in: ['pending', 'cancelled'] } ,
                product: { $in: productIds },
           })
                .populate([
