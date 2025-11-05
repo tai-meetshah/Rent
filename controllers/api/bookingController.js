@@ -598,7 +598,6 @@ exports.getOrderHistory = async (req, res, next) => {
                   ],
                   // });
               })
-              .select('isDeleted');
 
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
 
