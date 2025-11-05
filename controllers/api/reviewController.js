@@ -133,6 +133,7 @@ exports.createReview = async (req, res, next) => {
            }
           res.status(201).json({ success: true, data: doc });
      } catch (error) {
+          console.log('error: ', error);
           next(error);
      }
 };

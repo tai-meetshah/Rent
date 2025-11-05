@@ -10,6 +10,8 @@ const sendNotificationsToTokens = async (
      registrationTokens,
 ) => {
      // Handle single token or array of tokens
+     console.log('title: ', title);
+
      const tokens = Array.isArray(registrationTokens) ? registrationTokens : [registrationTokens];
      console.log(tokens);
 

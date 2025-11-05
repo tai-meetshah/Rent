@@ -354,7 +354,9 @@ exports.updateStatus = async (req, res, next) => {
                return res.status(400).json({ success: false, message: 'Invalid status' });
           }
 
-          const booking = await Booking.findOne({ _id: bookingId }).populate('product').populate('user', 'name');
+          const booking = await Booking.findOne({ _id: bookingId })
+              .populate('product')
+              .populate('user', 'name fcmToken');
           if (!booking) {
                return res.status(404).json({ success: false, message: 'Booking not found.' });
           }
@@ -388,16 +390,20 @@ exports.updateStatus = async (req, res, next) => {
                          notificationMessage = `Your booking for ${booking.product.title} status has been updated to ${status}.`;
                }
 
+                                   console.log('booking: ', booking);
+
                await sendNotificationsToTokens(
                     `Booking Status Updated - ${booking.product.title}`,
                     notificationMessage,
                     [booking.user.fcmToken],
                );
-               await userNotificationModel.create({
+           let data =    await userNotificationModel.create({
                     sentTo: [booking.user._id],
                     title: `Booking Status Updated - ${booking.product.title}`,
                     body: notificationMessage,
                });
+               console.log('data: ', data);
+
           }
 
           res.json({ success: true, message: 'Status updated.', booking });
@@ -539,7 +545,13 @@ exports.reuploadRejectedPhoto = async (req, res, next) => {
                return res.status(400).json({ success: false, message: 'Photo ID is required.' });
           }
 
-          const booking = await Booking.findOne({ _id: id, user: req.user.id });
+              const booking = await Booking.findOne({
+                  _id: id,
+                  user: req.user.id,
+              }).populate({
+                  path: 'product',
+                  populate: { path: 'user', select: 'name fcmToken' },
+              });
           if (!booking) {
                return res.status(404).json({ success: false, message: 'Booking not found.' });
           }
@@ -570,6 +582,23 @@ exports.reuploadRejectedPhoto = async (req, res, next) => {
 
           await booking.save();
 
+           if (booking.product?.user?.fcmToken) {
+               const vendor = booking.product.user;
+               const title = `Photo re-uploaded for ${booking.product.title}`;
+               const body = `${
+                   booking.user.name || 'A customer'
+               } has re-uploaded a rejected photo.`;
+
+               // Push notification
+               await sendNotificationsToTokens(title, body, [vendor.fcmToken]);
+
+               // Store in DB
+               await userNotificationModel.create({
+                   sentTo: [vendor._id],
+                   title,
+                   body,
+               });
+           }
           res.json({
                success: true,
                message: 'Photo re-uploaded successfully.',
