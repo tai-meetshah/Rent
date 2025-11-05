@@ -233,7 +233,7 @@ exports.getMyBookings = async (req, res, next) => {
               .sort('-createdAt')
               .populate({
                   path: 'product',
-                  // match: { isDeleted: false, isActive: true },
+                  match: { isDeleted: false, isActive: true },
                   populate: [
                       { path: 'category', select: 'name' },
                       { path: 'subcategory', select: 'name' },
@@ -516,7 +516,8 @@ exports.getActiveOrders = async (req, res, next) => {
               .sort('-createdAt')
               .populate({
                   path: 'product',
-               //    select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                  match: { isDeleted: false, isActive: true },
+                  select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
                   populate: [
                       { path: 'category', select: 'name' },
                       { path: 'subcategory', select: 'name' },
@@ -562,7 +563,8 @@ exports.getSellerActiveOrders = async (req, res, next) => {
               .populate([
                   {
                       path: 'product',
-                    //   select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                      match: { isDeleted: false, isActive: true },
+                      select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
                       populate: [
                           { path: 'category', select: 'name' },
                           { path: 'subcategory', select: 'name' },
@@ -582,19 +584,21 @@ exports.getSellerActiveOrders = async (req, res, next) => {
 exports.getOrderHistory = async (req, res, next) => {
      try {
           const bookings = await Booking.find({
-               user: req.user.id,
-               // "returnPhotos.status": 'approved'
-               allReturnPhotosVerify: true
+              user: req.user.id,
+              // "returnPhotos.status": 'approved'
+              allReturnPhotosVerify: true,
           })
-               .sort('-createdAt')
-               .populate({
-                    path: 'product',
-                    populate: [
-                         { path: 'category', select: 'name' },
-                         { path: 'subcategory', select: 'name' }
-                    ]
-               });
-           //    }).select('isDeleted');
+              .sort('-createdAt')
+              .populate({
+                  path: 'product',
+                  match: { isDeleted: false, isActive: true },
+                  populate: [
+                      { path: 'category', select: 'name' },
+                      { path: 'subcategory', select: 'name' },
+                  ],
+                  // });
+              })
+              .select('isDeleted');
 
           const filtered = bookings.filter(b => b.product && b.product.isActive && !b.product.isDeleted);
 
@@ -633,7 +637,8 @@ exports.getSellerOrderHistory = async (req, res, next) => {
               .populate([
                   {
                       path: 'product',
-                    //   select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                      match: { isDeleted: false, isActive: true },
+                      select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
                       populate: [
                           { path: 'category', select: 'name' },
                           { path: 'subcategory', select: 'name' },

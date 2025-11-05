@@ -235,8 +235,9 @@ exports.getProductReviews = async (req, res, next) => {
                .sort('-createdAt')
                .populate('user', 'name avatar image email')
                .select('-__v');
+        const validReviews = reviews.filter(r => r.user !== null);
 
-          res.json({ success: true, data: reviews });
+          res.json({ success: true, data: validReviews });
      } catch (error) {
           next(error);
      }
@@ -296,10 +297,12 @@ exports.getReceivedReviews = async (req, res, next) => {
                .populate('booking', 'status startDate endDate')
                .select('-__v');
 
-
+     const validReviews = reviews.filter(
+         r => r.user !== null && r.product !== null
+     );
           res.json({
-               success: true,
-               data: reviews,
+              success: true,
+              data: validReviews,
           });
      } catch (error) {
           next(error);
