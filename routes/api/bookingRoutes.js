@@ -34,6 +34,11 @@ router.get('/enquiryList/', checkUser, bookingController.enquiryList);
 router.get('/chatHistory/:id', checkUser, bookingController.chatHistory);
 
 router.post('/rental/edit-booking', upload.single('verificationId'), checkUser, bookingController.editBookingByRental);
-router.post('/rental/cancel-booking', fileUpload(), checkUser, bookingController.cancelBookingByRental);
+router.post(
+    '/rental/cancel-booking',
+    fileUpload(),
+    checkUser,
+    bookingController.cancelBooking
+);
 
 module.exports = router;

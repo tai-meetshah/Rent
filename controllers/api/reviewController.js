@@ -4,6 +4,8 @@ const Review = require('../../models/reviewModel');
 const Booking = require('../../models/Booking');
 const Product = require('../../models/product');
 const deleteFile = require('../../utils/deleteFile');
+const userNotificationModel = require('../../models/userNotificationModel');
+const { sendNotificationsToTokens } = require('../../utils/sendNotification');
 
 // Multer storage for images and video (saved under /public/uploads)
 const storage = multer.diskStorage({
@@ -66,7 +68,15 @@ exports.createReview = async (req, res, next) => {
                return res.status(400).json({ success: false, message: 'bookingId, rating and review are required.' });
           }
 
-          const booking = await Booking.findById(bookingId).populate('product');
+               const booking = await Booking.findById(bookingId)
+                   .populate({
+                       path: 'product',
+                       populate: {
+                           path: 'user',
+                           select: 'name email fcmToken',
+                       }, // vendor
+                   })
+                   .populate('user', 'name email');
           if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
 
           if (booking.user.toString() !== req.user.id.toString()) {
@@ -100,6 +110,27 @@ exports.createReview = async (req, res, next) => {
 
           await recomputeProductRatings(booking.product._id);
 
+           if (booking.product?.user) {
+               const vendor = booking.product.user;
+               const title = `New review for ${booking.product.title}`;
+               const body = `${
+                   booking.user.name || 'A customer'
+               } rated your product ${rating}★ and wrote: "${review}"`;
+
+               // Send push notification
+               if (vendor.fcmToken) {
+                   await sendNotificationsToTokens(title, body, [
+                       vendor.fcmToken,
+                   ]);
+               }
+
+               // Save notification in DB
+               await userNotificationModel.create({
+                   sentTo: [vendor._id],
+                   title,
+                   body,
+               });
+           }
           res.status(201).json({ success: true, data: doc });
      } catch (error) {
           next(error);
@@ -111,7 +142,15 @@ exports.updateReview = async (req, res, next) => {
      try {
           const { id } = req.params;
 
-          const reviewDoc = await Review.findById(id);
+               const reviewDoc = await Review.findById(id)
+                   .populate({
+                       path: 'product',
+                       populate: {
+                           path: 'user',
+                           select: 'name email fcmToken',
+                       },
+                   })
+                   .populate('user', 'name email');
           if (!reviewDoc) return res.status(404).json({ success: false, message: 'Review not found.' });
           if (reviewDoc.user.toString() !== req.user.id.toString()) {
                return res.status(403).json({ success: false, message: 'Not authorized.' });
@@ -139,6 +178,27 @@ exports.updateReview = async (req, res, next) => {
           const updated = await Review.findByIdAndUpdate(id, update, { new: true });
           await recomputeProductRatings(reviewDoc.product);
 
+          if (reviewDoc.product?.user) {
+              const vendor = reviewDoc.product.user;
+              const title = `Review updated for ${reviewDoc.product.title}`;
+              const body = `${
+                  reviewDoc.user.name || 'A customer'
+              } has updated their review. New rating: ${
+                  update.rating ?? reviewDoc.rating
+              }★`;
+
+              if (vendor.fcmToken) {
+                  await sendNotificationsToTokens(title, body, [
+                      vendor.fcmToken,
+                  ]);
+              }
+
+              await userNotificationModel.create({
+                  sentTo: [vendor._id],
+                  title,
+                  body,
+              });
+          }
           res.json({ success: true, data: updated });
      } catch (error) {
           next(error);

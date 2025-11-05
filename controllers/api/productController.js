@@ -96,7 +96,7 @@ exports.getAllProduct = async (req, res, next) => {
 // Get all the products not one user only /all-product - WITH REVIEWS
 exports.getProducts = async (req, res, next) => {
     try {
-        const {
+        let {
             categoryId,
             subcategoryId,
             latitude,

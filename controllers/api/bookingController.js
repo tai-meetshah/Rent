@@ -69,13 +69,13 @@ async function checkStockAvailabilityForDates(productId, requestedDates, totalSt
 exports.checkAvailability = async (req, res, next) => {
      try {
           let { productId, dates } = req.body;
-          console.log('req.body: ', req.body);
+          // console.log('req.body: ', req.body);
                     if (typeof dates === 'string') {
                         try {
                             dates = JSON.parse(dates);
                         } catch (_) {}
                     }
-          console.log('dates: ', dates);
+          // console.log('dates: ', dates);
 
           if (!productId || !Array.isArray(dates)) {
                return res.status(400).json({ success: false, message: 'productId and dates[] are required' });
@@ -298,23 +298,50 @@ exports.getBookingById = async (req, res, next) => {
 };
 
 exports.cancelBooking = async (req, res, next) => {
-     try {
-          const { bookingId } = req.body;
-          const booking = await Booking.findOne({ _id: bookingId, user: req.user.id });
-          if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
-          booking.status = 'cancelled';
-          await booking.save();
-          // if (booking.product && booking.product.user) {
-          //      await sendNotification(
-          //           booking.product.user,
-          //           `Booking cancelled for ${booking.product.title}`,
-          //           `Booking has been cancelled by ${booking.user.name || 'the customer'}.`
-          //      );
-          // }
-          res.json({ success: true, message: 'Booking cancelled.' });
-     } catch (error) {
-          next(error);
-     }
+    try {
+        const { bookingId } = req.body;
+        const booking = await Booking.findOne({
+            _id: bookingId,
+            user: req.user.id,
+        })
+            .populate({
+                path: 'product',
+                populate: {
+                    path: 'user',
+                    select: 'name email fcmToken',
+                }, // populate product.user
+            })
+            .populate('user', 'name email');
+
+        if (!booking)
+            return res
+                .status(404)
+                .json({ success: false, message: 'Booking not found.' });
+
+                booking.status = 'cancelled';
+                 await booking.save();
+
+        if (booking.product && booking.product.user) {
+            await sendNotificationsToTokens(
+                `Booking cancelled for ${booking.product.title}`,
+                `Booking has been cancelled by ${
+                    booking.user.name || 'the customer'
+                }.`,
+                [booking.product.user.fcmToken]
+            );
+            await userNotificationModel.create({
+                sentTo: [booking.product.user._id],
+                title: `Booking cancelled for ${booking.product.title}`,
+                body: `Booking has been cancelled by ${
+                    booking.user.name || 'the customer'
+                }.`,
+            });
+        }
+
+        res.json({ success: true, message: 'Booking cancelled.' });
+    } catch (error) {
+        next(error);
+    }
 };
 
 // Only seller can update booking status
@@ -398,12 +425,43 @@ exports.updatePaymentStatus = async (req, res, next) => {
 exports.uploadReturnPhotos = async (req, res, next) => {
      try {
           const { id } = req.params; // bookingId
-          const booking = await Booking.findOne({ _id: id, user: req.user.id });
+               const booking = await Booking.findOne({
+                   _id: id,
+                   user: req.user.id,
+               })
+                   .populate({
+                       path: 'product',
+                       populate: {
+                           path: 'user',
+                           select: 'name email fcmToken',
+                       },
+                   })
+                   .populate('user', 'name email');
           if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
           const files = req.files || [];
           const photos = files.map(f => ({ url: `/${f.filename}`, status: 'pending', uploadedAt: new Date() }));
           booking.returnPhotos.push(...photos);
           await booking.save();
+
+         if (booking.product?.user) {
+             const title = `Return photos uploaded for ${booking.product.title}`;
+             const body = `Customer ${
+                 booking.user?.name || 'User'
+             } has uploaded return photos.`;
+
+             // Send push notification
+             if (booking.product.user.fcmToken) {
+                 await sendNotificationsToTokens(title, body, [
+                     booking.product.user.fcmToken,
+                 ]);
+             }
+
+             await userNotificationModel.create({
+                 sentTo: [booking.product.user._id],
+                 title,
+                 body,
+             });
+         }
           res.status(201).json({ success: true, message: 'Photos uploaded.', photos: booking.returnPhotos });
      } catch (error) {
           console.log('error: ', error);
@@ -414,7 +472,12 @@ exports.uploadReturnPhotos = async (req, res, next) => {
 exports.reviewReturnPhoto = async (req, res, next) => {
      try {
           const { bookingId, photoId, action, rejectionReason } = req.body;
-          const booking = await Booking.findOne({ _id: bookingId });
+            const booking = await Booking.findById(bookingId)
+                .populate({
+                    path: 'product',
+                    populate: { path: 'user', select: 'name email fcmToken' },
+                })
+                .populate('user', 'name email fcmToken');
           if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
           const photo = (booking.returnPhotos || []).id(photoId);
           if (!photo) return res.status(404).json({ success: false, message: 'Photo not found.' });
@@ -438,6 +501,29 @@ exports.reviewReturnPhoto = async (req, res, next) => {
           }
 
           await booking.save();
+
+           if (booking.user?.fcmToken) {
+               const title =
+                   action === 'approve'
+                       ? 'Return photo approved'
+                       : 'Return photo rejected';
+               const body =
+                   action === 'approve'
+                       ? `One of your return photos for ${booking.product?.title} has been approved.`
+                       : `One of your return photos for ${booking.product?.title} was rejected. Reason: ${photo.rejectionReason}`;
+
+               // Send push notification
+               await sendNotificationsToTokens(title, body, [
+                   booking.user.fcmToken,
+               ]);
+
+               // Create a record in user notifications collection
+               await userNotificationModel.create({
+                   sentTo: [booking.user._id],
+                   title,
+                   body,
+               });
+           }
           res.json({ success: true, message: 'Photo reviewed.' });
      } catch (error) {
           next(error);
@@ -891,7 +977,8 @@ exports.editBookingByRental = async (req, res, next) => {
      }
 };
 
-exports.cancelBookingByRental = async (req, res, next) => {
+// not use
+exports.cancelBookingBySeller = async (req, res, next) => {
      try {
           const { bookingId, reason } = req.body;
 
