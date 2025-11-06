@@ -632,7 +632,7 @@ exports.getActiveOrders = async (req, res, next) => {
               .populate({
                   path: 'product',
                   match: { isDeleted: false, isActive: true },
-                  select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                  select: 'description feature ideal location oRulesPolicy title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
                   populate: [
                       { path: 'category', select: 'name' },
                       { path: 'subcategory', select: 'name' },
@@ -679,7 +679,7 @@ exports.getSellerActiveOrders = async (req, res, next) => {
                   {
                       path: 'product',
                       match: { isDeleted: false, isActive: true },
-                      select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                      select: 'description feature ideal location oRulesPolicy title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
                       populate: [
                           { path: 'category', select: 'name' },
                           { path: 'subcategory', select: 'name' },
@@ -752,7 +752,7 @@ exports.getSellerOrderHistory = async (req, res, next) => {
                   {
                       path: 'product',
                       match: { isDeleted: false, isActive: true },
-                      select: 'title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
+                      select: 'description feature ideal location oRulesPolicy title images user category subcategory avgRating totalRating price isActive isDeleted createdAt',
                       populate: [
                           { path: 'category', select: 'name' },
                           { path: 'subcategory', select: 'name' },
