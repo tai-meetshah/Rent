@@ -164,12 +164,13 @@ ProductSchema.methods.getAvailableStock = async function () {
     const Booking = require('./Booking');
 
     try {
-        const today = new Date();
-        console.log('today: ', today);
-        today.setHours(0, 0, 0, 0);
+        // ✅ Current date in UTC (start of day)
+        const todayUTC = new Date();
+        todayUTC.setUTCHours(0, 0, 0, 0);
 
         const totalStock = parseInt(this.stockQuantity) || 0;
 
+        // If product is available all days, count bookings for all dates
         if (this.allDaysAvailable) {
             const bookings = await Booking.find({
                 product: this._id,
@@ -181,9 +182,12 @@ ProductSchema.methods.getAvailableStock = async function () {
                 if (booking.bookedDates && booking.bookedDates.length > 0) {
                     booking.bookedDates.forEach(dateObj => {
                         if (dateObj.date) {
-                            const dateString = new Date(dateObj.date)
+                            const dateUTC = new Date(dateObj.date);
+                            dateUTC.setUTCHours(0, 0, 0, 0);
+                            const dateString = dateUTC
                                 .toISOString()
                                 .split('T')[0];
+
                             if (!dateBookingCounts[dateString]) {
                                 dateBookingCounts[dateString] = 0;
                             }
@@ -193,32 +197,32 @@ ProductSchema.methods.getAvailableStock = async function () {
                 }
             });
 
-            const maxBookedForAnyDate = Object.keys(dateBookingCounts).length > 0
-                ? Math.max(...Object.values(dateBookingCounts))
-                : 0;
-            console.log('dateBookingCounts: ', dateBookingCounts);
-            console.log('maxBookedForAnyDate: ', maxBookedForAnyDate);
-
-            const rentedStock = maxBookedForAnyDate;
-            const availableStock = Math.max(0, totalStock - rentedStock);
-            console.log('availableStock: ', availableStock);
+            const maxBooked =
+                Object.keys(dateBookingCounts).length > 0
+                    ? Math.max(...Object.values(dateBookingCounts))
+                    : 0;
 
             return {
                 totalStock,
-                rentedStock,
-                availableStock,
+                rentedStock: maxBooked,
+                availableStock: Math.max(0, totalStock - maxBooked),
             };
         }
 
-        const futureDates = (this.selectDate || [])
-            .filter(date => {
-                const d = new Date(date);
-                d.setHours(0, 0, 0, 0);
-                return d >= today;
-            });
-        console.log('futureDates: ', futureDates);
+        // Only consider future dates from selectDate
+        const futureDatesUTC = (this.selectDate || [])
+            .map(d => {
+                const date = new Date(d);
+                date.setUTCHours(0, 0, 0, 0);
+                return date;
+            })
+            .filter(date => date >= todayUTC);
 
-        if (this.selectDate && this.selectDate.length > 0 && futureDates.length === 0) {
+        if (
+            this.selectDate &&
+            this.selectDate.length > 0 &&
+            futureDatesUTC.length === 0
+        ) {
             return {
                 totalStock,
                 rentedStock: totalStock,
@@ -232,15 +236,15 @@ ProductSchema.methods.getAvailableStock = async function () {
             status: { $nin: ['cancelled', 'completed'] },
         }).select('bookedDates');
 
-        // Count bookings for each date
         const dateBookingCounts = {};
         bookings.forEach(booking => {
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
-                        const dateString = new Date(dateObj.date)
-                            .toISOString()
-                            .split('T')[0];
+                        const dateUTC = new Date(dateObj.date);
+                        dateUTC.setUTCHours(0, 0, 0, 0);
+                        const dateString = dateUTC.toISOString().split('T')[0];
+
                         if (!dateBookingCounts[dateString]) {
                             dateBookingCounts[dateString] = 0;
                         }
@@ -250,11 +254,9 @@ ProductSchema.methods.getAvailableStock = async function () {
             }
         });
 
-        const selectDateSet = futureDates.map(
-            d => new Date(d).toISOString().split('T')[0]
+        const selectDateSet = futureDatesUTC.map(
+            d => d.toISOString().split('T')[0]
         );
-        console.log('dateBookingCounts: ', dateBookingCounts);
-            console.log('selectDateSet: ', selectDateSet);
 
         const relevantCounts = Object.keys(dateBookingCounts)
             .filter(
@@ -262,18 +264,14 @@ ProductSchema.methods.getAvailableStock = async function () {
                     selectDateSet.length === 0 || selectDateSet.includes(date)
             )
             .map(d => dateBookingCounts[d]);
-        console.log('relevantCounts: ', relevantCounts);
 
-        const maxBookedForAnyDate =
+        const maxBooked =
             relevantCounts.length > 0 ? Math.max(...relevantCounts) : 0;
-
-        const rentedStock = maxBookedForAnyDate;
-        const availableStock = Math.max(0, totalStock - rentedStock);
 
         return {
             totalStock,
-            rentedStock,
-            availableStock,
+            rentedStock: maxBooked,
+            availableStock: Math.max(0, totalStock - maxBooked),
         };
     } catch (error) {
         console.error('Error calculating available stock:', error);
@@ -450,9 +448,9 @@ ProductSchema.statics.computeAvailableStockFromData = function (
     products,
     bookings
 ) {
-    // Get current date (normalized to start of day)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // ✅ Current date in UTC (start of day)
+    const todayUTC = new Date();
+    todayUTC.setUTCHours(0, 0, 0, 0);
 
     // Build date counts per product
     const productDateCounts = {};
@@ -465,12 +463,14 @@ ProductSchema.statics.computeAvailableStockFromData = function (
     bookings.forEach(booking => {
         const productIdStr = booking.product.toString();
         if (!productDateCounts[productIdStr]) return;
+
         if (booking.bookedDates && booking.bookedDates.length > 0) {
             booking.bookedDates.forEach(dateObj => {
                 if (dateObj.date) {
-                    const dateString = new Date(dateObj.date)
-                        .toISOString()
-                        .split('T')[0];
+                    const dateUTC = new Date(dateObj.date);
+                    dateUTC.setUTCHours(0, 0, 0, 0);
+                    const dateString = dateUTC.toISOString().split('T')[0];
+
                     if (!productDateCounts[productIdStr][dateString]) {
                         productDateCounts[productIdStr][dateString] = 0;
                     }
@@ -481,37 +481,41 @@ ProductSchema.statics.computeAvailableStockFromData = function (
     });
 
     const result = {};
+
     products.forEach(product => {
         const totalStock = parseInt(product.stockQuantity) || 0;
         const productIdStr = product._id.toString();
 
-        // If allDaysAvailable is true, don't filter by dates
+        // If allDaysAvailable is true, consider all dates
         if (product.allDaysAvailable) {
             const allDateCounts = productDateCounts[productIdStr] || {};
             const relevantCounts = Object.values(allDateCounts);
             const maxBookedForAnyDate =
                 relevantCounts.length > 0 ? Math.max(...relevantCounts) : 0;
-            const rentedStock = maxBookedForAnyDate;
-            const availableStock = Math.max(0, totalStock - rentedStock);
 
             result[productIdStr] = {
                 totalStock,
-                rentedStock,
-                availableStock,
+                rentedStock: maxBookedForAnyDate,
+                availableStock: Math.max(0, totalStock - maxBookedForAnyDate),
             };
             return;
         }
 
-        // Filter selectDate to only include today and future dates
-        const futureDates = (product.selectDate || [])
-            .filter(date => {
-                const d = new Date(date);
-                d.setHours(0, 0, 0, 0);
-                return d >= today;
-            });
+        // Filter selectDate to only include today and future dates (UTC)
+        const futureDatesUTC = (product.selectDate || [])
+            .map(d => {
+                const date = new Date(d);
+                date.setUTCHours(0, 0, 0, 0);
+                return date;
+            })
+            .filter(date => date >= todayUTC);
 
-        // If selectDate was defined but all dates are in the past, mark as unavailable
-        if (product.selectDate && product.selectDate.length > 0 && futureDates.length === 0) {
+        // If all selectDate values are in the past, product is unavailable
+        if (
+            product.selectDate &&
+            product.selectDate.length > 0 &&
+            futureDatesUTC.length === 0
+        ) {
             result[productIdStr] = {
                 totalStock,
                 rentedStock: totalStock,
@@ -520,10 +524,9 @@ ProductSchema.statics.computeAvailableStockFromData = function (
             return;
         }
 
-        const selectDateSet = futureDates.map(
-            d => new Date(d).toISOString().split('T')[0]
+        const selectDateSet = futureDatesUTC.map(
+            d => d.toISOString().split('T')[0]
         );
-
         const allDateCounts = productDateCounts[productIdStr] || {};
 
         const relevantCounts = Object.keys(allDateCounts)
@@ -536,17 +539,15 @@ ProductSchema.statics.computeAvailableStockFromData = function (
         const maxBookedForAnyDate =
             relevantCounts.length > 0 ? Math.max(...relevantCounts) : 0;
 
-        const rentedStock = maxBookedForAnyDate;
-        const availableStock = Math.max(0, totalStock - rentedStock);
-
         result[productIdStr] = {
             totalStock,
-            rentedStock,
-            availableStock,
+            rentedStock: maxBookedForAnyDate,
+            availableStock: Math.max(0, totalStock - maxBookedForAnyDate),
         };
     });
 
     return result;
 };
+
 
 module.exports = new mongoose.model('Product', ProductSchema);

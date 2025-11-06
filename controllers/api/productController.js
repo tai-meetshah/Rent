@@ -1286,19 +1286,22 @@ exports.getBookedDates = async (req, res, next) => {
             status: { $nin: ['cancelled', 'completed'] },
         }).select('bookedDates');
 
-        // Count bookings for each date
+        // Count bookings per date using UTC
         const dateBookingCounts = {};
-        const bookedDates = (product.selectDate || []).map(
-            date => new Date(date).toISOString().split('T')[0]
-        );
+        const bookedDates = (product.selectDate || []).map(date => {
+            const d = new Date(date);
+            d.setUTCHours(0, 0, 0, 0);
+            return d.toISOString().split('T')[0];
+        });
 
         bookings.forEach(booking => {
             if (booking.bookedDates && booking.bookedDates.length > 0) {
                 booking.bookedDates.forEach(dateObj => {
                     if (dateObj.date) {
-                        const dateString = new Date(dateObj.date)
-                            .toISOString()
-                            .split('T')[0];
+                        const d = new Date(dateObj.date);
+                        d.setUTCHours(0, 0, 0, 0);
+                        const dateString = d.toISOString().split('T')[0];
+
                         if (!dateBookingCounts[dateString]) {
                             dateBookingCounts[dateString] = 0;
                         }
@@ -1325,11 +1328,12 @@ exports.getBookedDates = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            bookedDates: bookedDates,
-            dateAvailability: dateAvailability,
+            bookedDates,
+            dateAvailability,
         });
     } catch (error) {
-        console.log(error);
+        console.error(error);
         next(error);
     }
 };
+
