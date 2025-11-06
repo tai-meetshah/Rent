@@ -162,7 +162,7 @@ exports.updateReview = async (req, res, next) => {
                   .status(403)
                   .json({ success: false, message: 'Not authorized.' });
           }
-      
+
           const update = {};
           if (req.body.rating !== undefined) update.rating = Number(req.body.rating);
           if (req.body.review !== undefined) update.review = req.body.review;
@@ -328,7 +328,11 @@ exports.getMyReview = async (req, res, next) => {
                path: 'user',
                select: 'name avatar image email'
           }).sort('-createdAt');
-          res.json({ success: true, data: review });
+
+     const validReviews = review.filter(
+         r => r.user !== null && r.product !== null
+     );
+          res.json({ success: true, data: validReviews });
      } catch (error) {
           next(error);
      }
