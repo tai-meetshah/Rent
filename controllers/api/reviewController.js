@@ -78,9 +78,13 @@ exports.createReview = async (req, res, next) => {
                    })
                    .populate('user', 'name email');
           if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
-
-          if (booking.user.toString() !== req.user.id.toString()) {
-               return res.status(403).json({ success: false, message: 'Not authorized for this booking.' });
+          if (booking.user._id.toString() !== req.user.id.toString()) {
+              return res
+                  .status(403)
+                  .json({
+                      success: false,
+                      message: 'Not authorized for this booking.',
+                  });
           }
 
           // Only after booking completed
@@ -153,10 +157,12 @@ exports.updateReview = async (req, res, next) => {
                    })
                    .populate('user', 'name email');
           if (!reviewDoc) return res.status(404).json({ success: false, message: 'Review not found.' });
-          if (reviewDoc.user.toString() !== req.user.id.toString()) {
-               return res.status(403).json({ success: false, message: 'Not authorized.' });
+          if (reviewDoc.user._id.toString() !== req.user.id.toString()) {
+              return res
+                  .status(403)
+                  .json({ success: false, message: 'Not authorized.' });
           }
-
+      
           const update = {};
           if (req.body.rating !== undefined) update.rating = Number(req.body.rating);
           if (req.body.review !== undefined) update.review = req.body.review;
