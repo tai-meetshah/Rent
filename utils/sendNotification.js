@@ -5,6 +5,7 @@ const serviceAccount = require('./rent-anything-a6f78-firebase-adminsdk-fbsvc-df
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 
 const sendNotificationsToTokens = async (title, body, registrationTokens, data ={}) => {
+     console.log('title: ', title);
      const validTokens = registrationTokens.filter(
           token => token && token.trim() !== ''
      );
