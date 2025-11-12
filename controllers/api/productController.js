@@ -201,7 +201,7 @@ exports.getProducts = async (req, res, next) => {
         // 📍 Location filter - Handle separately to avoid $near inside $or issue
         let products = [];
 
-        if (latitude && longitude) {
+        if (latitude && longitude && latitude !== '0.0' && longitude !== '0.0') {
             const maxDistance = distance ? Number(distance) : 10000;
 
             const nearbyFilter = {
@@ -244,11 +244,11 @@ exports.getProducts = async (req, res, next) => {
             });
 
             // Add delivery products (won't duplicate if already exists)
-            deliveryProducts.forEach(p => {
-                if (!productMap.has(p._id.toString())) {
-                    productMap.set(p._id.toString(), p);
-                }
-            });
+            // deliveryProducts.forEach(p => {
+            //     if (!productMap.has(p._id.toString())) {
+            //         productMap.set(p._id.toString(), p);
+            //     }
+            // });
 
             products = Array.from(productMap.values());
         } else {
@@ -350,61 +350,70 @@ exports.getAllFeatureProduct = async (req, res, next) => {
         // 📍 Location filter - Handle separately to avoid $near inside $or issue
         let products = [];
 
-        if (latitude && longitude) {
-            const maxDistance = distance ? Number(distance) : 10000;
+                if (
+                    latitude &&
+                    longitude &&
+                    latitude !== '0.0' &&
+                    longitude !== '0.0'
+                ) {
+                    const maxDistance = distance ? Number(distance) : 10000;
 
-            const nearbyFilter = {
-                ...filter,
-                coordinates: {
-                    $near: {
-                        $geometry: {
-                            type: 'Point',
-                            coordinates: [Number(longitude), Number(latitude)],
+                    const nearbyFilter = {
+                        ...filter,
+                        coordinates: {
+                            $near: {
+                                $geometry: {
+                                    type: 'Point',
+                                    coordinates: [
+                                        Number(longitude),
+                                        Number(latitude),
+                                    ],
+                                },
+                                $maxDistance: maxDistance,
+                            },
                         },
-                        $maxDistance: maxDistance,
-                    },
-                },
-            };
+                    };
 
-            const deliveryFilter = {
-                ...filter,
-                oRentingOut: true,
-            };
+                    const deliveryFilter = {
+                        ...filter,
+                        oRentingOut: true,
+                    };
 
-            const [nearbyProducts, deliveryProducts] = await Promise.all([
-                Product.find(nearbyFilter)
-                    .sort('-createdAt')
-                    .populate('category subcategory')
-                    .select('-__v -isDeleted')
-                    .lean(),
-                Product.find(deliveryFilter)
-                    .sort('-createdAt')
-                    .populate('category subcategory')
-                    .select('-__v -isDeleted')
-                    .lean(),
-            ]);
+                    const [nearbyProducts, deliveryProducts] =
+                        await Promise.all([
+                            Product.find(nearbyFilter)
+                                .sort('-createdAt')
+                                .populate('category subcategory')
+                                .select('-__v -isDeleted')
+                                .lean(),
+                            Product.find(deliveryFilter)
+                                .sort('-createdAt')
+                                .populate('category subcategory')
+                                .select('-__v -isDeleted')
+                                .lean(),
+                        ]);
 
-            const productMap = new Map();
+                    const productMap = new Map();
 
-            nearbyProducts.forEach(p => {
-                productMap.set(p._id.toString(), p);
-            });
+                    nearbyProducts.forEach(p => {
+                        productMap.set(p._id.toString(), p);
+                    });
 
-            deliveryProducts.forEach(p => {
-                if (!productMap.has(p._id.toString())) {
-                    productMap.set(p._id.toString(), p);
+                    // deliveryProducts.forEach(p => {
+                    //     if (!productMap.has(p._id.toString())) {
+                    //         productMap.set(p._id.toString(), p);
+                    //     }
+                    // });
+
+                    products = Array.from(productMap.values());
+                } else {
+                    // No location filter - get all feature products
+                    products = await Product.find(filter)
+                        .sort('-createdAt')
+                        .populate('category subcategory')
+                        .select('-__v -isDeleted')
+                        .lean();
                 }
-            });
-
-            products = Array.from(productMap.values());
-        } else {
-            // No location filter - get all feature products
-            products = await Product.find(filter)
-                .sort('-createdAt')
-                .populate('category subcategory')
-                .select('-__v -isDeleted')
-                .lean();
-        }
 
         // 📦 Fetch stock info for products (uses booking aggregation internally and respects selectDate)
         const productIds = products.map(p => p._id);
@@ -1336,4 +1345,3 @@ exports.getBookedDates = async (req, res, next) => {
         next(error);
     }
 };
-
