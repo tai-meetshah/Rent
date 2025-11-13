@@ -4,20 +4,51 @@ const Chat = require('./models/ChatMessage');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
-// const Notification = require('../models/Notification');
 const User = require('./models/userModel');
+
+const onlineUsers = new Map(); // ✅ In-memory store (userId -> socketId)
 
 const socketHandler = io => {
     io.on('connection', socket => {
-        socket.on('join', data => {
+        console.log('🟢 Socket connected:', socket.id);
+
+        // ==============================
+        // 🔹 USER JOIN EVENT
+        // ==============================
+        socket.on('join', async data => {
             try {
                 const decoded = jwt.verify(data.token, process.env.JWT_SECRET);
-                socket.join(decoded._id);
+                const userId = decoded._id;
+
+                // support multiple sockets per user (multi-device)
+                if (!onlineUsers.has(userId))
+                    onlineUsers.set(userId, new Set());
+                onlineUsers.get(userId).add(socket.id);
+
+                socket.join(userId);
+
+                console.log(`✅ User ${userId} joined (${socket.id})`);
+
+                // ✅ Update MongoDB
+                await User.findByIdAndUpdate(userId, {
+                    isOnline: true,
+                    lastSeen: new Date(),
+                });
+
+                // ✅ Broadcast this user’s online status
+                io.emit('userStatus', { userId, status: 'online' });
+
+                // ✅ Give this user the list of currently online users
+                const allOnline = Array.from(onlineUsers.keys());
+                socket.emit('onlineUsers', allOnline);
             } catch (error) {
-                console.error('Invalid token in join.', data.token);
+                console.error('❌ Invalid token in join:', error.message);
             }
         });
 
+        // ==============================
+        // 💬 FETCH CHAT MESSAGES
+        // ==============================
         socket.on('getChatMessages', async data => {
             try {
                 const { token, sender, receiver } = data;
@@ -33,7 +64,7 @@ const socketHandler = io => {
                     .populate('sender', 'name images fcmToken')
                     .populate('receiver', 'name images fcmToken')
                     .select('-__v -deletedBy')
-                    .sort({ date: -1 });
+                    .sort({ date: 1 }); // ascending order
 
                 const messages = messagesData.map(msg => ({
                     ...msg.toObject(),
@@ -51,7 +82,7 @@ const socketHandler = io => {
 
                 socket.emit('chatMessages', messages);
             } catch (error) {
-                console.error('Error retrieving messages:', error.message);
+                console.error('❌ Error retrieving messages:', error.message);
                 socket.emit('chatMessages', {
                     success: false,
                     error: error.message,
@@ -59,10 +90,128 @@ const socketHandler = io => {
             }
         });
 
+socket.on('recentChats', async data => {
+    try {
+        const { token } = data;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded._id;
+
+        const recentChats = await Chat.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { sender: new mongoose.Types.ObjectId(userId) },
+                        { receiver: new mongoose.Types.ObjectId(userId) },
+                    ],
+                    deletedBy: {
+                        $ne: new mongoose.Types.ObjectId(userId),
+                    },
+                },
+            },
+            { $sort: { date: -1 } },
+            {
+                $group: {
+                    _id: {
+                        chatWith: {
+                            $cond: [
+                                {
+                                    $eq: [
+                                        '$sender',
+                                        new mongoose.Types.ObjectId(userId),
+                                    ],
+                                },
+                                '$receiver',
+                                '$sender',
+                            ],
+                        },
+                    },
+                    chatId: { $first: '$_id' },
+                    lastMessage: { $first: '$message' },
+                    lastMessageDate: { $first: '$date' },
+                    lastMessageSender: { $first: '$sender' },
+                    lastMessageReceiver: { $first: '$receiver' },
+                    unreadCount: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        {
+                                            $ne: [
+                                                '$sender',
+                                                new mongoose.Types.ObjectId(
+                                                    userId
+                                                ),
+                                            ],
+                                        },
+                                        {
+                                            $not: {
+                                                $in: [
+                                                    new mongoose.Types.ObjectId(
+                                                        userId
+                                                    ),
+                                                    {
+                                                        $ifNull: [
+                                                            '$readBy',
+                                                            [],
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ],
+                                },
+                                1,
+                                0,
+                            ],
+                        },
+                    },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id.chatWith',
+                    foreignField: '_id',
+                    as: 'chatWithUser',
+                },
+            },
+            { $unwind: '$chatWithUser' },
+            {
+                $project: {
+                    chatWithName: '$chatWithUser.name',
+                    fcmToken: '$chatWithUser.fcmToken',
+                    images: '$chatWithUser.images',
+                    lastMessage: 1,
+                    lastMessageDate: 1,
+                    lastMessageSender: 1,
+                    lastMessageReceiver: 1,
+                    unreadCount: 1,
+                    _id: 0,
+                    chatId: 1,
+                },
+            },
+            { $sort: { lastMessageDate: -1 } },
+        ]);
+
+        socket.emit('recentChats', recentChats);
+    } catch (error) {
+        console.error('Error retrieving recent chats:', error.message);
+        socket.emit('chatMessages', {
+            success: false,
+            error: error.message,
+        });
+    }
+});
+
+        // ==============================
+        // ✉️ SEND MESSAGE
+        // ==============================
         socket.on('sendMessage', async data => {
             try {
                 const { token, receiver, message, image, date } = data;
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const senderId = decoded._id;
+
                 let fileName = null;
 
                 if (image) {
@@ -78,10 +227,13 @@ const socketHandler = io => {
                         ''
                     );
 
-                    const uploadDir = path.join(process.cwd(), 'uploads');
-                    if (!fs.existsSync(uploadDir)) {
+                    const uploadDir = path.join(
+                        process.cwd(),
+                        'public',
+                        'uploads'
+                    );
+                    if (!fs.existsSync(uploadDir))
                         fs.mkdirSync(uploadDir, { recursive: true });
-                    }
 
                     fileName = `${Date.now()}.${fileExtension}`;
                     const absolutePath = path.join(uploadDir, fileName);
@@ -91,11 +243,11 @@ const socketHandler = io => {
                 }
 
                 const chatMessage = await Chat.create({
-                    sender: decoded._id,
+                    sender: senderId,
                     receiver,
                     message,
                     file: fileName ? `/uploads/${fileName}` : null,
-                    date, // store timestamp from client
+                    date: date ? new Date(date) : new Date(), // ✅ use timestamp from Flutter
                 });
 
                 const receiverUser = await User.findById(receiver).select(
@@ -103,30 +255,23 @@ const socketHandler = io => {
                 );
                 if (!receiverUser) throw new Error('Receiver not found');
 
-                // await Notification.create({
-                //      sentTo: [receiver],
-                //      title: 'New Message',
-                //      body: message,
-                //      sender: decoded._id,
-                //      receiver,
-                //      type: 'chat notification'
-                // });
-
                 const { deletedBy, readBy, ...messageToSend } =
                     chatMessage.toObject();
 
+                // ✅ Send message to receiver (if online)
                 io.to(receiver).emit('receiveMessage', {
                     ...messageToSend,
                     fcmToken: receiverUser.fcmToken,
                 });
 
+                // ✅ Echo back to sender
                 socket.emit('receiveMessage', {
                     success: true,
                     ...messageToSend,
                     fcmToken: receiverUser.fcmToken,
                 });
             } catch (error) {
-                console.error('Error sending message:', error.message);
+                console.error('❌ Error sending message:', error.message);
                 socket.emit('receiveMessage', {
                     success: false,
                     error: error.message,
@@ -134,6 +279,9 @@ const socketHandler = io => {
             }
         });
 
+        // ==============================
+        // 🗑️ CLEAR CHAT
+        // ==============================
         socket.on('clearChat', async data => {
             try {
                 const { token, receiver } = data;
@@ -155,7 +303,7 @@ const socketHandler = io => {
                     message: 'Cleared chat successfully.',
                 });
             } catch (error) {
-                console.error('Error clearing chat:', error.message);
+                console.error('❌ Error clearing chat:', error.message);
                 socket.emit('chatCleared', {
                     success: false,
                     error: error.message,
@@ -163,13 +311,15 @@ const socketHandler = io => {
             }
         });
 
+        // ==============================
+        // ✅ MESSAGE READ RECEIPT
+        // ==============================
         socket.on('messageRead', async data => {
             try {
                 const { token, senderId } = data;
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const receiverId = decoded._id;
 
-                // Update all unread messages from sender → receiver
                 const result = await Chat.updateMany(
                     {
                         sender: senderId,
@@ -179,22 +329,56 @@ const socketHandler = io => {
                     { $addToSet: { readBy: receiverId } }
                 );
 
-                // Emit event back to receiver (the one who read)
                 socket.emit('messageReadByReceiver', {
                     success: true,
                     message: 'Messages marked as read successfully.',
                     updatedCount: result.modifiedCount || 0,
                 });
 
-                // Notify the sender in realtime
                 io.to(senderId.toString()).emit('messageReadByReceiver', {
                     success: true,
                     readerId: receiverId,
-                    senderId: senderId,
+                    senderId,
                     message: 'Your messages have been read by the receiver.',
                 });
             } catch (error) {
-                console.error('Error marking message as read:', error.message);
+                console.error(
+                    '❌ Error marking message as read:',
+                    error.message
+                );
+            }
+        });
+
+        // ==============================
+        // 🔴 DISCONNECT HANDLER
+        // ==============================
+        socket.on('disconnect', async () => {
+            for (const [userId, socketSet] of onlineUsers.entries()) {
+                if (socketSet.has(socket.id)) {
+                    socketSet.delete(socket.id);
+
+                    if (socketSet.size === 0) {
+                        onlineUsers.delete(userId);
+
+                        const lastSeen = new Date();
+
+                        await User.findByIdAndUpdate(userId, {
+                            isOnline: false,
+                            lastSeen,
+                        });
+
+                        io.emit('userStatus', {
+                            userId,
+                            status: 'offline',
+                            lastSeen,
+                        });
+
+                        console.log(
+                            `🔴 User ${userId} disconnected at ${lastSeen}`
+                        );
+                    }
+                    break;
+                }
             }
         });
     });

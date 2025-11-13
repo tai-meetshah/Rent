@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+
+<head>
+  <%- include('_layouts/head') %>
+  <title>Commission Settings | <%= title %></title>
+</head>
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+  <%- include('_layouts/sidenavbar') %>
+
+  <!-- BEGIN: Page Main-->
+  <div id="main">
+    <div class="row">
+      <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+        <div class="container">
+          <div class="row">
+            <div class="col s12 m6 l6">
+              <h6 class="breadcrumbs-title"><span>Admin Commission</span></h6>
+            </div>
+            <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+              <ol class="breadcrumbs mb-0">
+                <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
+                <li class="breadcrumb-item active">Commission</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Commission Form -->
+    <div class="container pl-2 pr-2">
+      <div class="card">
+        <div class="row">
+          <div class="col s12">
+            <div id="basic-form" class="card-default scrollspy">
+              <div class="card-content">
+                <form method="POST" action="/admin/commission" id="commissionForm">
+                            <%- include('messages', { messages: messages }) %>
+
+                  <!-- Commission Type -->
+                  <div class="input-field col s12">
+                    <label>Commission Type</label><br><br>
+                    <p>
+                      <label>
+                        <input name="commissionType" type="radio" value="fixed" <%= commission && commission.commissionType === 'fixed' ? 'checked' : '' %> />
+                        <span>Fixed Commission (₹)</span>
+                      </label>
+                    </p>
+                    <p>
+                      <label>
+                        <input name="commissionType" type="radio" value="percentage" <%= commission && commission.commissionType === 'percentage' ? 'checked' : '' %> />
+                        <span>Percentage Commission (%)</span>
+                      </label>
+                    </p>
+                    <span class="error-message" id="typeError"></span>
+                  </div>
+
+                  <!-- Fixed Amount -->
+                  <div class="input-field col s12" id="fixedField" style="<%= commission && commission.commissionType === 'percentage' ? 'display:none;' : '' %>">
+                    <label for="fixedAmount">Fixed Amount (₹)</label>
+                    <input class="validate" id="fixedAmount" name="fixedAmount" type="number" value="<%= commission && commission.fixedAmount ? commission.fixedAmount : '' %>">
+                    <div class="error-message" id="fixedError"></div>
+                  </div>
+
+                  <!-- Percentage -->
+                  <div class="input-field col s12" id="percentageField" style="<%= commission && commission.commissionType === 'fixed' ? 'display:none;' : '' %>">
+                    <label for="percentage">Percentage (%)</label>
+                    <input class="validate" id="percentage" name="percentage" type="number" min="0" max="100" value="<%= commission && commission.percentage ? commission.percentage : '' %>">
+                    <div class="error-message" id="percentageError"></div>
+                  </div>
+
+                  <div class="row">
+                    <div class="col s12 display-flex justify-content-end">
+                      <button class="btn btn-edit" type="submit" name="action">
+                        <%= commission ? 'Update' : 'Save' %>
+                      </button>
+                    </div>
+                  </div>
+
+                </form>
+              </div>
+
+              <% if (commission) { %>
+              <div class="card-content">
+                <h6><b>Current Commission:</b></h6>
+                <p>Type: <%= commission.commissionType %></p>
+                <% if (commission.commissionType === 'fixed') { %>
+                <p>Amount: ₹<%= commission.fixedAmount %></p>
+                <% } else { %>
+                <p>Percentage: <%= commission.percentage %>%</p>
+                <% } %>
+              </div>
+              <% } %>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- END: Page Main-->
+
+  <%- include('_layouts/commonJs') %>
+
+  <script>
+    $(document).ready(function() {
+      // Toggle visibility of fields based on type
+      $('input[name="commissionType"]').on('change', function() {
+        const type = $(this).val();
+        if (type === "fixed") {
+          $("#fixedField").show();
+          $("#percentageField").hide();
+          $("#percentage").val('');
+        } else {
+          $("#fixedField").hide();
+          $("#percentageField").show();
+          $("#fixedAmount").val('');
+        }
+      });
+
+      // Validation
+      $('#commissionForm').on('submit', function(e) {
+        let valid = true;
+        const type = $('input[name="commissionType"]:checked').val();
+        const fixed = $('#fixedAmount').val().trim();
+        const percent = $('#percentage').val().trim();
+
+        $('.error-message').text('');
+
+        if (type === "fixed" && !fixed) {
+          $('#fixedError').text('Please enter a fixed commission amount.');
+          valid = false;
+        }
+        if (type === "percentage" && !percent) {
+          $('#percentageError').text('Please enter a percentage commission.');
+          valid = false;
+        }
+
+        if (!valid) e.preventDefault();
+      });
+    });
+  </script>
+
+</body>
+
+</html>

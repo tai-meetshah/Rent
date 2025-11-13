@@ -62,6 +62,8 @@ const userSchema = new mongoose.Schema(
         //     type: Boolean,
         //     default: true,
         // },
+        isOnline: Boolean,
+        lastSeen: Date,
         isDelete: {
             type: Boolean,
             default: false,

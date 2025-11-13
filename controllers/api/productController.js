@@ -202,7 +202,7 @@ exports.getProducts = async (req, res, next) => {
         let products = [];
 
         if (latitude && longitude && latitude !== '0.0' && longitude !== '0.0') {
-            const maxDistance = distance ? Number(distance) : 10000;
+            const maxDistance = distance ? Number(distance) : 100000;
 
             const nearbyFilter = {
                 ...filter,
