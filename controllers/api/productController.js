@@ -108,6 +108,7 @@ exports.getProducts = async (req, res, next) => {
             inStock,
             sortBy,
             search,
+            rating,
         } = req.body;
 
         const filter = {
@@ -116,6 +117,12 @@ exports.getProducts = async (req, res, next) => {
             user: { $ne: req.user.id },
             publish: true,
         };
+
+        // ⭐
+        if (rating) {
+                const ratingNum = Number(rating);
+           filter.avgRating = { $gte: ratingNum, $lte: 5 };
+        }
 
         // 🔍 Search filter
         if (search) {
@@ -201,7 +208,12 @@ exports.getProducts = async (req, res, next) => {
         // 📍 Location filter - Handle separately to avoid $near inside $or issue
         let products = [];
 
-        if (latitude && longitude && latitude !== '0.0' && longitude !== '0.0') {
+        if (
+            latitude &&
+            longitude &&
+            latitude !== '0.0' &&
+            longitude !== '0.0'
+        ) {
             const maxDistance = distance ? Number(distance) : 100000;
 
             const nearbyFilter = {
@@ -350,70 +362,66 @@ exports.getAllFeatureProduct = async (req, res, next) => {
         // 📍 Location filter - Handle separately to avoid $near inside $or issue
         let products = [];
 
-                if (
-                    latitude &&
-                    longitude &&
-                    latitude !== '0.0' &&
-                    longitude !== '0.0'
-                ) {
-                    const maxDistance = distance ? Number(distance) : 10000;
+        if (
+            latitude &&
+            longitude &&
+            latitude !== '0.0' &&
+            longitude !== '0.0'
+        ) {
+            const maxDistance = distance ? Number(distance) : 10000;
 
-                    const nearbyFilter = {
-                        ...filter,
-                        coordinates: {
-                            $near: {
-                                $geometry: {
-                                    type: 'Point',
-                                    coordinates: [
-                                        Number(longitude),
-                                        Number(latitude),
-                                    ],
-                                },
-                                $maxDistance: maxDistance,
-                            },
+            const nearbyFilter = {
+                ...filter,
+                coordinates: {
+                    $near: {
+                        $geometry: {
+                            type: 'Point',
+                            coordinates: [Number(longitude), Number(latitude)],
                         },
-                    };
+                        $maxDistance: maxDistance,
+                    },
+                },
+            };
 
-                    const deliveryFilter = {
-                        ...filter,
-                        oRentingOut: true,
-                    };
+            const deliveryFilter = {
+                ...filter,
+                oRentingOut: true,
+            };
 
-                    const [nearbyProducts, deliveryProducts] =
-                        await Promise.all([
-                            Product.find(nearbyFilter)
-                                .sort('-createdAt')
-                                .populate('category subcategory')
-                                .select('-__v -isDeleted')
-                                .lean(),
-                            Product.find(deliveryFilter)
-                                .sort('-createdAt')
-                                .populate('category subcategory')
-                                .select('-__v -isDeleted')
-                                .lean(),
-                        ]);
+            const [nearbyProducts, deliveryProducts] = await Promise.all([
+                Product.find(nearbyFilter)
+                    .sort('-createdAt')
+                    .populate('category subcategory')
+                    .select('-__v -isDeleted')
+                    .lean(),
+                Product.find(deliveryFilter)
+                    .sort('-createdAt')
+                    .populate('category subcategory')
+                    .select('-__v -isDeleted')
+                    .lean(),
+            ]);
 
-                    const productMap = new Map();
+            const productMap = new Map();
 
-                    nearbyProducts.forEach(p => {
-                        productMap.set(p._id.toString(), p);
-                    });
+            nearbyProducts.forEach(p => {
+                productMap.set(p._id.toString(), p);
+            });
 
-                    // deliveryProducts.forEach(p => {
-                    //     if (!productMap.has(p._id.toString())) {
-                    //         productMap.set(p._id.toString(), p);
-                    //     }
-                    // });
+            // deliveryProducts.forEach(p => {
+            //     if (!productMap.has(p._id.toString())) {
+            //         productMap.set(p._id.toString(), p);
+            //     }
+            // });
 
-                    products = Array.from(productMap.values());
-                } else {
-                    // No location filter - get all feature products
-                    products = await Product.find(filter)
-                        .sort('-createdAt')
-                        .populate('category subcategory')
-                        .select('-__v -isDeleted')
-                        .lean();
-                }
+            products = Array.from(productMap.values());
+        } else {
+            // No location filter - get all feature products
+            products = await Product.find(filter)
+                .sort('-createdAt')
+                .populate('category subcategory')
+                .select('-__v -isDeleted')
+                .lean();
+        }
 
         // 📦 Fetch stock info for products (uses booking aggregation internally and respects selectDate)
         const productIds = products.map(p => p._id);
@@ -1179,7 +1187,9 @@ exports.getFavouriteProducts = async (req, res, next) => {
     try {
         const user = await userModel.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found.' });
+            return res
+                .status(404)
+                .json({ success: false, message: 'User not found.' });
         }
 
         const products = await Product.find({ _id: { $in: user.favourites } })
@@ -1195,13 +1205,13 @@ exports.getFavouriteProducts = async (req, res, next) => {
             productsStockMap[p._id.toString()] = parseInt(p.stockQuantity) || 0;
         });
 
-                const stockData = await Product.getAvailableStockForProducts(
-                    productIds
-                );
+        const stockData = await Product.getAvailableStockForProducts(
+            productIds
+        );
 
         // 📝 Get all reviews for these products
         const reviews = await Review.find({
-            product: { $in: productIds }
+            product: { $in: productIds },
         })
             .populate('user', 'name photo email')
             .select('-__v')
@@ -1228,9 +1238,9 @@ exports.getFavouriteProducts = async (req, res, next) => {
                 stockInfo: stockData[p._id.toString()] || {
                     totalStock: parseInt(p.stockQuantity) || 0,
                     rentedStock: 0,
-                    availableStock: parseInt(p.stockQuantity) || 0
+                    availableStock: parseInt(p.stockQuantity) || 0,
                 },
-                reviews: productReviews
+                reviews: productReviews,
             };
         });
 
@@ -1238,7 +1248,7 @@ exports.getFavouriteProducts = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-}
+};
 
 exports.getProductStockInfo = async (req, res, next) => {
     try {

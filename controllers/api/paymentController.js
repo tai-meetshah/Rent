@@ -3,14 +3,17 @@ const stripe = require('../../config/stripe');
 const Payment = require('../../models/paymentModel');
 const Booking = require('../../models/Booking');
 const Product = require('../../models/product');
-const AdminCommission = require('../../models/adminCommissionModel');
+const AdminCommission = require('../../models/AdminCommission');
 const createError = require('http-errors');
 const { sendNotificationsToTokens } = require('../../utils/sendNotification');
 const userNotificationModel = require('../../models/userNotificationModel');
 
 // Calculate cancellation charges based on time before booking
 const calculateCancellationCharges = (booking, product) => {
-    if (!product.oCancellationCharges || product.oCancellationCharges.length === 0) {
+    if (
+        !product.oCancellationCharges ||
+        product.oCancellationCharges.length === 0
+    ) {
         return { chargeAmount: 0, chargePercentage: 0 };
     }
 
@@ -85,7 +88,10 @@ exports.createPaymentIntent = async (req, res, next) => {
         }
 
         const product = booking.product;
-        const totalAmount = booking.totalPrice || booking.advancePayment;
+        const price = Number(booking.product.price || 0);
+        const deposit = Number(booking.product.depositAmount || 0);
+
+        const totalAmount = price + deposit;
 
         if (!totalAmount || totalAmount <= 0) {
             return next(createError.BadRequest('Invalid payment amount.'));
@@ -93,7 +99,7 @@ exports.createPaymentIntent = async (req, res, next) => {
 
         // Get active commission settings
         const commissionSettings = await getActiveCommission();
-        const commissionAmount = calculateCommission(totalAmount, commissionSettings);
+        const commissionAmount = calculateCommission(price, commissionSettings);
         const ownerPayoutAmount = totalAmount - commissionAmount;
 
         // Create payment intent with Stripe (in AUD)
@@ -122,8 +128,14 @@ exports.createPaymentIntent = async (req, res, next) => {
             depositAmount: booking.depositAmount || 0,
             rentalAmount: totalAmount,
             commissionType: commissionSettings.commissionType,
-            commissionPercentage: commissionSettings.commissionType === 'percentage' ? commissionSettings.percentage : null,
-            commissionFixedAmount: commissionSettings.commissionType === 'fixed' ? commissionSettings.fixedAmount : null,
+            commissionPercentage:
+                commissionSettings.commissionType === 'percentage'
+                    ? commissionSettings.percentage
+                    : null,
+            commissionFixedAmount:
+                commissionSettings.commissionType === 'fixed'
+                    ? commissionSettings.fixedAmount
+                    : null,
             commissionAmount,
             ownerPayoutAmount,
             currency: 'AUD',
@@ -144,8 +156,14 @@ exports.createPaymentIntent = async (req, res, next) => {
             commission: {
                 type: commissionSettings.commissionType,
                 amount: commissionAmount,
-                percentage: commissionSettings.commissionType === 'percentage' ? commissionSettings.percentage : null,
-                fixedAmount: commissionSettings.commissionType === 'fixed' ? commissionSettings.fixedAmount : null,
+                percentage:
+                    commissionSettings.commissionType === 'percentage'
+                        ? commissionSettings.percentage
+                        : null,
+                fixedAmount:
+                    commissionSettings.commissionType === 'fixed'
+                        ? commissionSettings.fixedAmount
+                        : null,
             },
             ownerPayoutAmount,
             payment,
@@ -161,13 +179,17 @@ exports.confirmPayment = async (req, res, next) => {
     try {
         const { paymentIntentId } = req.body;
 
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+        const paymentIntent = await stripe.paymentIntents.retrieve(
+            paymentIntentId
+        );
 
         if (paymentIntent.status !== 'succeeded') {
             return next(createError.BadRequest('Payment not completed.'));
         }
 
-        const payment = await Payment.findOne({ stripePaymentIntentId: paymentIntentId })
+        const payment = await Payment.findOne({
+            stripePaymentIntentId: paymentIntentId,
+        })
             .populate('booking')
             .populate('owner', 'name fcmToken')
             .populate('renter', 'name')
@@ -192,13 +214,21 @@ exports.confirmPayment = async (req, res, next) => {
         if (payment.owner && payment.owner.fcmToken) {
             await sendNotificationsToTokens(
                 'Payment Received',
-                `${payment.renter.name} has paid AUD $${payment.totalAmount.toFixed(2)} for ${payment.product.title}. Amount will be transferred after rental completion.`,
+                `${
+                    payment.renter.name
+                } has paid AUD $${payment.totalAmount.toFixed(2)} for ${
+                    payment.product.title
+                }. Amount will be transferred after rental completion.`,
                 [payment.owner.fcmToken]
             );
             await userNotificationModel.create({
                 sentTo: [payment.owner._id],
                 title: 'Payment Received',
-                body: `${payment.renter.name} has paid AUD $${payment.totalAmount.toFixed(2)} for ${payment.product.title}. Amount will be transferred after rental completion.`,
+                body: `${
+                    payment.renter.name
+                } has paid AUD $${payment.totalAmount.toFixed(2)} for ${
+                    payment.product.title
+                }. Amount will be transferred after rental completion.`,
             });
         }
 
@@ -228,7 +258,9 @@ exports.processOwnerPayout = async (req, res, next) => {
 
         // Check if all return photos are verified
         if (!booking.allReturnPhotosVerify) {
-            return next(createError.BadRequest('Return photos not yet verified.'));
+            return next(
+                createError.BadRequest('Return photos not yet verified.')
+            );
         }
 
         const payment = booking.payment;
@@ -268,21 +300,32 @@ exports.processOwnerPayout = async (req, res, next) => {
         await booking.save();
 
         // Send notification to owner
-        const owner = await require('../../models/userModel').findById(payment.owner);
+        const owner = await require('../../models/userModel').findById(
+            payment.owner
+        );
         if (owner && owner.fcmToken) {
-            const commissionInfo = payment.commissionType === 'fixed'
-                ? `Fixed commission: AUD $${payment.commissionFixedAmount.toFixed(2)}`
-                : `Commission (${payment.commissionPercentage}%): AUD $${payment.commissionAmount.toFixed(2)}`;
+            const commissionInfo =
+                payment.commissionType === 'fixed'
+                    ? `Fixed commission: AUD $${payment.commissionFixedAmount.toFixed(
+                          2
+                      )}`
+                    : `Commission (${
+                          payment.commissionPercentage
+                      }%): AUD $${payment.commissionAmount.toFixed(2)}`;
 
             await sendNotificationsToTokens(
                 'Payout Processed',
-                `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(2)} has been processed. ${commissionInfo}`,
+                `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
+                    2
+                )} has been processed. ${commissionInfo}`,
                 [owner.fcmToken]
             );
             await userNotificationModel.create({
                 sentTo: [owner._id],
                 title: 'Payout Processed',
-                body: `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(2)} has been processed. ${commissionInfo}`,
+                body: `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
+                    2
+                )} has been processed. ${commissionInfo}`,
             });
         }
 
@@ -313,16 +356,22 @@ exports.cancelBookingWithRefund = async (req, res, next) => {
 
         // Verify authorization
         const isRenter = booking.user._id.toString() === req.user.id.toString();
-        const isOwner = booking.product.user.toString() === req.user.id.toString();
+        const isOwner =
+            booking.product.user.toString() === req.user.id.toString();
 
         if (!isRenter && !isOwner) {
-            return next(createError.Forbidden('Unauthorized to cancel this booking.'));
+            return next(
+                createError.Forbidden('Unauthorized to cancel this booking.')
+            );
         }
 
         const product = booking.product;
 
         // Calculate cancellation charges using oCancellationCharges
-        const { chargeAmount, chargePercentage } = calculateCancellationCharges(booking, product);
+        const { chargeAmount, chargePercentage } = calculateCancellationCharges(
+            booking,
+            product
+        );
 
         const payment = booking.payment;
 
@@ -355,7 +404,8 @@ exports.cancelBookingWithRefund = async (req, res, next) => {
                     reason: 'requested_by_customer',
                     metadata: {
                         bookingId: booking._id.toString(),
-                        cancellationReason: cancellationReason || 'No reason provided',
+                        cancellationReason:
+                            cancellationReason || 'No reason provided',
                     },
                 });
 
@@ -365,11 +415,16 @@ exports.cancelBookingWithRefund = async (req, res, next) => {
                 payment.stripeRefundId = refund.id;
                 payment.refundReason = cancellationReason;
                 payment.refundedAt = new Date();
-                payment.paymentStatus = chargeAmount > 0 ? 'partially_refunded' : 'refunded';
+                payment.paymentStatus =
+                    chargeAmount > 0 ? 'partially_refunded' : 'refunded';
                 await payment.save();
             } catch (stripeError) {
                 console.error('Stripe refund error:', stripeError);
-                return next(createError.BadRequest(`Failed to process refund: ${stripeError.message}`));
+                return next(
+                    createError.BadRequest(
+                        `Failed to process refund: ${stripeError.message}`
+                    )
+                );
             }
         } else if (payment.paymentStatus === 'paid' && refundAmount === 0) {
             // No refund, just update payment status
@@ -392,18 +447,24 @@ exports.cancelBookingWithRefund = async (req, res, next) => {
         if (booking.user && booking.user.fcmToken) {
             let message = '';
             if (refundAmount > 0 && chargeAmount > 0) {
-                message = `Your booking has been cancelled. Cancellation charges: AUD $${chargeAmount.toFixed(2)} (${chargePercentage}%). Refund amount: AUD $${refundAmount.toFixed(2)} will be processed in 5-10 business days.`;
+                message = `Your booking has been cancelled. Cancellation charges: AUD $${chargeAmount.toFixed(
+                    2
+                )} (${chargePercentage}%). Refund amount: AUD $${refundAmount.toFixed(
+                    2
+                )} will be processed in 5-10 business days.`;
             } else if (refundAmount > 0) {
-                message = `Your booking has been cancelled. Full refund of AUD $${refundAmount.toFixed(2)} will be processed in 5-10 business days.`;
+                message = `Your booking has been cancelled. Full refund of AUD $${refundAmount.toFixed(
+                    2
+                )} will be processed in 5-10 business days.`;
             } else {
-                message = `Your booking has been cancelled. Cancellation charges of AUD $${chargeAmount.toFixed(2)} (${chargePercentage}%) applied. No refund available.`;
+                message = `Your booking has been cancelled. Cancellation charges of AUD $${chargeAmount.toFixed(
+                    2
+                )} (${chargePercentage}%) applied. No refund available.`;
             }
 
-            await sendNotificationsToTokens(
-                'Booking Cancelled',
-                message,
-                [booking.user.fcmToken]
-            );
+            await sendNotificationsToTokens('Booking Cancelled', message, [
+                booking.user.fcmToken,
+            ]);
             await userNotificationModel.create({
                 sentTo: [booking.user._id],
                 title: 'Booking Cancelled',
@@ -412,17 +473,35 @@ exports.cancelBookingWithRefund = async (req, res, next) => {
         }
 
         // Send notification to owner
-        const owner = await require('../../models/userModel').findById(product.user);
+        const owner = await require('../../models/userModel').findById(
+            product.user
+        );
         if (owner && owner.fcmToken) {
             await sendNotificationsToTokens(
                 'Booking Cancelled',
-                `Booking for ${product.title} has been cancelled by ${cancelledBy === 'renter' ? 'the customer' : 'you'}. ${chargeAmount > 0 ? `Cancellation charges: AUD $${chargeAmount.toFixed(2)}` : ''}`,
+                `Booking for ${product.title} has been cancelled by ${
+                    cancelledBy === 'renter' ? 'the customer' : 'you'
+                }. ${
+                    chargeAmount > 0
+                        ? `Cancellation charges: AUD $${chargeAmount.toFixed(
+                              2
+                          )}`
+                        : ''
+                }`,
                 [owner.fcmToken]
             );
             await userNotificationModel.create({
                 sentTo: [owner._id],
                 title: 'Booking Cancelled',
-                body: `Booking for ${product.title} has been cancelled by ${cancelledBy === 'renter' ? 'the customer' : 'you'}. ${chargeAmount > 0 ? `Cancellation charges: AUD $${chargeAmount.toFixed(2)}` : ''}`,
+                body: `Booking for ${product.title} has been cancelled by ${
+                    cancelledBy === 'renter' ? 'the customer' : 'you'
+                }. ${
+                    chargeAmount > 0
+                        ? `Cancellation charges: AUD $${chargeAmount.toFixed(
+                              2
+                          )}`
+                        : ''
+                }`,
             });
         }
 
@@ -457,7 +536,8 @@ exports.getPaymentDetails = async (req, res, next) => {
         }
 
         // Verify authorization
-        const isRenter = payment.renter._id.toString() === req.user.id.toString();
+        const isRenter =
+            payment.renter._id.toString() === req.user.id.toString();
         const isOwner = payment.owner._id.toString() === req.user.id.toString();
 
         if (!isRenter && !isOwner) {

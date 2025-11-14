@@ -30,6 +30,7 @@ const bookingSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        payment : String,
         totalPrice: {
             type: Number,
             // required: true,
