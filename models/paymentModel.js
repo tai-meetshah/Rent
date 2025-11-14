@@ -94,6 +94,7 @@ const paymentSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+
         refundReason: String,
         stripeRefundId: String,
         // Cancellation
@@ -109,6 +110,12 @@ const paymentSchema = new mongoose.Schema(
         paidAt: Date,
         payoutAt: Date,
         refundedAt: Date,
+        depositRefundId: {
+            type: String,
+        },
+        depositRefundedAt: {
+            type: Date,
+        },
     },
     { timestamps: true }
 );

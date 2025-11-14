@@ -88,10 +88,13 @@ exports.createPaymentIntent = async (req, res, next) => {
         }
 
         const product = booking.product;
-        const price = Number(booking.product.price || 0);
-        const deposit = Number(booking.product.depositAmount || 0);
+        const rentalPrice = Number(product.price || 0);
+        const depositAmount = product.deposit
+            ? Number(product.depositAmount || 0)
+            : 0;
 
-        const totalAmount = price + deposit;
+        // Total amount = rental price + deposit
+        const totalAmount = rentalPrice + depositAmount;
 
         if (!totalAmount || totalAmount <= 0) {
             return next(createError.BadRequest('Invalid payment amount.'));
@@ -99,18 +102,27 @@ exports.createPaymentIntent = async (req, res, next) => {
 
         // Get active commission settings
         const commissionSettings = await getActiveCommission();
-        const commissionAmount = calculateCommission(price, commissionSettings);
-        const ownerPayoutAmount = totalAmount - commissionAmount;
+
+        // Commission is calculated ONLY on rental price, NOT on deposit
+        const commissionAmount = calculateCommission(
+            rentalPrice,
+            commissionSettings
+        );
+
+        // Owner receives: rental price - commission (deposit is held separately)
+        const ownerPayoutAmount = rentalPrice - commissionAmount;
 
         // Create payment intent with Stripe (in AUD)
         const paymentIntent = await stripe.paymentIntents.create({
             amount: Math.round(totalAmount * 100), // Convert to cents
-            currency: 'aud', // Australian Dollar
+            currency: 'aud',
             metadata: {
                 bookingId: booking._id.toString(),
                 renterId: booking.user._id.toString(),
                 ownerId: product.user.toString(),
                 productId: product._id.toString(),
+                rentalAmount: rentalPrice.toString(),
+                depositAmount: depositAmount.toString(),
             },
             description: `Rental payment for ${product.title}`,
             automatic_payment_methods: {
@@ -125,8 +137,8 @@ exports.createPaymentIntent = async (req, res, next) => {
             owner: product.user,
             product: product._id,
             totalAmount,
-            depositAmount: booking.depositAmount || 0,
-            rentalAmount: totalAmount,
+            depositAmount: depositAmount,
+            rentalAmount: rentalPrice,
             commissionType: commissionSettings.commissionType,
             commissionPercentage:
                 commissionSettings.commissionType === 'percentage'
@@ -152,6 +164,8 @@ exports.createPaymentIntent = async (req, res, next) => {
             clientSecret: paymentIntent.client_secret,
             paymentIntentId: paymentIntent.id,
             amount: totalAmount,
+            rentalAmount: rentalPrice,
+            depositAmount: depositAmount,
             currency: 'AUD',
             commission: {
                 type: commissionSettings.commissionType,
@@ -166,6 +180,13 @@ exports.createPaymentIntent = async (req, res, next) => {
                         : null,
             },
             ownerPayoutAmount,
+            message: `Total payment: AUD $${totalAmount.toFixed(
+                2
+            )} (Rental: $${rentalPrice.toFixed(
+                2
+            )} + Deposit: $${depositAmount.toFixed(
+                2
+            )}). Deposit will be refunded after return verification.`,
             payment,
         });
     } catch (error) {
@@ -650,4 +671,171 @@ exports.stripeWebhook = async (req, res) => {
     }
 
     res.json({ received: true });
+};
+
+exports.processOwnerPayout = async (req, res, next) => {
+    try {
+        const { bookingId } = req.body;
+
+        const booking = await Booking.findById(bookingId)
+            .populate('product')
+            .populate({
+                path: 'payment',
+                populate: {
+                    path: 'renter',
+                    select: 'name email fcmToken',
+                },
+            });
+
+        if (!booking) {
+            return next(createError.NotFound('Booking not found.'));
+        }
+
+        // Check if all return photos are verified
+        if (!booking.allReturnPhotosVerify) {
+            return next(
+                createError.BadRequest('Return photos not yet verified.')
+            );
+        }
+
+        const payment = booking.payment;
+
+        if (!payment) {
+            return next(createError.NotFound('Payment record not found.'));
+        }
+
+        if (payment.paymentStatus !== 'paid') {
+            return next(createError.BadRequest('Payment not completed.'));
+        }
+
+        if (payment.payoutStatus === 'paid') {
+            return next(createError.BadRequest('Payout already processed.'));
+        }
+
+        // STEP 1: Refund deposit to renter
+        let depositRefunded = false;
+        if (payment.depositAmount > 0) {
+            try {
+                const depositRefund = await stripe.refunds.create({
+                    charge: payment.stripeChargeId,
+                    amount: Math.round(payment.depositAmount * 100), // Deposit amount in cents
+                    reason: 'requested_by_customer',
+                    metadata: {
+                        bookingId: booking._id.toString(),
+                        paymentId: payment._id.toString(),
+                        refundType: 'deposit',
+                    },
+                });
+
+                payment.depositRefundId = depositRefund.id;
+                payment.depositRefundedAt = new Date();
+                depositRefunded = true;
+
+                // Send notification to renter about deposit refund
+                if (payment.renter && payment.renter.fcmToken) {
+                    await sendNotificationsToTokens(
+                        'Deposit Refunded',
+                        `Your deposit of AUD $${payment.depositAmount.toFixed(
+                            2
+                        )} for ${
+                            booking.product.title
+                        } has been refunded. It will appear in your account within 5-10 business days.`,
+                        [payment.renter.fcmToken]
+                    );
+                    await userNotificationModel.create({
+                        sentTo: [payment.renter._id],
+                        title: 'Deposit Refunded',
+                        body: `Your deposit of AUD $${payment.depositAmount.toFixed(
+                            2
+                        )} for ${
+                            booking.product.title
+                        } has been refunded. It will appear in your account within 5-10 business days.`,
+                    });
+                }
+            } catch (refundError) {
+                console.error('Error refunding deposit:', refundError);
+                return next(
+                    createError.BadRequest(
+                        `Failed to refund deposit: ${refundError.message}`
+                    )
+                );
+            }
+        }
+
+        // STEP 2: Transfer rental amount to owner (minus commission)
+        // In production, transfer to owner's Stripe Connect account
+        // For now, mark as processed
+
+        // Uncomment for production with Stripe Connect:
+        /*
+        const transfer = await stripe.transfers.create({
+            amount: Math.round(payment.ownerPayoutAmount * 100),
+            currency: 'aud',
+            destination: ownerStripeAccountId, // Get from owner's user record
+            metadata: {
+                bookingId: booking._id.toString(),
+                paymentId: payment._id.toString(),
+            },
+        });
+        payment.stripeTransferId = transfer.id;
+        */
+
+        payment.payoutStatus = 'paid';
+        payment.payoutAt = new Date();
+        await payment.save();
+
+        // STEP 3: Update booking status to completed
+        booking.status = 'completed';
+        await booking.save();
+
+        // STEP 4: Send notification to owner
+        const owner = await require('../../models/userModel').findById(
+            payment.owner
+        );
+        if (owner && owner.fcmToken) {
+            const commissionInfo =
+                payment.commissionType === 'fixed'
+                    ? `Fixed commission: AUD $${payment.commissionFixedAmount.toFixed(
+                          2
+                      )}`
+                    : `Commission (${
+                          payment.commissionPercentage
+                      }%): AUD $${payment.commissionAmount.toFixed(2)}`;
+
+            await sendNotificationsToTokens(
+                'Payout Processed',
+                `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
+                    2
+                )} for ${
+                    booking.product.title
+                } has been processed. ${commissionInfo}. The deposit of AUD $${payment.depositAmount.toFixed(
+                    2
+                )} has been refunded to the renter.`,
+                [owner.fcmToken]
+            );
+            await userNotificationModel.create({
+                sentTo: [owner._id],
+                title: 'Payout Processed',
+                body: `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
+                    2
+                )} for ${
+                    booking.product.title
+                } has been processed. ${commissionInfo}. The deposit of AUD $${payment.depositAmount.toFixed(
+                    2
+                )} has been refunded to the renter.`,
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Payout and deposit refund processed successfully.',
+            payment,
+            depositRefunded,
+            depositAmount: payment.depositAmount,
+            ownerPayoutAmount: payment.ownerPayoutAmount,
+        });
+    } catch (error) {
+        console.error('Error processing payout:', error);
+        next(error);
+    }
 };
