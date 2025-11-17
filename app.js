@@ -100,6 +100,7 @@ app.use('/api/book', require('./routes/api/book'));
 app.use('/api/review', require('./routes/api/reviewRoutes'));
 app.use('/api/payment', require('./routes/api/paymentRoutes'));
 // app.use('/api/branch', require('./routes/api/branchRoutes'));
+app.use('/admin/reports', require('./routes/admin/reportsRoutes'));
 
 // 404 api
 app.use('/api', (req, res, next) => {

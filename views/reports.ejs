@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<head>
+    <%- include('_layouts/head') %>
+    <title>Reports & Analytics | <%= title %></title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        .stat-card {
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .stat-card h5 {
+            font-size: 14px;
+            color: #666;
+            margin: 0 0 10px 0;
+        }
+        .stat-card h3 {
+            font-size: 28px;
+            margin: 0;
+            font-weight: bold;
+        }
+        .stat-card.revenue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .stat-card.commission { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+        .stat-card.transactions { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+        .stat-card.payout { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 30px;
+        }
+        
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .data-table {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" 
+      data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+    <%- include('_layouts/sidenavbar') %>
+
+    <div id="main">
+        <div class="row">
+            <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+                <div class="container">
+                    <div class="row">
+                        <%- include('messages', { messages: messages }) %>
+                        <div class="col s12 m6 l6">
+                            <h6 class="breadcrumbs-title"><span>Reports & Analytics</span></h6>
+                        </div>
+                        <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                            <ol class="breadcrumbs mb-0">
+                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
+                                <li class="breadcrumb-item active">Reports</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col s12">
+                <div class="container">
+                    
+                    <!-- Filter Section -->
+                    <div class="filter-section">
+                        <form action="/admin/reports" method="GET">
+                            <div class="row">
+                                <div class="col s12 m3">
+                                    <label>Quick Filter</label>
+                                    <select name="period" class="browser-default" onchange="this.form.submit()">
+                                        <option value="all" <%= period === 'all' ? 'selected' : '' %>>All Time</option>
+                                        <option value="today" <%= period === 'today' ? 'selected' : '' %>>Today</option>
+                                        <option value="week" <%= period === 'week' ? 'selected' : '' %>>Last 7 Days</option>
+                                        <option value="month" <%= period === 'month' ? 'selected' : '' %>>Last 30 Days</option>
+                                        <option value="year" <%= period === 'year' ? 'selected' : '' %>>Last Year</option>
+                                    </select>
+                                </div>
+                                <div class="col s12 m3">
+                                    <label>Start Date</label>
+                                    <input type="date" name="startDate" value="<%= startDate %>" class="browser-default">
+                                </div>
+                                <div class="col s12 m3">
+                                    <label>End Date</label>
+                                    <input type="date" name="endDate" value="<%= endDate %>" class="browser-default">
+                                </div>
+                                <div class="col s12 m3">
+                                    <label>&nbsp;</label>
+                                    <button type="submit" class="btn btn-edit waves-effect" style="width: 100%;">Apply Filter</button>
+                                </div>
+                            </div>
+                        </form>
+                        <div class="row">
+                            <div class="col s12 right-align">
+                                <a href="/admin/reports/export?startDate=<%= startDate %>&endDate=<%= endDate %>&format=csv" 
+                                   class="btn-small waves-effect">
+                                    <i class="material-icons left">file_download</i>Export CSV
+                                </a>
+                                <a href="/admin/reports/transactions" class="btn-small waves-effect blue">
+                                    <i class="material-icons left">list</i>View All Transactions
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="row">
+                        <div class="col s12 m6 l3">
+                            <div class="stat-card revenue">
+                                <h5>Total Revenue</h5>
+                                <h3>$<%= stats.totalRevenue.toFixed(2) %></h3>
+                                <p><%= stats.totalTransactions %> transactions</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m6 l3">
+                            <div class="stat-card commission">
+                                <h5>Admin Commission</h5>
+                                <h3>$<%= stats.totalCommission.toFixed(2) %></h3>
+                                <p><%= ((stats.totalCommission / stats.totalRevenue) * 100 || 0).toFixed(1) %>% of revenue</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m6 l3">
+                            <div class="stat-card payout">
+                                <h5>Owner Payouts</h5>
+                                <h3>$<%= stats.totalOwnerPayout.toFixed(2) %></h3>
+                                <p><%= ((stats.totalOwnerPayout / stats.totalRevenue) * 100 || 0).toFixed(1) %>% of revenue</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m6 l3">
+                            <div class="stat-card transactions">
+                                <h5>Transactions</h5>
+                                <h3><%= stats.totalTransactions %></h3>
+                                <p>$<%= (stats.totalRevenue / stats.totalTransactions || 0).toFixed(2) %> avg</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Refund Stats -->
+                    <% if (refunds.refundCount > 0) { %>
+                    <div class="row">
+                        <div class="col s12">
+                            <div class="card orange lighten-5">
+                                <div class="card-content">
+                                    <h6><i class="material-icons left">warning</i>Refund Statistics</h6>
+                                    <p>Total Refunded: <strong>$<%= refunds.totalRefunded.toFixed(2) %></strong> across <%= refunds.refundCount %> transactions</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <% } %>
+
+                    <!-- Revenue Trend Chart -->
+                    <div class="row">
+                        <div class="col s12">
+                            <div class="card">
+                                <div class="card-content">
+                                    <h6>Revenue Trend</h6>
+                                    <div class="chart-container">
+                                        <canvas id="revenueTrendChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="row">
+                        <div class="col s12 l6">
+                            <div class="card">
+                                <div class="card-content">
+                                    <h6>Booking Status Distribution</h6>
+                                    <div class="chart-container" style="height: 300px;">
+                                        <canvas id="bookingStatusChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col s12 l6">
+                            <div class="card">
+                                <div class="card-content">
+                                    <h6>Commission Type Breakdown</h6>
+                                    <div class="chart-container" style="height: 300px;">
+                                        <canvas id="commissionTypeChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Products Table -->
+                    <div class="row">
+                        <div class="col s12 l6">
+                            <div class="data-table">
+                                <h6>Top 10 Products by Revenue</h6>
+                                <table class="striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Bookings</th>
+                                            <th>Revenue</th>
+                                            <th>Commission</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% topProducts.forEach(product => { %>
+                                        <tr>
+                                            <td><%= product.productDetails.title %></td>
+                                            <td><%= product.bookings %></td>
+                                            <td>$<%= product.totalRevenue.toFixed(2) %></td>
+                                            <td>$<%= product.totalCommission.toFixed(2) %></td>
+                                        </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Top Owners Table -->
+                        <div class="col s12 l6">
+                            <div class="data-table">
+                                <h6>Top 10 Owners by Earnings</h6>
+                                <table class="striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Owner</th>
+                                            <th>Bookings</th>
+                                            <th>Earnings</th>
+                                            <th>Commission Paid</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% topOwners.forEach(owner => { %>
+                                        <tr>
+                                            <td><%= owner.ownerDetails.name %></td>
+                                            <td><%= owner.bookings %></td>
+                                            <td>$<%= owner.totalEarnings.toFixed(2) %></td>
+                                            <td>$<%= owner.totalCommission.toFixed(2) %></td>
+                                        </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('_layouts/commonJs') %>
+
+    <script>
+        // Revenue Trend Chart
+        const revenueTrendData = <%- JSON.stringify(revenueTrend) %>;
+        const trendLabels = revenueTrendData.map(d => `${d._id.month}/${d._id.year}`);
+        const revenueData = revenueTrendData.map(d => d.revenue);
+        const commissionData = revenueTrendData.map(d => d.commission);
+
+        new Chart(document.getElementById('revenueTrendChart'), {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [{
+                    label: 'Revenue',
+                    data: revenueData,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Commission',
+                    data: commissionData,
+                    borderColor: '#f5576c',
+                    backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+
+        // Booking Status Chart
+        const bookingStats = <%- JSON.stringify(bookingStats) %>;
+        new Chart(document.getElementById('bookingStatusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: bookingStats.map(b => b._id),
+                datasets: [{
+                    data: bookingStats.map(b => b.count),
+                    backgroundColor: [
+                        '#FFA726',
+                        '#66BB6A',
+                        '#42A5F5',
+                        '#EF5350',
+                        '#AB47BC'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Commission Type Chart
+        const commissionBreakdown = <%- JSON.stringify(commissionBreakdown) %>;
+        new Chart(document.getElementById('commissionTypeChart'), {
+            type: 'pie',
+            data: {
+                labels: commissionBreakdown.map(c => c._id),
+                datasets: [{
+                    data: commissionBreakdown.map(c => c.totalCommission),
+                    backgroundColor: ['#667eea', '#43e97b']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+
+</body>
+</html>
