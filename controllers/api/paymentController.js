@@ -224,6 +224,7 @@ exports.confirmPayment = async (req, res, next) => {
         payment.paymentStatus = 'paid';
         payment.paidAt = new Date();
         payment.stripeChargeId = paymentIntent.charges.data[0].id;
+        console.log('paymentIntent: ', paymentIntent);
         await payment.save();
 
         // Update booking payment status

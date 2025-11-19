@@ -8,9 +8,9 @@ const i18n = require('i18next');
 const i18nFsBackend = require('i18next-fs-backend');
 const i18nMiddleware = require('i18next-http-middleware');
 const globalErrorHandler = require('./controllers/errorController');
-const { createServer } = require('http')
-const { Server } = require('socket.io')
-const { socketHandler } = require('./socket.server')
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const { socketHandler } = require('./socket.server');
 
 // Start express app
 const app = express();
@@ -100,7 +100,6 @@ app.use('/api/book', require('./routes/api/book'));
 app.use('/api/review', require('./routes/api/reviewRoutes'));
 app.use('/api/payment', require('./routes/api/paymentRoutes'));
 // app.use('/api/branch', require('./routes/api/branchRoutes'));
-app.use('/admin/reports', require('./routes/admin/reportsRoutes'));
 
 // 404 api
 app.use('/api', (req, res, next) => {
@@ -127,6 +126,7 @@ app.use('/admin/banner', require('./routes/admin/bannerRoutes'));
 app.use('/admin/category', require('./routes/admin/categoryRoutes'));
 app.use('/admin/', require('./routes/admin/productRoutes'));
 app.use('/admin/cms', require('./routes/admin/cmsRoutes'));
+app.use('/admin/reports', require('./routes/admin/Reportsroutes'));
 app.use('/admin', require('./routes/admin/adminCommissionRoutes'));
 
 // 404 admin

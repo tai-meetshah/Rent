@@ -6,8 +6,6 @@ const Product = require('../../models/product');
 exports.getReports = async (req, res) => {
     try {
         const { startDate, endDate, period = 'all' } = req.query;
-        console.log('startDate: ', startDate);
-        console.log('js');
 
         // Calculate date range based on period
         let dateFilter = {};
@@ -89,7 +87,7 @@ exports.getReports = async (req, res) => {
             {
                 $group: {
                     _id: {
-                        year: { $year: '$createdAt' },
+                        // year: { $year: '$createdAt' },
                         month: { $month: '$createdAt' },
                     },
                     revenue: { $sum: '$totalAmount' },

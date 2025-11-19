@@ -284,6 +284,7 @@ exports.createBooking = async (req, res, next) => {
         res.status(201).json({
             success: true,
             message: 'Booking created successfully.',
+            data : data._id
         });
     } catch (error) {
         console.log(error);

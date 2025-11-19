@@ -18,7 +18,7 @@
     </style>
 </head>
 
-<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" 
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns"
       data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
 
     <%- include('_layouts/sidenavbar') %>
@@ -45,7 +45,7 @@
 
             <div class="col s12">
                 <div class="container">
-                    
+
                     <!-- Filter Section -->
                     <div class="card">
                         <div class="card-content">
@@ -61,14 +61,14 @@
                                             <option value="held" <%= status === 'held' ? 'selected' : '' %>>Held</option>
                                         </select>
                                     </div>
-                                    <div class="col s12 m6">
+                                    <!-- <div class="col s12 m6">
                                         <label>Search (Booking ID)</label>
                                         <input type="text" name="search" value="<%= search %>" placeholder="Enter booking ID" class="browser-default">
                                     </div>
                                     <div class="col s12 m2">
                                         <label>&nbsp;</label>
                                         <button type="submit" class="btn btn-edit waves-effect" style="width: 100%;">Search</button>
-                                    </div>
+                                    </div> -->
                                 </div>
                             </form>
                         </div>
@@ -109,7 +109,7 @@
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <a href="/admin/reports/transactions/<%= transaction._id %>" 
+                                                    <a href="/admin/reports/transactions/<%= transaction._id %>"
                                                        class="btn-small waves-effect blue">
                                                         <i class="material-icons">visibility</i>
                                                     </a>
@@ -133,13 +133,13 @@
                                             </a>
                                         </li>
                                         <% } %>
-                                        
+
                                         <% for(let i = 1; i <= totalPages; i++) { %>
                                         <li class="<%= i == currentPage ? 'active' : 'waves-effect' %>">
                                             <a href="?page=<%= i %>&status=<%= status %>&search=<%= search %>"><%= i %></a>
                                         </li>
                                         <% } %>
-                                        
+
                                         <% if (currentPage < totalPages) { %>
                                         <li class="waves-effect">
                                             <a href="?page=<%= Number(currentPage) + 1 %>&status=<%= status %>&search=<%= search %>">
@@ -162,7 +162,7 @@
 
     <%- include('_layouts/commonJs') %>
     <script src="/app-assets/vendors/data-tables/js/jquery.dataTables.min.js"></script>
-    
+
     <script>
         $(document).ready(function() {
             $('#transactions-table').DataTable({

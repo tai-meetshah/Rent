@@ -66,7 +66,7 @@
     </style>
 </head>
 
-<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" 
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns"
       data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
 
     <%- include('_layouts/sidenavbar') %>
@@ -94,7 +94,7 @@
 
             <div class="col s12">
                 <div class="container">
-                    
+
                     <!-- Transaction Header -->
                     <div class="detail-card">
                         <div class="row">
@@ -113,16 +113,16 @@
                     <div class="row">
                         <!-- Left Column -->
                         <div class="col s12 l8">
-                            
+
                             <!-- Parties Involved -->
                             <div class="detail-card">
                                 <h6><i class="material-icons left">people</i>Parties Involved</h6>
-                                
+
                                 <div class="detail-row">
                                     <div class="detail-label">Renter:</div>
                                     <div class="detail-value">
                                         <div class="user-info">
-                                            <img src="<%= transaction.renter?.photo ? process.env.IMAGE_URL + transaction.renter.photo : '/img/avatar.png' %>" 
+                                            <img src="<%= transaction.renter?.photo ? process.env.IMAGE_URL + transaction.renter.photo : '/img/avatar.png' %>"
                                                  alt="Renter" class="user-avatar">
                                             <div>
                                                 <strong><%= transaction.renter?.name || 'N/A' %></strong><br>
@@ -136,7 +136,7 @@
                                     <div class="detail-label">Owner:</div>
                                     <div class="detail-value">
                                         <div class="user-info">
-                                            <img src="<%= transaction.owner?.photo ? process.env.IMAGE_URL + transaction.owner.photo : '/img/avatar.png' %>" 
+                                            <img src="<%= transaction.owner?.photo ? process.env.IMAGE_URL + transaction.owner.photo : '/img/avatar.png' %>"
                                                  alt="Owner" class="user-avatar">
                                             <div>
                                                 <strong><%= transaction.owner?.name || 'N/A' %></strong><br>
@@ -150,13 +150,13 @@
                             <!-- Product Details -->
                             <div class="detail-card">
                                 <h6><i class="material-icons left">shopping_bag</i>Product Details</h6>
-                                
+
                                 <div class="detail-row">
                                     <div class="detail-label">Product:</div>
                                     <div class="detail-value">
                                         <div class="user-info">
                                             <% if (transaction.product?.images && transaction.product.images.length > 0) { %>
-                                            <img src="<%= process.env.IMAGE_URL + transaction.product.images[0] %>" 
+                                            <img src="<%= process.env.IMAGE_URL + transaction.product.images[0] %>"
                                                  alt="Product" style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover;">
                                             <% } %>
                                             <div>
@@ -167,20 +167,20 @@
                                     </div>
                                 </div>
 
-                                <div class="detail-row">
+                                <!-- <div class="detail-row">
                                     <div class="detail-label">Booking ID:</div>
                                     <div class="detail-value">
                                         <a href="/admin/bookings/<%= transaction.booking?._id %>" target="_blank">
                                             <%= transaction.booking?._id || 'N/A' %>
                                         </a>
                                     </div>
-                                </div>
+                                </div> -->
                             </div>
 
                             <!-- Payment Information -->
                             <div class="detail-card">
                                 <h6><i class="material-icons left">payment</i>Payment Information</h6>
-                                
+
                                 <div class="detail-row">
                                     <div class="detail-label">Payment Intent ID:</div>
                                     <div class="detail-value"><%= transaction.stripePaymentIntentId || 'N/A' %></div>
@@ -231,7 +231,7 @@
                             <% if (transaction.refundAmount > 0) { %>
                             <div class="detail-card">
                                 <h6><i class="material-icons left red-text">money_off</i>Refund Information</h6>
-                                
+
                                 <div class="detail-row">
                                     <div class="detail-label">Refund Amount:</div>
                                     <div class="detail-value red-text">$<%= transaction.refundAmount.toFixed(2) %></div>
@@ -264,17 +264,17 @@
 
                         <!-- Right Column -->
                         <div class="col s12 l4">
-                            
+
                             <!-- Amount Breakdown -->
                             <div class="detail-card">
                                 <h6><i class="material-icons left">account_balance_wallet</i>Amount Breakdown</h6>
-                                
+
                                 <div class="amount-breakdown">
                                     <div class="amount-row">
                                         <span>Rental Amount:</span>
                                         <strong>$<%= transaction.rentalAmount.toFixed(2) %></strong>
                                     </div>
-                                    
+
                                     <% if (transaction.depositAmount > 0) { %>
                                     <div class="amount-row">
                                         <span>Deposit Amount:</span>
@@ -292,7 +292,7 @@
                             <!-- Commission Breakdown -->
                             <div class="detail-card">
                                 <h6><i class="material-icons left">trending_up</i>Commission Details</h6>
-                                
+
                                 <div class="amount-breakdown">
                                     <div class="amount-row">
                                         <span>Commission Type:</span>
