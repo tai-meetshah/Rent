@@ -2,10 +2,11 @@ const router = require('express').Router();
 const { upload } = require('../../controllers/uploadController');
 const authController = require('../../controllers/api/authController');
 const { sendNotificationsToTokens } = require('../../utils/sendNotification');
+const User = require('../../models/userModel');
 
-// router.post('/user/sendOtp', upload.none(), authController.sendOtp);
-// router.post('/user/verifyOtp', upload.none(), authController.verifyOtp);
-// router.post('/user/resendOtp', upload.none(), authController.resendOtp);
+router.post('/user/sendOtp', upload.none(), authController.sendOtp);
+router.post('/user/verifyOtp', upload.none(), authController.verifyOtp);
+router.post('/user/resendOtp', upload.none(), authController.resendOtp);
 
 router.post('/send', upload.none(), async (req, res) => {
 
@@ -15,6 +16,18 @@ router.post('/send', upload.none(), async (req, res) => {
     try {
         const response = await sendNotificationsToTokens(title, body, rt);
         res.status(200).json({ success: true, response });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/user/photo', upload.none(), async (req, res) => {
+    const { id } = req.body;
+
+    try {
+        const user = await User.findById(id).select('photo');
+
+        res.status(200).json({ success: true, user });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

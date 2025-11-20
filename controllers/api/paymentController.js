@@ -223,8 +223,8 @@ exports.confirmPayment = async (req, res, next) => {
         // Update payment status
         payment.paymentStatus = 'paid';
         payment.paidAt = new Date();
-        payment.stripeChargeId = paymentIntent.charges.data[0].id;
-        console.log('paymentIntent: ', paymentIntent);
+        payment.stripeChargeId = paymentIntent.latest_charge;
+
         await payment.save();
 
         // Update booking payment status
@@ -658,9 +658,57 @@ exports.stripeWebhook = async (req, res) => {
                 );
                 break;
 
-            case 'charge.refunded':
+            // **Handle the refund.updated event** for deposit refunds
+            case 'refund.updated':
                 const refund = event.data.object;
-                console.log('Charge refunded:', refund.id);
+                console.log('Refund status updated:', refund.id);
+
+                // Check if the refund status is "succeeded"
+                if (refund.status === 'succeeded') {
+                    console.log('Refund succeeded:', refund.id);
+
+                    const bookingId = refund.metadata.bookingId; // Assuming you stored the booking ID in metadata
+                    const paymentId = refund.metadata.paymentId; // You can store paymentId in metadata too if needed
+
+                    // Find the relevant payment and update the status
+                    const payment = await Payment.findById(paymentId);
+                    if (payment) {
+                        payment.depositRefunded = true;
+                        payment.depositRefundedAt = new Date();
+                        await payment.save();
+                        console.log(`Refund for booking ${bookingId} processed successfully.`);
+
+                        // Update the booking status, mark as refunded, etc.
+                        const booking = await Booking.findById(bookingId);
+                        if (booking) {
+                            booking.refundStatus = 'refund_completed';  // Change this to whatever makes sense in your system
+                            await booking.save();
+                        }
+
+                        // Notify renter about refund
+                        const renter = await User.findById(booking.user);
+                        if (renter && renter.fcmToken) {
+                            await sendNotificationsToTokens(
+                                'Deposit Refunded',
+                                `Your deposit for the booking of ${booking.product.title} has been refunded.`,
+                                [renter.fcmToken]
+                            );
+                            await userNotificationModel.create({
+                                sentTo: [renter._id],
+                                title: 'Deposit Refunded',
+                                body: `Your deposit for the booking of ${booking.product.title} has been refunded.`,
+                            });
+                        }
+                    }
+                } else if (refund.status === 'failed') {
+                    console.log('Refund failed:', refund.id);
+                    // Handle refund failure (e.g., notify user, retry, etc.)
+                }
+                break;
+
+            case 'charge.refunded':
+                const chargeRefund = event.data.object;
+                console.log('Charge refunded:', chargeRefund.id);
                 break;
 
             default:
@@ -671,8 +719,10 @@ exports.stripeWebhook = async (req, res) => {
         return res.status(500).json({ error: 'Webhook handler failed' });
     }
 
+    // Acknowledge receipt of the event
     res.json({ received: true });
 };
+
 
 exports.processOwnerPayout = async (req, res, next) => {
     try {

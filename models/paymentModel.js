@@ -113,6 +113,7 @@ const paymentSchema = new mongoose.Schema(
         depositRefundId: {
             type: String,
         },
+        depositRefunded : Boolean,
         depositRefundedAt: {
             type: Date,
         },

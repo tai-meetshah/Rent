@@ -30,7 +30,15 @@ const bookingSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
-        payment : String,
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
+        },
+        payment: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Payment',
+        },
         totalPrice: {
             type: Number,
             // required: true,
@@ -39,6 +47,9 @@ const bookingSchema = new mongoose.Schema(
             type: String,
             enum: ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled'],
             default: 'pending',
+        },
+        refundStatus: {
+            type: String,
         },
         paymentStatus: {
             type: String,

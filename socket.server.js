@@ -181,6 +181,7 @@ socket.on('recentChats', async data => {
                     chatWithName: '$chatWithUser.name',
                     fcmToken: '$chatWithUser.fcmToken',
                     images: '$chatWithUser.images',
+                    photo: '$chatWithUser.photo',
                     lastMessage: 1,
                     lastMessageDate: 1,
                     lastMessageSender: 1,

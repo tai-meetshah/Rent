@@ -5,6 +5,7 @@ const Review = require('../../models/reviewModel');
 const enquiryModel = require('../../models/enquiryModel');
 const userNotificationModel = require('../../models/userNotificationModel');
 const { sendNotificationsToTokens } = require('../../utils/sendNotification');
+const stripe = require('../../config/stripe');
 
 // Helpers
 async function hasOverlappingBooking(productId, dates) {
@@ -486,7 +487,7 @@ exports.updateStatus = async (req, res, next) => {
                     notificationMessage = `Your booking for ${booking.product.title} status has been updated to ${status}.`;
             }
 
-            console.log('booking: ', booking);
+            // console.log('booking: ', booking);
 
             await sendNotificationsToTokens(
                 `Booking Status Updated - ${booking.product.title}`,
@@ -498,7 +499,7 @@ exports.updateStatus = async (req, res, next) => {
                 title: `Booking Status Updated - ${booking.product.title}`,
                 body: notificationMessage,
             });
-            console.log('data: ', data);
+            // console.log('data: ', data);
         }
 
         res.json({ success: true, message: 'Status updated.', booking });
@@ -599,7 +600,13 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                 populate: { path: 'user', select: 'name email fcmToken' },
             })
             .populate('user', 'name email fcmToken')
-            .populate('payment');
+            .populate({
+                path: 'payment',
+                populate: {
+                    path: 'renter owner',
+                    select: 'name email fcmToken',
+                },
+            });
 
         if (!booking)
             return res
@@ -637,7 +644,7 @@ exports.reviewReturnPhoto = async (req, res, next) => {
 
         await booking.save();
 
-        // Send notification to renter
+        // Send notification to renter about photo review
         if (booking.user?.fcmToken) {
             const title =
                 action === 'approve'
@@ -664,20 +671,174 @@ exports.reviewReturnPhoto = async (req, res, next) => {
             });
         }
 
-        // If all photos approved, automatically process payout and deposit refund
+        // If all photos approved, automatically process deposit refund and payout
         if (allApproved && booking.payment) {
             try {
-                // Call the payout processing logic
-                const paymentController = require('./paymentController');
-                await paymentController.processOwnerPayout(
-                    { body: { bookingId: booking._id.toString() } },
-                    res,
-                    next
+                const payment = booking.payment;
+                if (!payment.stripeChargeId) {
+                    console.error(
+                        'Missing stripeChargeId for payment:',
+                        payment._id
+                    );
+                    return res.json({
+                        success: true,
+                        message:
+                            'Photo reviewed. Payment needs to be completed before payout.',
+                        allPhotosVerified: allApproved,
+                    });
+                }
+
+                if (payment.paymentStatus !== 'paid') {
+                    console.error(
+                        'Payment not completed. Status:',
+                        payment.paymentStatus
+                    );
+                    return res.json({
+                        success: true,
+                        message:
+                            'Photo reviewed. Payment needs to be completed before payout.',
+                        allPhotosVerified: allApproved,
+                    });
+                }
+
+                if (payment.payoutStatus === 'paid') {
+                    return res.json({
+                        success: true,
+                        message: 'Photo reviewed. Payout already processed.',
+                        allPhotosVerified: allApproved,
+                    });
+                }
+
+                // STEP 1: Refund deposit to renter
+                let depositRefunded = false;
+                if (payment.depositAmount > 0 && !payment.depositRefundedAt) {
+                    try {
+                        const depositRefund = await stripe.refunds.create({
+                            charge: payment.stripeChargeId,
+                            amount: Math.round(payment.depositAmount * 100),
+                            reason: 'requested_by_customer',
+                            metadata: {
+                                bookingId: booking._id.toString(),
+                                paymentId: payment._id.toString(),
+                                refundType: 'deposit',
+                            },
+                        });
+                            console.log('depositRefund: ', depositRefund);
+
+                        payment.depositRefundId = depositRefund.id;
+                        payment.depositRefundedAt = new Date();
+                        depositRefunded = true;
+                        await payment.save();
+
+                        // Notify renter about deposit refund
+                        if (booking.user?.fcmToken) {
+                            await sendNotificationsToTokens(
+                                'Deposit Refunded',
+                                `Your deposit of AUD $${payment.depositAmount.toFixed(
+                                    2
+                                )} for ${
+                                    booking.product.title
+                                } has been refunded. It will appear in your account within 5-10 business days.`,
+                                [booking.user.fcmToken]
+                            );
+                            await userNotificationModel.create({
+                                sentTo: [booking.user._id],
+                                title: 'Deposit Refunded',
+                                body: `Your deposit of AUD $${payment.depositAmount.toFixed(
+                                    2
+                                )} for ${
+                                    booking.product.title
+                                } has been refunded. It will appear in your account within 5-10 business days.`,
+                            });
+                        }
+                    } catch (refundError) {
+                        console.error('Error refunding deposit:', refundError);
+                        return res.status(400).json({
+                            success: false,
+                            message: `Failed to refund deposit: ${refundError.message}`,
+                        });
+                    }
+                }
+
+                // STEP 2: Mark payout as processed (or transfer to Stripe Connect)
+                // For production with Stripe Connect, uncomment:
+                /*
+                const owner = await require('../../models/userModel').findById(payment.owner);
+                if (owner.stripeAccountId) {
+                    const transfer = await stripe.transfers.create({
+                        amount: Math.round(payment.ownerPayoutAmount * 100),
+                        currency: 'aud',
+                        destination: owner.stripeAccountId,
+                        metadata: {
+                            bookingId: booking._id.toString(),
+                            paymentId: payment._id.toString(),
+                        },
+                    });
+                    payment.stripeTransferId = transfer.id;
+                }
+                */
+
+                payment.payoutStatus = 'paid';
+                payment.payoutAt = new Date();
+                await payment.save();
+
+                // STEP 3: Update booking to completed
+                booking.status = 'completed';
+                await booking.save();
+
+                // STEP 4: Notify owner about payout
+                const owner = await require('../../models/userModel').findById(
+                    payment.owner
                 );
-                return; // Response sent by processOwnerPayout
+                if (owner && owner.fcmToken) {
+                    const commissionInfo =
+                        payment.commissionType === 'fixed'
+                            ? `Fixed commission: AUD $${payment.commissionFixedAmount.toFixed(
+                                  2
+                              )}`
+                            : `Commission (${
+                                  payment.commissionPercentage
+                              }%): AUD $${payment.commissionAmount.toFixed(2)}`;
+
+                    await sendNotificationsToTokens(
+                        'Payout Processed',
+                        `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
+                            2
+                        )} for ${
+                            booking.product.title
+                        } has been processed. ${commissionInfo}. The deposit of AUD $${payment.depositAmount.toFixed(
+                            2
+                        )} has been refunded to the renter.`,
+                        [owner.fcmToken]
+                    );
+                    await userNotificationModel.create({
+                        sentTo: [owner._id],
+                        title: 'Payout Processed',
+                        body: `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
+                            2
+                        )} for ${
+                            booking.product.title
+                        } has been processed. ${commissionInfo}. The deposit of AUD $${payment.depositAmount.toFixed(
+                            2
+                        )} has been refunded to the renter.`,
+                    });
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    message:
+                        'Photo reviewed. Payout and deposit refund processed successfully.',
+                    allPhotosVerified: allApproved,
+                    depositRefunded,
+                    depositAmount: payment.depositAmount,
+                    ownerPayoutAmount: payment.ownerPayoutAmount,
+                });
             } catch (payoutError) {
                 console.error('Error auto-processing payout:', payoutError);
-                // Continue with normal response if payout fails
+                return res.status(500).json({
+                    success: false,
+                    message: `Error processing payout: ${payoutError.message}`,
+                });
             }
         }
 
@@ -687,6 +848,7 @@ exports.reviewReturnPhoto = async (req, res, next) => {
             allPhotosVerified: allApproved,
         });
     } catch (error) {
+        console.error('Error in reviewReturnPhoto:', error);
         next(error);
     }
 };
