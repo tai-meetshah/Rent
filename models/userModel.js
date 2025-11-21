@@ -72,6 +72,37 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        // Stripe Connect fields for seller payouts
+        stripeConnectAccountId: {
+            type: String,
+            default: null,
+        },
+        stripeAccountStatus: {
+            type: String,
+            enum: ['not_started', 'pending', 'verified', 'restricted', 'rejected'],
+            default: 'not_started',
+        },
+        stripeOnboardingComplete: {
+            type: Boolean,
+            default: false,
+        },
+        stripeAccountType: {
+            type: String,
+            enum: ['express', 'standard', 'custom'],
+            default: 'express',
+        },
+        stripeChargesEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        stripePayoutsEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        stripeDetailsSubmitted: {
+            type: Boolean,
+            default: false,
+        },
     },
     { timestamps: true }
 );

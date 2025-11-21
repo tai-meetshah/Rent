@@ -4,6 +4,7 @@ const Payment = require('../../models/paymentModel');
 const Booking = require('../../models/Booking');
 const Product = require('../../models/product');
 const AdminCommission = require('../../models/AdminCommission');
+const User = require('../../models/userModel');
 const createError = require('http-errors');
 const { sendNotificationsToTokens } = require('../../utils/sendNotification');
 const userNotificationModel = require('../../models/userNotificationModel');
@@ -676,12 +677,14 @@ exports.stripeWebhook = async (req, res) => {
                         payment.depositRefunded = true;
                         payment.depositRefundedAt = new Date();
                         await payment.save();
-                        console.log(`Refund for booking ${bookingId} processed successfully.`);
+                        console.log(
+                            `Refund for booking ${bookingId} processed successfully.`
+                        );
 
                         // Update the booking status, mark as refunded, etc.
                         const booking = await Booking.findById(bookingId);
                         if (booking) {
-                            booking.refundStatus = 'refund_completed';  // Change this to whatever makes sense in your system
+                            booking.refundStatus = 'refund_completed'; // Change this to whatever makes sense in your system
                             await booking.save();
                         }
 
@@ -722,7 +725,6 @@ exports.stripeWebhook = async (req, res) => {
     // Acknowledge receipt of the event
     res.json({ received: true });
 };
-
 
 exports.processOwnerPayout = async (req, res, next) => {
     try {
@@ -887,6 +889,596 @@ exports.processOwnerPayout = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error processing payout:', error);
+        next(error);
+    }
+};
+
+// Create Stripe Connect account and generate onboarding link
+exports.createStripeConnectAccount = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return next(createError.NotFound('User not found.'));
+        }
+
+        // Check if user already has a Stripe Connect account
+        if (user.stripeConnectAccountId) {
+            console.log(
+                'user.stripeConnectAccountId: ',
+                user.stripeConnectAccountId
+            );
+
+            const accountExists = await stripe.accounts.retrieve(
+                user.stripeConnectAccountId
+            );
+            console.log('Stripe Account Retrieve:', accountExists);
+
+            // Account exists, generate new account link for re-onboarding
+            const accountLink = await stripe.accountLinks.create({
+                account: user.stripeConnectAccountId,
+                refresh_url: `${process.env.FRONTEND_URL}/settings/payment?refresh=true`,
+                return_url: `${process.env.FRONTEND_URL}/settings/payment?success=true`,
+                type: 'account_onboarding',
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Account link generated.',
+                url: accountLink.url,
+                accountId: user.stripeConnectAccountId,
+            });
+        }
+
+        // Create new Stripe Connect Express account
+        const account = await stripe.accounts.create({
+            type: 'express',
+            country: user.country === 'Australia' ? 'AU' : 'US', // Default to AU or US
+            email: user.email,
+            capabilities: {
+                card_payments: { requested: true },
+                transfers: { requested: true },
+            },
+            business_type: 'individual',
+            metadata: {
+                userId: user._id.toString(),
+            },
+        });
+
+        // Save account ID to user
+        user.stripeConnectAccountId = account.id;
+        user.stripeAccountType = 'express';
+        user.stripeAccountStatus = 'pending';
+        await user.save();
+
+        // Generate account onboarding link
+        const accountLink = await stripe.accountLinks.create({
+            account: account.id,
+            refresh_url: `${process.env.FRONTEND_URL}/settings/payment?refresh=true`,
+            return_url: `${process.env.FRONTEND_URL}/settings/payment?success=true`,
+            type: 'account_onboarding',
+        });
+
+        res.status(201).json({
+            success: true,
+            message:
+                'Stripe Connect account created. Please complete onboarding.',
+            url: accountLink.url,
+            accountId: account.id,
+        });
+    } catch (error) {
+        console.error('Error creating Stripe Connect account:', error);
+        next(error);
+    }
+};
+
+// Get Stripe Connect account status
+exports.getStripeConnectAccountStatus = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return next(createError.NotFound('User not found.'));
+        }
+
+        if (!user.stripeConnectAccountId) {
+            return res.status(200).json({
+                success: true,
+                connected: false,
+                status: 'not_started',
+                message: 'No Stripe account connected.',
+            });
+        }
+
+        // Retrieve account details from Stripe
+        const account = await stripe.accounts.retrieve(
+            user.stripeConnectAccountId
+        );
+
+        // Update user record with latest status
+        user.stripeChargesEnabled = account.charges_enabled;
+        user.stripePayoutsEnabled = account.payouts_enabled;
+        user.stripeDetailsSubmitted = account.details_submitted;
+        user.stripeOnboardingComplete =
+            account.details_submitted && account.charges_enabled;
+
+        if (account.details_submitted && account.charges_enabled) {
+            user.stripeAccountStatus = 'verified';
+        } else if (account.details_submitted) {
+            user.stripeAccountStatus = 'pending';
+        } else {
+            user.stripeAccountStatus = 'pending';
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            connected: true,
+            accountId: account.id,
+            status: user.stripeAccountStatus,
+            chargesEnabled: account.charges_enabled,
+            payoutsEnabled: account.payouts_enabled,
+            detailsSubmitted: account.details_submitted,
+            requirements: {
+                currentlyDue: account.requirements?.currently_due || [],
+                errors: account.requirements?.errors || [],
+                pendingVerification:
+                    account.requirements?.pending_verification || [],
+            },
+            onboardingComplete: user.stripeOnboardingComplete,
+        });
+    } catch (error) {
+        console.error('Error fetching Stripe Connect account status:', error);
+        next(error);
+    }
+};
+
+// Generate new account link for re-onboarding or updating details
+exports.createStripeConnectAccountLink = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return next(createError.NotFound('User not found.'));
+        }
+
+        if (!user.stripeConnectAccountId) {
+            return next(
+                createError.BadRequest(
+                    'No Stripe Connect account found. Please create one first.'
+                )
+            );
+        }
+
+        // Generate account link
+        const accountLink = await stripe.accountLinks.create({
+            account: user.stripeConnectAccountId,
+            refresh_url: `${process.env.FRONTEND_URL}/settings/payment?refresh=true`,
+            return_url: `${process.env.FRONTEND_URL}/settings/payment?success=true`,
+            type: 'account_onboarding',
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Account link generated.',
+            url: accountLink.url,
+        });
+    } catch (error) {
+        console.error('Error creating account link:', error);
+        next(error);
+    }
+};
+
+// Get Stripe Connect account balance
+exports.getStripeConnectBalance = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return next(createError.NotFound('User not found.'));
+        }
+
+        if (!user.stripeConnectAccountId) {
+            return next(
+                createError.BadRequest('No Stripe Connect account found.')
+            );
+        }
+
+        // Get balance from Stripe Connect account
+        const balance = await stripe.balance.retrieve({
+            stripeAccount: user.stripeConnectAccountId,
+        });
+
+        // Get pending balance
+        const pendingBalance =
+            balance.pending.reduce((sum, bal) => sum + bal.amount, 0) / 100;
+        const availableBalance =
+            balance.available.reduce((sum, bal) => sum + bal.amount, 0) / 100;
+
+        res.status(200).json({
+            success: true,
+            balance: {
+                available: availableBalance,
+                pending: pendingBalance,
+                currency: balance.available[0]?.currency || 'aud',
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching balance:', error);
+        next(error);
+    }
+};
+
+// Webhook handler for Stripe Connect account events
+exports.stripeConnectWebhook = async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(
+            req.body,
+            sig,
+            process.env.STRIPE_WEBHOOK_SECRET
+        );
+    } catch (err) {
+        console.error('Webhook signature verification failed:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+        switch (event.type) {
+            case 'account.updated':
+                const account = event.data.object;
+                console.log('Account updated:', account.id);
+
+                // Find user by Stripe account ID
+                const user = await User.findOne({
+                    stripeConnectAccountId: account.id,
+                });
+                if (user) {
+                    user.stripeChargesEnabled = account.charges_enabled;
+                    user.stripePayoutsEnabled = account.payouts_enabled;
+                    user.stripeDetailsSubmitted = account.details_submitted;
+                    user.stripeOnboardingComplete =
+                        account.details_submitted && account.charges_enabled;
+
+                    if (account.details_submitted && account.charges_enabled) {
+                        user.stripeAccountStatus = 'verified';
+                    } else if (account.details_submitted) {
+                        user.stripeAccountStatus = 'pending';
+                    }
+
+                    await user.save();
+
+                    // Send notification if account is verified
+                    if (
+                        user.stripeAccountStatus === 'verified' &&
+                        user.fcmToken
+                    ) {
+                        await sendNotificationsToTokens(
+                            'Payment Account Verified',
+                            'Your payment account has been verified. You can now receive payouts from your rentals!',
+                            [user.fcmToken]
+                        );
+                        await userNotificationModel.create({
+                            sentTo: [user._id],
+                            title: 'Payment Account Verified',
+                            body: 'Your payment account has been verified. You can now receive payouts from your rentals!',
+                        });
+                    }
+                }
+                break;
+
+            case 'account.external_account.created':
+                console.log('External account added:', event.data.object.id);
+                break;
+
+            case 'account.external_account.deleted':
+                console.log('External account removed:', event.data.object.id);
+                break;
+
+            default:
+                console.log(
+                    `Unhandled Stripe Connect event type: ${event.type}`
+                );
+        }
+    } catch (error) {
+        console.error('Error handling Stripe Connect webhook:', error);
+        return res.status(500).json({ error: 'Webhook handler failed' });
+    }
+
+    res.json({ received: true });
+};
+
+// ============== BATCH PAYOUT PROCESSING ==============
+
+// Process all scheduled payouts that are eligible
+exports.processBatchPayouts = async (req, res, next) => {
+    try {
+        const now = new Date();
+
+        // Find all payments that are:
+        // 1. Scheduled for payout
+        // 2. Payout date has passed
+        // 3. Not already paid
+        const eligiblePayments = await Payment.find({
+            payoutStatus: 'scheduled',
+            scheduledPayoutDate: { $lte: now },
+        })
+            .populate(
+                'owner',
+                'name email fcmToken stripeConnectAccountId stripePayoutsEnabled'
+            )
+            .populate('renter', 'name email')
+            .populate('product', 'title')
+            .populate('booking');
+
+        console.log(
+            `Found ${eligiblePayments.length} eligible payouts to process`
+        );
+
+        const results = {
+            total: eligiblePayments.length,
+            successful: 0,
+            failed: 0,
+            skipped: 0,
+            details: [],
+        };
+
+        // Group payments by owner to batch transfers
+        const paymentsByOwner = {};
+        for (const payment of eligiblePayments) {
+            const ownerId = payment.owner._id.toString();
+            if (!paymentsByOwner[ownerId]) {
+                paymentsByOwner[ownerId] = [];
+            }
+            paymentsByOwner[ownerId].push(payment);
+        }
+
+        // Process each owner's payouts
+        for (const [ownerId, payments] of Object.entries(paymentsByOwner)) {
+            const owner = payments[0].owner;
+
+            // Check if owner has valid Stripe Connect account
+            if (!owner.stripeConnectAccountId) {
+                console.error(`Owner ${ownerId} has no Stripe Connect account`);
+
+                for (const payment of payments) {
+                    results.skipped++;
+                    results.details.push({
+                        paymentId: payment._id,
+                        ownerId,
+                        amount: payment.ownerPayoutAmount,
+                        status: 'skipped',
+                        reason: 'No Stripe Connect account',
+                    });
+
+                    // Notify owner to set up account
+                    if (owner.fcmToken) {
+                        await sendNotificationsToTokens(
+                            'Action Required: Connect Payment Account',
+                            `You have pending payouts totaling AUD $${payments
+                                .reduce(
+                                    (sum, p) => sum + p.ownerPayoutAmount,
+                                    0
+                                )
+                                .toFixed(
+                                    2
+                                )}. Please connect your Stripe account to receive payments.`,
+                            [owner.fcmToken]
+                        );
+                    }
+                }
+                continue;
+            }
+
+            if (!owner.stripePayoutsEnabled) {
+                console.error(
+                    `Owner ${ownerId} Stripe account not enabled for payouts`
+                );
+
+                for (const payment of payments) {
+                    results.skipped++;
+                    results.details.push({
+                        paymentId: payment._id,
+                        ownerId,
+                        amount: payment.ownerPayoutAmount,
+                        status: 'skipped',
+                        reason: 'Stripe account not verified',
+                    });
+                }
+                continue;
+            }
+
+            // Calculate total payout for this owner
+            const totalPayout = payments.reduce(
+                (sum, p) => sum + p.ownerPayoutAmount,
+                0
+            );
+
+            // Create a single transfer for all eligible payouts
+            try {
+                const transfer = await stripe.transfers.create({
+                    amount: Math.round(totalPayout * 100),
+                    currency: 'aud',
+                    destination: owner.stripeConnectAccountId,
+                    metadata: {
+                        ownerId: ownerId,
+                        paymentIds: payments
+                            .map(p => p._id.toString())
+                            .join(','),
+                        paymentCount: payments.length.toString(),
+                        batchDate: now.toISOString(),
+                    },
+                    description: `Batch payout for ${payments.length} rental${
+                        payments.length > 1 ? 's' : ''
+                    }`,
+                });
+
+                console.log(
+                    `Transfer successful for owner ${ownerId}:`,
+                    transfer.id,
+                    'Amount:',
+                    totalPayout
+                );
+
+                // Update all payments for this owner
+                for (const payment of payments) {
+                    payment.stripeTransferId = transfer.id;
+                    payment.payoutStatus = 'paid';
+                    payment.payoutAt = now;
+                    await payment.save();
+
+                    results.successful++;
+                    results.details.push({
+                        paymentId: payment._id,
+                        ownerId,
+                        amount: payment.ownerPayoutAmount,
+                        status: 'success',
+                        transferId: transfer.id,
+                    });
+                }
+
+                // Send notification to owner
+                if (owner.fcmToken) {
+                    const bookingDetails = payments
+                        .map(
+                            p =>
+                                `${
+                                    p.product.title
+                                }: AUD $${p.ownerPayoutAmount.toFixed(2)}`
+                        )
+                        .join(', ');
+
+                    await sendNotificationsToTokens(
+                        'Payout Processed',
+                        `Your payout of AUD $${totalPayout.toFixed(2)} for ${
+                            payments.length
+                        } rental${
+                            payments.length > 1 ? 's' : ''
+                        } has been transferred to your account. ${bookingDetails}`,
+                        [owner.fcmToken]
+                    );
+
+                    await userNotificationModel.create({
+                        sentTo: [owner._id],
+                        title: 'Payout Processed',
+                        body: `Your payout of AUD $${totalPayout.toFixed(
+                            2
+                        )} for ${payments.length} rental${
+                            payments.length > 1 ? 's' : ''
+                        } has been transferred to your account.`,
+                    });
+                }
+            } catch (transferError) {
+                console.error(
+                    `Error transferring to owner ${ownerId}:`,
+                    transferError
+                );
+
+                for (const payment of payments) {
+                    payment.payoutStatus = 'failed';
+                    await payment.save();
+
+                    results.failed++;
+                    results.details.push({
+                        paymentId: payment._id,
+                        ownerId,
+                        amount: payment.ownerPayoutAmount,
+                        status: 'failed',
+                        error: transferError.message,
+                    });
+                }
+
+                // Notify owner of failure
+                if (owner.fcmToken) {
+                    await sendNotificationsToTokens(
+                        'Payout Failed',
+                        `There was an issue processing your payout. Please contact support or check your payment account settings.`,
+                        [owner.fcmToken]
+                    );
+                }
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: `Batch payout processing complete. ${results.successful} successful, ${results.failed} failed, ${results.skipped} skipped.`,
+            results,
+        });
+    } catch (error) {
+        console.error('Error processing batch payouts:', error);
+        next(error);
+    }
+};
+
+// Get pending scheduled payouts (for admin dashboard)
+exports.getPendingPayouts = async (req, res, next) => {
+    try {
+        const now = new Date();
+
+        const pendingPayouts = await Payment.find({
+            payoutStatus: 'scheduled',
+        })
+            .populate(
+                'owner',
+                'name email stripeConnectAccountId stripePayoutsEnabled'
+            )
+            .populate('renter', 'name email')
+            .populate('product', 'title')
+            .populate('booking')
+            .sort('scheduledPayoutDate');
+
+        // Categorize by status
+        const categorized = {
+            readyToProcess: [],
+            awaitingDate: [],
+            missingAccount: [],
+        };
+
+        for (const payout of pendingPayouts) {
+            if (
+                !payout.owner.stripeConnectAccountId ||
+                !payout.owner.stripePayoutsEnabled
+            ) {
+                categorized.missingAccount.push(payout);
+            } else if (payout.scheduledPayoutDate <= now) {
+                categorized.readyToProcess.push(payout);
+            } else {
+                categorized.awaitingDate.push(payout);
+            }
+        }
+
+        // Calculate totals
+        const totals = {
+            readyToProcess: categorized.readyToProcess.reduce(
+                (sum, p) => sum + p.ownerPayoutAmount,
+                0
+            ),
+            awaitingDate: categorized.awaitingDate.reduce(
+                (sum, p) => sum + p.ownerPayoutAmount,
+                0
+            ),
+            missingAccount: categorized.missingAccount.reduce(
+                (sum, p) => sum + p.ownerPayoutAmount,
+                0
+            ),
+        };
+
+        res.status(200).json({
+            success: true,
+            summary: {
+                total: pendingPayouts.length,
+                readyToProcessCount: categorized.readyToProcess.length,
+                awaitingDateCount: categorized.awaitingDate.length,
+                missingAccountCount: categorized.missingAccount.length,
+                totals,
+            },
+            payouts: categorized,
+        });
+    } catch (error) {
+        console.error('Error fetching pending payouts:', error);
         next(error);
     }
 };

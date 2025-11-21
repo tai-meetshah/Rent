@@ -51,4 +51,56 @@ router.post(
     paymentController.stripeWebhook
 );
 
+// Stripe Connect - Create onboarding link
+router.post(
+    '/stripe-connect/create-account',
+    fileUpload(),
+    checkUser,
+    paymentController.createStripeConnectAccount
+);
+
+// Stripe Connect - Get account status
+router.get(
+    '/stripe-connect/account-status',
+    checkUser,
+    paymentController.getStripeConnectAccountStatus
+);
+
+// Stripe Connect - Generate account link for re-onboarding
+router.post(
+    '/stripe-connect/create-account-link',
+    fileUpload(),
+    checkUser,
+    paymentController.createStripeConnectAccountLink
+);
+
+// Stripe Connect - Get account balance
+router.get(
+    '/stripe-connect/balance',
+    checkUser,
+    paymentController.getStripeConnectBalance
+);
+
+// Stripe Connect webhook (for account updates)
+router.post(
+    '/stripe-connect/webhook',
+    express.raw({ type: 'application/json' }),
+    paymentController.stripeConnectWebhook
+);
+
+// Batch Payouts - Process all scheduled payouts
+router.post(
+    '/batch-payouts/process',
+    fileUpload(),
+    checkUser,
+    paymentController.processBatchPayouts
+);
+
+// Batch Payouts - Get pending payouts (admin)
+router.get(
+    '/batch-payouts/pending',
+    checkUser,
+    paymentController.getPendingPayouts
+);
+
 module.exports = router;

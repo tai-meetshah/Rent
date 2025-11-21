@@ -86,8 +86,15 @@ const paymentSchema = new mongoose.Schema(
         },
         payoutStatus: {
             type: String,
-            enum: ['pending', 'processing', 'paid', 'failed'],
+            enum: ['pending', 'scheduled', 'processing', 'paid', 'failed'],
             default: 'pending',
+        },
+        // Scheduled payout date (15 days after return verification)
+        scheduledPayoutDate: {
+            type: Date,
+        },
+        payoutEligibleDate: {
+            type: Date,
         },
         // Refund details
         refundAmount: {

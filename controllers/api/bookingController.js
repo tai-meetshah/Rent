@@ -760,36 +760,51 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                     }
                 }
 
-                // STEP 2: Mark payout as processed (or transfer to Stripe Connect)
-                // For production with Stripe Connect, uncomment:
-                /*
-                const owner = await require('../../models/userModel').findById(payment.owner);
-                if (owner.stripeAccountId) {
-                    const transfer = await stripe.transfers.create({
-                        amount: Math.round(payment.ownerPayoutAmount * 100),
-                        currency: 'aud',
-                        destination: owner.stripeAccountId,
-                        metadata: {
-                            bookingId: booking._id.toString(),
-                            paymentId: payment._id.toString(),
-                        },
-                    });
-                    payment.stripeTransferId = transfer.id;
-                }
-                */
+                // STEP 2: Schedule payout for 15 days from now
+                const owner = await require('../../models/userModel').findById(
+                    payment.owner
+                );
 
-                payment.payoutStatus = 'paid';
-                payment.payoutAt = new Date();
+                if (!owner) {
+                    console.error('Owner not found:', payment.owner);
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Owner not found.',
+                    });
+                }
+
+                // Check if owner has a verified Stripe Connect account
+                if (!owner.stripeConnectAccountId) {
+                    console.warn(
+                        'Owner does not have Stripe Connect account:',
+                        owner._id
+                    );
+                    // Don't fail, just warn - they have 15 days to set up
+                }
+
+                // Calculate payout date: 15 days from now
+                const scheduledPayoutDate = new Date();
+                scheduledPayoutDate.setDate(scheduledPayoutDate.getDate() + 15);
+
+                payment.payoutStatus = 'scheduled';
+                payment.scheduledPayoutDate = scheduledPayoutDate;
+                payment.payoutEligibleDate = scheduledPayoutDate;
                 await payment.save();
+
+                console.log(
+                    'Payout scheduled for:',
+                    scheduledPayoutDate.toISOString(),
+                    'Amount:',
+                    payment.ownerPayoutAmount,
+                    'Owner:',
+                    owner._id
+                );
 
                 // STEP 3: Update booking to completed
                 booking.status = 'completed';
                 await booking.save();
 
-                // STEP 4: Notify owner about payout
-                const owner = await require('../../models/userModel').findById(
-                    payment.owner
-                );
+                // STEP 4: Notify owner about scheduled payout
                 if (owner && owner.fcmToken) {
                     const commissionInfo =
                         payment.commissionType === 'fixed'
@@ -800,38 +815,49 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                                   payment.commissionPercentage
                               }%): AUD $${payment.commissionAmount.toFixed(2)}`;
 
+                    const payoutDateStr = scheduledPayoutDate.toLocaleDateString(
+                        'en-AU',
+                        { year: 'numeric', month: 'long', day: 'numeric' }
+                    );
+
                     await sendNotificationsToTokens(
-                        'Payout Processed',
+                        'Payout Scheduled',
                         `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
                             2
                         )} for ${
                             booking.product.title
-                        } has been processed. ${commissionInfo}. The deposit of AUD $${payment.depositAmount.toFixed(
-                            2
-                        )} has been refunded to the renter.`,
+                        } has been scheduled for ${payoutDateStr}. ${commissionInfo}. The deposit has been refunded to the renter.${
+                            !owner.stripeConnectAccountId
+                                ? ' Please connect your Stripe account to receive payouts.'
+                                : ''
+                        }`,
                         [owner.fcmToken]
                     );
                     await userNotificationModel.create({
                         sentTo: [owner._id],
-                        title: 'Payout Processed',
+                        title: 'Payout Scheduled',
                         body: `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
                             2
                         )} for ${
                             booking.product.title
-                        } has been processed. ${commissionInfo}. The deposit of AUD $${payment.depositAmount.toFixed(
-                            2
-                        )} has been refunded to the renter.`,
+                        } has been scheduled for ${payoutDateStr}. ${commissionInfo}. The deposit has been refunded to the renter.${
+                            !owner.stripeConnectAccountId
+                                ? ' Please connect your Stripe account to receive payouts.'
+                                : ''
+                        }`,
                     });
                 }
 
                 return res.status(200).json({
                     success: true,
                     message:
-                        'Photo reviewed. Payout and deposit refund processed successfully.',
+                        'Photo reviewed. Deposit refunded and payout scheduled.',
                     allPhotosVerified: allApproved,
                     depositRefunded,
                     depositAmount: payment.depositAmount,
                     ownerPayoutAmount: payment.ownerPayoutAmount,
+                    payoutScheduledFor: scheduledPayoutDate,
+                    payoutStatus: 'scheduled',
                 });
             } catch (payoutError) {
                 console.error('Error auto-processing payout:', payoutError);
