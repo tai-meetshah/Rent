@@ -11,6 +11,10 @@ const chatSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
     },
+    product: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product',
+    },
     message: {
         type: String,
         // required: true,

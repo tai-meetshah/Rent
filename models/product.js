@@ -153,6 +153,21 @@ const ProductSchema = new mongoose.Schema(
             type: String,
         },
         publish: { type: Boolean, default: false },
+        approvalStatus: {
+            type: String,
+            enum: ['pending', 'approved', 'rejected'],
+            default: 'pending',
+        },
+        approvalReason: {
+            type: String,
+        },
+        approvalDate: {
+            type: Date,
+        },
+        approvedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'admin',
+        },
     },
     { timestamps: true }
 );

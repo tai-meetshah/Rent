@@ -274,7 +274,7 @@ exports.getProducts = async (req, res) => {
     try {
         const categories = await Product.find({ isDeleted: false })
             .populate('category subcategory user')
-            .select('title user images category subcategory isActive isDeleted')
+            .select('title user images category subcategory isActive isDeleted approvalStatus')
             .sort('-_id')
 
         res.render('product', { categories });

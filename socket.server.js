@@ -5,6 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
 const User = require('./models/userModel');
+const Product = require('./models/product');
+const UserNotification = require('./models/userNotificationModel');
+const { sendNotificationsToTokens } = require('./utils/sendNotification');
 
 const onlineUsers = new Map(); // ✅ In-memory store (userId -> socketId)
 
@@ -51,18 +54,26 @@ const socketHandler = io => {
         // ==============================
         socket.on('getChatMessages', async data => {
             try {
-                const { token, sender, receiver } = data;
+                const { token, sender, receiver, product } = data;
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-                const messagesData = await Chat.find({
+                const query = {
                     $or: [
                         { sender, receiver },
                         { sender: receiver, receiver: sender },
                     ],
                     deletedBy: { $ne: decoded._id },
-                })
+                };
+
+                // ✅ Filter by product if provided
+                if (product) {
+                    query.product = product;
+                }
+
+                const messagesData = await Chat.find(query)
                     .populate('sender', 'name images fcmToken')
                     .populate('receiver', 'name images fcmToken')
+                    .populate('product', 'title images')
                     .select('-__v -deletedBy')
                     .sort({ date: 1 }); // ascending order
 
@@ -124,12 +135,14 @@ socket.on('recentChats', async data => {
                                 '$sender',
                             ],
                         },
+                        product: '$product', // ✅ Group by product too
                     },
                     chatId: { $first: '$_id' },
                     lastMessage: { $first: '$message' },
                     lastMessageDate: { $first: '$date' },
                     lastMessageSender: { $first: '$sender' },
                     lastMessageReceiver: { $first: '$receiver' },
+                    product: { $first: '$product' },
                     unreadCount: {
                         $sum: {
                             $cond: [
@@ -177,8 +190,23 @@ socket.on('recentChats', async data => {
             },
             { $unwind: '$chatWithUser' },
             {
+                $lookup: {
+                    from: 'products',
+                    localField: 'product',
+                    foreignField: '_id',
+                    as: 'productInfo',
+                },
+            },
+            {
+                $unwind: {
+                    path: '$productInfo',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
                 $project: {
                     chatWithName: '$chatWithUser.name',
+                    chatWithId: '$chatWithUser._id',
                     fcmToken: '$chatWithUser.fcmToken',
                     images: '$chatWithUser.images',
                     photo: '$chatWithUser.photo',
@@ -189,6 +217,9 @@ socket.on('recentChats', async data => {
                     unreadCount: 1,
                     _id: 0,
                     chatId: 1,
+                    productId: '$productInfo._id',
+                    productTitle: '$productInfo.title',
+                    productImages: '$productInfo.images',
                 },
             },
             { $sort: { lastMessageDate: -1 } },
@@ -209,7 +240,7 @@ socket.on('recentChats', async data => {
         // ==============================
         socket.on('sendMessage', async data => {
             try {
-                const { token, receiver, message, image, date } = data;
+                const { token, receiver, message, image, date, product } = data;
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const senderId = decoded._id;
 
@@ -246,23 +277,52 @@ socket.on('recentChats', async data => {
                 const chatMessage = await Chat.create({
                     sender: senderId,
                     receiver,
+                    product: product || null,
                     message,
                     file: fileName ? `/uploads/${fileName}` : null,
                     date: date ? new Date(date) : new Date(), // ✅ use timestamp from Flutter
                 });
 
                 const receiverUser = await User.findById(receiver).select(
-                    'fcmToken'
+                    'fcmToken name photo'
                 );
                 if (!receiverUser) throw new Error('Receiver not found');
 
+                const senderUser = await User.findById(senderId).select('name photo');
+                const productData = await Product.findById(product).select(
+                    'title'
+                );
+
                 const { deletedBy, readBy, ...messageToSend } =
                     chatMessage.toObject();
+
+                // ✅ Calculate unread count for receiver (filter by product if provided)
+                const receiverUnreadCount = await Chat.countDocuments({
+                    sender: senderId,
+                    receiver: receiver,
+                    readBy: { $ne: receiver },
+                    deletedBy: { $ne: receiver },
+                    ...(product && { product }), // ✅ Include product filter if provided
+                });
+
+                // ✅ Calculate unread count for sender (always 0 for their own messages)
+                const senderUnreadCount = await Chat.countDocuments({
+                    sender: receiver,
+                    receiver: senderId,
+                    readBy: { $ne: senderId },
+                    deletedBy: { $ne: senderId },
+                    ...(product && { product }), // ✅ Include product filter if provided
+                });
 
                 // ✅ Send message to receiver (if online)
                 io.to(receiver).emit('receiveMessage', {
                     ...messageToSend,
                     fcmToken: receiverUser.fcmToken,
+                    // senderName: receiverUser.name,
+                    productTitle: productData.title,
+                    senderName: senderUser?.name,
+                    photo: senderUser.photo,
+                    unreadCount: receiverUnreadCount,
                 });
 
                 // ✅ Echo back to sender
@@ -270,7 +330,40 @@ socket.on('recentChats', async data => {
                     success: true,
                     ...messageToSend,
                     fcmToken: receiverUser.fcmToken,
+                    // unreadCount: senderUnreadCount,
                 });
+
+                // ✅ Send push notification to receiver
+                if (receiverUser.fcmToken) {
+                    try {
+                        const notificationTitle = senderUser?.name || 'New Message';
+                        const notificationBody = message || 'Sent you an attachment';
+
+                        // Save notification to database
+                        await UserNotification.create({
+                            sentTo: [receiver],
+                            title: notificationTitle,
+                            body: notificationBody,
+                        });
+
+                        // Send FCM push notification
+                        await sendNotificationsToTokens(
+                            notificationTitle,
+                            notificationBody,
+                            [receiverUser.fcmToken],
+                            {
+                                type: 'chat',
+                                senderId: senderId.toString(),
+                                receiverId: receiver.toString(),
+                                messageId: chatMessage._id.toString(),
+                            }
+                        );
+
+                        // console.log(`📲 Notification sent to ${receiverUser.name}`);
+                    } catch (notifError) {
+                        console.error('❌ Error sending notification:', notifError.message);
+                    }
+                }
             } catch (error) {
                 console.error('❌ Error sending message:', error.message);
                 socket.emit('receiveMessage', {
@@ -285,24 +378,163 @@ socket.on('recentChats', async data => {
         // ==============================
         socket.on('clearChat', async data => {
             try {
-                const { token, receiver } = data;
+                const { token, receiver, product } = data;
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const senderId = decoded._id;
 
-                await Chat.updateMany(
-                    {
-                        $or: [
-                            { sender: senderId, receiver },
-                            { sender: receiver, receiver: senderId },
-                        ],
-                    },
-                    { $addToSet: { deletedBy: senderId } }
-                );
+                const query = {
+                    $or: [
+                        { sender: senderId, receiver },
+                        { sender: receiver, receiver: senderId },
+                    ],
+                };
 
+                // ✅ Clear only product-specific chat if provided
+                if (product) {
+                    query.product = product;
+                }
+
+                await Chat.updateMany(query, { $addToSet: { deletedBy: senderId } });
+
+                // ✅ Recalculate unread count for this specific chat after clearing
+                const updatedUnreadCount = await Chat.countDocuments({
+                    sender: receiver,
+                    receiver: senderId,
+                    readBy: { $ne: senderId },
+                    deletedBy: { $ne: senderId },
+                    ...(product && { product }), // Include product filter if provided
+                });
+
+                // ✅ After clearing, emit updated chat data immediately
                 socket.emit('chatCleared', {
                     success: true,
                     message: 'Cleared chat successfully.',
+                    receiver,
+                    product: product || null,
+                    updatedUnreadCount,
                 });
+
+                // ✅ Trigger a recent chats refresh to update the UI
+                const recentChats = await Chat.aggregate([
+                    {
+                        $match: {
+                            $or: [
+                                { sender: new mongoose.Types.ObjectId(senderId) },
+                                { receiver: new mongoose.Types.ObjectId(senderId) },
+                            ],
+                            deletedBy: {
+                                $ne: new mongoose.Types.ObjectId(senderId),
+                            },
+                        },
+                    },
+                    { $sort: { date: -1 } },
+                    {
+                        $group: {
+                            _id: {
+                                chatWith: {
+                                    $cond: [
+                                        {
+                                            $eq: [
+                                                '$sender',
+                                                new mongoose.Types.ObjectId(senderId),
+                                            ],
+                                        },
+                                        '$receiver',
+                                        '$sender',
+                                    ],
+                                },
+                                product: '$product',
+                            },
+                            chatId: { $first: '$_id' },
+                            lastMessage: { $first: '$message' },
+                            lastMessageDate: { $first: '$date' },
+                            lastMessageSender: { $first: '$sender' },
+                            lastMessageReceiver: { $first: '$receiver' },
+                            product: { $first: '$product' },
+                            unreadCount: {
+                                $sum: {
+                                    $cond: [
+                                        {
+                                            $and: [
+                                                {
+                                                    $ne: [
+                                                        '$sender',
+                                                        new mongoose.Types.ObjectId(
+                                                            senderId
+                                                        ),
+                                                    ],
+                                                },
+                                                {
+                                                    $not: {
+                                                        $in: [
+                                                            new mongoose.Types.ObjectId(
+                                                                senderId
+                                                            ),
+                                                            {
+                                                                $ifNull: [
+                                                                    '$readBy',
+                                                                    [],
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                        1,
+                                        0,
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: 'users',
+                            localField: '_id.chatWith',
+                            foreignField: '_id',
+                            as: 'chatWithUser',
+                        },
+                    },
+                    { $unwind: '$chatWithUser' },
+                    {
+                        $lookup: {
+                            from: 'products',
+                            localField: 'product',
+                            foreignField: '_id',
+                            as: 'productInfo',
+                        },
+                    },
+                    {
+                        $unwind: {
+                            path: '$productInfo',
+                            preserveNullAndEmptyArrays: true,
+                        },
+                    },
+                    {
+                        $project: {
+                            chatWithName: '$chatWithUser.name',
+                            chatWithId: '$chatWithUser._id',
+                            fcmToken: '$chatWithUser.fcmToken',
+                            images: '$chatWithUser.images',
+                            photo: '$chatWithUser.photo',
+                            lastMessage: 1,
+                            lastMessageDate: 1,
+                            lastMessageSender: 1,
+                            lastMessageReceiver: 1,
+                            unreadCount: 1,
+                            _id: 0,
+                            chatId: 1,
+                            productId: '$productInfo._id',
+                            productTitle: '$productInfo.title',
+                            productImages: '$productInfo.images',
+                        },
+                    },
+                    { $sort: { lastMessageDate: -1 } },
+                ]);
+
+                // ✅ Emit updated recent chats
+                socket.emit('recentChats', recentChats);
             } catch (error) {
                 console.error('❌ Error clearing chat:', error.message);
                 socket.emit('chatCleared', {
@@ -317,18 +549,24 @@ socket.on('recentChats', async data => {
         // ==============================
         socket.on('messageRead', async data => {
             try {
-                const { token, senderId } = data;
+                const { token, senderId, product } = data;
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const receiverId = decoded._id;
 
-                const result = await Chat.updateMany(
-                    {
-                        sender: senderId,
-                        receiver: receiverId,
-                        readBy: { $ne: receiverId },
-                    },
-                    { $addToSet: { readBy: receiverId } }
-                );
+                const query = {
+                    sender: senderId,
+                    receiver: receiverId,
+                    readBy: { $ne: receiverId },
+                };
+
+                // ✅ Filter by product if provided
+                if (product) {
+                    query.product = product;
+                }
+
+                const result = await Chat.updateMany(query, {
+                    $addToSet: { readBy: receiverId }
+                });
 
                 socket.emit('messageReadByReceiver', {
                     success: true,
@@ -340,6 +578,7 @@ socket.on('recentChats', async data => {
                     success: true,
                     readerId: receiverId,
                     senderId,
+                    product: product || null,
                     message: 'Your messages have been read by the receiver.',
                 });
             } catch (error) {

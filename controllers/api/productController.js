@@ -116,6 +116,7 @@ exports.getProducts = async (req, res, next) => {
             isActive: true,
             user: { $ne: req.user.id },
             publish: true,
+            approvalStatus: 'approved',
         };
 
         // ⭐
@@ -357,6 +358,7 @@ exports.getAllFeatureProduct = async (req, res, next) => {
             publish: true,
             isActive: true,
             user: { $ne: req.user.id },
+            approvalStatus: 'approved',
         };
 
         // 📍 Location filter - Handle separately to avoid $near inside $or issue
@@ -489,6 +491,7 @@ exports.getFeatureProductById = async (req, res, next) => {
             isDeleted: false,
             publish: true,
             isActive: true,
+            approvalStatus: 'approved',
             user: { $ne: req.user.id },
         })
             .populate('category subcategory')
@@ -1192,7 +1195,11 @@ exports.getFavouriteProducts = async (req, res, next) => {
                 .json({ success: false, message: 'User not found.' });
         }
 
-        const products = await Product.find({ _id: { $in: user.favourites } })
+        const products = await Product.find({
+            _id: { $in: user.favourites },
+            approvalStatus: 'approved',
+            isDeleted: false
+        })
             .populate('category subcategory')
             .select('-__v -isDeleted');
 
@@ -1276,6 +1283,44 @@ exports.getProductStockInfo = async (req, res, next) => {
         });
     } catch (error) {
         console.log(error);
+        next(error);
+    }
+};
+
+exports.getProductApprovalStatus = async (req, res, next) => {
+    try {
+        const { productId } = req.params;
+
+        if (!productId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product ID is required.'
+            });
+        }
+
+        const product = await Product.findOne({
+            _id: productId,
+            user: req.user.id
+        }).select('approvalStatus approvalReason approvalDate publish');
+
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found or you do not have permission to view it.'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                productId: product._id,
+                approvalStatus: product.approvalStatus,
+                approvalReason: product.approvalReason,
+                approvalDate: product.approvalDate,
+                publish: product.publish
+            }
+        });
+    } catch (error) {
         next(error);
     }
 };

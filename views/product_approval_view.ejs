@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html class="loading" lang="en" data-textdirection="ltr">
+<!-- BEGIN: Head-->
+
+<head>
+  <%- include('_layouts/head') %>
+    <title>Product Approval | <%= title %>
+    </title>
+    <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/page-users.css">
+    <style>
+      table tr td,
+      th {
+        text-align: center;
+      }
+
+      .approval-actions {
+        margin-top: 20px;
+        text-align: center;
+        padding: 20px;
+        background-color: #f5f5f5;
+        border-radius: 8px;
+      }
+
+      .approval-actions h6 {
+        margin-bottom: 15px;
+        font-weight: 600;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .status-pending {
+        background-color: #ff9800;
+        color: white;
+      }
+
+      .status-approved {
+        background-color: #4caf50;
+        color: white;
+      }
+
+      .status-rejected {
+        background-color: #f44336;
+        color: white;
+      }
+    </style>
+</head>
+<!-- END: Head-->
+
+<body
+  class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns"
+  data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+
+  <%- include('_layouts/sidenavbar') %>
+
+    <!-- BEGIN: Page Main-->
+    <div id="main">
+      <div class="row">
+        <%- include('messages', { messages: messages }) %>
+
+          <div class="col s12">
+            <div class="container">
+              <!-- users view start -->
+              <div class="section users-view">
+
+                <!-- users view card details start -->
+                <div class="card">
+                  <div class="card-content">
+                    <div class="row">
+                      <div class="col s12">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                          <h5>Product Information</h5>
+                          <div>
+                            <% if (product.approvalStatus === 'pending') { %>
+                              <span class="status-badge status-pending">PENDING APPROVAL</span>
+                            <% } else if (product.approvalStatus === 'approved') { %>
+                              <span class="status-badge status-approved">APPROVED</span>
+                            <% } else if (product.approvalStatus === 'rejected') { %>
+                              <span class="status-badge status-rejected">REJECTED</span>
+                            <% } %>
+                          </div>
+                        </div>
+
+                        <table class="striped col s12 m6">
+                          <tbody>
+
+                            <tr>
+                              <th>Images</th>
+                              <td>
+                                <% if (product.images && product.images.length > 0) { %>
+                                  <% product.images.forEach(function(img) { %>
+                                    <img src="<%= process.env.IMAGE_URL + img %>" alt="product image" width="100"
+                                      style="margin: 5px; border-radius: 4px;">
+                                    <% }) %>
+                                      <% } else { %>
+                                        No images
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th style="width: 200px;">User Name</th>
+                              <td>
+                                <%= product.user?.name ? product.user?.name : '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th style="width: 200px;">User Email</th>
+                              <td>
+                                <%= product.user?.email ? product.user?.email : '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th style="width: 200px;">User Phone</th>
+                              <td>
+                                <%= product.user?.phone ? product.user?.phone : '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Title</th>
+                              <td>
+                                <%= product.title || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Description</th>
+                              <td>
+                                <%= product.description || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Feature</th>
+                              <td>
+                                <%= product.feature || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Ideal</th>
+                              <td>
+                                <%= product.ideal || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Price</th>
+                              <td>
+                                $<%= product.price || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Stock Quantity</th>
+                              <td>
+                                <%= product.stockQuantity || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Deposit Amount</th>
+                              <td>
+                                $<%= product.depositAmount || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Deliver Type</th>
+                              <td>
+                                <%= product.deliver || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Location</th>
+                              <td>
+                                <%= product.location || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Latitude / Longitude</th>
+                              <td>
+                                <%= product.latitude %>, <%= product.longitude %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Renting Out</th>
+                              <td>
+                                <%= product.oRentingOut ? 'Yes' : 'No' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Rules & Policy</th>
+                              <td>
+                                <%= product.oRulesPolicy || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>All Days Available</th>
+                              <td>
+                                <%= product.allDaysAvailable ? 'Yes' : 'No' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Keywords</th>
+                              <td>
+                                <%= product.keywords?.join(', ') || '-' %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Categories</th>
+                              <td>
+                                <% if (product.category && product.category.length > 0) { %>
+                                  <% product.category.forEach(cat => { %>
+                                    <div>
+                                      <%= cat.name %>
+                                    </div>
+                                    <% }) %>
+                                      <% } else { %>
+                                        -
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Subcategories</th>
+                              <td>
+                                <% if (product.subcategory && product.subcategory.length > 0) { %>
+                                  <% product.subcategory.forEach(sub => { %>
+                                    <div>
+                                      <%= sub.name %>
+                                    </div>
+                                    <% }) %>
+                                      <% } else { %>
+                                        -
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Rental Slabs</th>
+                              <td>
+                                <% if (product.slabs && product.slabs.length > 0) { %>
+                                  <% product.slabs.forEach(slab => { %>
+                                    <div>From <%= slab.from %> to <%= slab.to %> days = $<%= slab.amount %>
+                                    </div>
+                                    <% }) %>
+                                      <% } else { %>
+                                        -
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Cancellation Charges</th>
+                              <td>
+                                <% if (product.oCancellationCharges && product.oCancellationCharges.length > 0) { %>
+                                  <% product.oCancellationCharges.forEach(cc => { %>
+                                    <div>
+                                      <%= cc.hoursBefore %> hrs before: $<%= cc.chargeAmount %>
+                                    </div>
+                                    <% }) %>
+                                      <% } else { %>
+                                        -
+                                        <% } %>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <th>Created Date</th>
+                              <% const createdAt = new Date(product.createdAt); %>
+                              <% const day = String(createdAt.getUTCDate()).padStart(2, '0'); %>
+                              <% const month = String(createdAt.getUTCMonth() + 1).padStart(2, '0'); %>
+                              <% const year = createdAt.getUTCFullYear(); %>
+                              <td>
+                                <%= day %>-<%= month %>-<%= year %>
+                              </td>
+                            </tr>
+
+                            <% if (product.approvalStatus === 'approved' || product.approvalStatus === 'rejected') { %>
+                              <tr>
+                                <th>Approval Date</th>
+                                <td>
+                                  <% if (product.approvalDate) { %>
+                                    <% const approvalDate = new Date(product.approvalDate); %>
+                                    <% const aDay = String(approvalDate.getUTCDate()).padStart(2, '0'); %>
+                                    <% const aMonth = String(approvalDate.getUTCMonth() + 1).padStart(2, '0'); %>
+                                    <% const aYear = approvalDate.getUTCFullYear(); %>
+                                    <%= aDay %>-<%= aMonth %>-<%= aYear %>
+                                  <% } else { %>
+                                    -
+                                  <% } %>
+                                </td>
+                              </tr>
+
+                              <tr>
+                                <th><%= product.approvalStatus === 'approved' ? 'Approved' : 'Rejected' %> By</th>
+                                <td>
+                                  <%= product.approvedBy?.name || '-' %>
+                                </td>
+                              </tr>
+
+                              <% if (product.approvalReason) { %>
+                                <tr>
+                                  <th>Reason</th>
+                                  <td>
+                                    <%= product.approvalReason %>
+                                  </td>
+                                </tr>
+                              <% } %>
+                            <% } %>
+
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <!-- Approval Actions -->
+                    <% if (product.approvalStatus === 'pending') { %>
+                      <div class="approval-actions">
+                        <h6>Approval Actions</h6>
+                        <form action="/admin/product/approve/<%= product._id %>" method="POST" style="display: inline-block; margin-right: 10px;">
+                          <button type="submit" class="waves-effect waves-light btn green" onclick="return confirm('Are you sure you want to approve this product?');">
+                            <i class="material-icons left">check_circle</i>Approve Product
+                          </button>
+                        </form>
+
+                        <button type="button" class="waves-effect waves-light btn red modal-trigger" data-target="rejectModal">
+                          <i class="material-icons left">cancel</i>Reject Product
+                        </button>
+                      </div>
+                    <% } else { %>
+                      <div class="approval-actions">
+                        <form action="/admin/product/reset-approval/<%= product._id %>" method="POST" style="display: inline-block;">
+                          <button type="submit" class="waves-effect waves-light btn orange" onclick="return confirm('Are you sure you want to reset this product to pending status?');">
+                            <i class="material-icons left">refresh</i>Reset to Pending
+                          </button>
+                        </form>
+                      </div>
+                    <% } %>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                      <a href="/admin/product/pending-approvals" class="waves-effect waves-light btn grey">
+                        <i class="material-icons left">arrow_back</i>Back to List
+                      </a>
+                    </div>
+
+                  </div>
+                </div>
+                <!-- users view card details ends -->
+
+              </div>
+              <!-- users view ends -->
+            </div>
+            <div class="content-overlay"></div>
+          </div>
+      </div>
+    </div>
+    <!-- END: Page Main-->
+
+    <!-- Reject Modal -->
+    <div id="rejectModal" class="modal">
+      <div class="modal-content">
+        <h5>Reject Product</h5>
+        <p>Please provide a reason for rejecting this product:</p>
+        <form action="/admin/product/reject/<%= product._id %>" method="POST" id="rejectForm">
+          <div class="input-field">
+            <textarea id="reason" name="reason" class="materialize-textarea" required minlength="10"></textarea>
+            <label for="reason">Rejection Reason (min 10 characters)</label>
+          </div>
+          <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-light btn grey">Cancel</a>
+            <button type="submit" class="waves-effect waves-light btn red">
+              <i class="material-icons left">cancel</i>Reject
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <%- include('_layouts/commonJs') %>
+
+      <script>
+        $(document).ready(function () {
+          $('.modal').modal();
+        });
+
+        // Form validation for rejection
+        document.getElementById('rejectForm')?.addEventListener('submit', function(e) {
+          const reason = document.getElementById('reason').value.trim();
+          if (reason.length < 10) {
+            e.preventDefault();
+            M.toast({html: 'Rejection reason must be at least 10 characters long', classes: 'red'});
+            return false;
+          }
+        });
+      </script>
+</body>
+
+</html>

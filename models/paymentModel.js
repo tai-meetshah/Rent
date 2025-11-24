@@ -56,6 +56,26 @@ const paymentSchema = new mongoose.Schema(
             type: Number,
             required: true,
         },
+        // Stripe fees
+        stripeProcessingFee: {
+            type: Number,
+            default: 0,
+            comment: 'Stripe payment processing fee (1.75% + $0.30)',
+        },
+        stripeTransferFee: {
+            type: Number,
+            default: 0,
+            comment: 'Stripe transfer fee (if applicable)',
+        },
+        stripeTotalFee: {
+            type: Number,
+            default: 0,
+            comment: 'Total Stripe fees (processing + transfer)',
+        },
+        netOwnerPayout: {
+            type: Number,
+            comment: 'Final payout after all deductions including Stripe fees',
+        },
         // Currency
         currency: {
             type: String,

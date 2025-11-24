@@ -63,4 +63,7 @@ router.get('/booked-dates/:productId', checkUser, productController.getBookedDat
 
 router.get('/stock-info/:productId', checkUser, productController.getProductStockInfo);
 
+// Get approval status for a product
+router.get('/approval-status/:productId', checkUser, productController.getProductApprovalStatus);
+
 module.exports = router;

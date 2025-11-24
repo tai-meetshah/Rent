@@ -69,11 +69,20 @@ const processBatchPayoutsJob = async () => {
         // Process each owner's payouts
         for (const [ownerId, payments] of Object.entries(paymentsByOwner)) {
             const owner = payments[0].owner;
-            const totalPayout = payments.reduce((sum, p) => sum + p.ownerPayoutAmount, 0);
+
+            // Use netOwnerPayout if available, otherwise fallback to ownerPayoutAmount
+            const totalPayout = payments.reduce((sum, p) => {
+                return sum + (p.netOwnerPayout || p.ownerPayoutAmount);
+            }, 0);
+
+            const totalStripeFees = payments.reduce((sum, p) => sum + (p.stripeTotalFee || 0), 0);
+            const totalCommission = payments.reduce((sum, p) => sum + (p.commissionAmount || 0), 0);
 
             console.log(`\nProcessing owner: ${owner.name} (${ownerId})`);
             console.log(`  Payments: ${payments.length}`);
-            console.log(`  Total: AUD $${totalPayout.toFixed(2)}`);
+            console.log(`  Total Payout: AUD $${totalPayout.toFixed(2)}`);
+            console.log(`  Admin Commission: AUD $${totalCommission.toFixed(2)}`);
+            console.log(`  Stripe Fees: AUD $${totalStripeFees.toFixed(2)}`);
 
             // Check if owner has valid Stripe Connect account
             if (!owner.stripeConnectAccountId) {
@@ -154,7 +163,9 @@ const processBatchPayoutsJob = async () => {
                         paymentId: payment._id,
                         ownerId,
                         productTitle: payment.product.title,
-                        amount: payment.ownerPayoutAmount,
+                        amount: payment.netOwnerPayout || payment.ownerPayoutAmount,
+                        commissionAmount: payment.commissionAmount,
+                        stripeFees: payment.stripeTotalFee || 0,
                         status: 'success',
                         transferId: transfer.id,
                     });

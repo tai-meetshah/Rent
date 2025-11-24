@@ -71,6 +71,25 @@ const calculateCommission = (totalAmount, commissionSettings) => {
     return commissionAmount;
 };
 
+// Calculate Stripe processing fees
+// Stripe Australia charges: 1.75% + $0.30 AUD per transaction
+const calculateStripeProcessingFee = (amount) => {
+    const percentageFee = amount * 0.0175; // 1.75%
+    const fixedFee = 0.30; // $0.30 AUD
+    return percentageFee + fixedFee;
+};
+
+// Calculate Stripe transfer fees (for Connect transfers)
+// Standard Connect accounts: No additional transfer fee
+// Express/Custom accounts: May have additional fees
+const calculateStripeTransferFee = (amount, accountType = 'standard') => {
+    if (accountType === 'standard') {
+        return 0; // No transfer fee for standard accounts
+    }
+    // For express/custom accounts, you might have different fees
+    return 0;
+};
+
 // Create payment intent
 exports.createPaymentIntent = async (req, res, next) => {
     try {
@@ -110,8 +129,20 @@ exports.createPaymentIntent = async (req, res, next) => {
             commissionSettings
         );
 
+        // Calculate Stripe fees
+        const stripeProcessingFee = calculateStripeProcessingFee(totalAmount);
+        const stripeTransferFee = calculateStripeTransferFee(rentalPrice);
+        const stripeTotalFee = stripeProcessingFee + stripeTransferFee;
+
         // Owner receives: rental price - commission (deposit is held separately)
         const ownerPayoutAmount = rentalPrice - commissionAmount;
+
+        // Net owner payout after Stripe fees (if platform doesn't absorb fees)
+        // Option 1: Deduct from owner's payout
+        // const netOwnerPayout = ownerPayoutAmount - stripeTotalFee;
+
+        // Option 2: Platform absorbs Stripe fees (recommended)
+        const netOwnerPayout = ownerPayoutAmount;
 
         // Create payment intent with Stripe (in AUD)
         const paymentIntent = await stripe.paymentIntents.create({
@@ -151,6 +182,10 @@ exports.createPaymentIntent = async (req, res, next) => {
                     : null,
             commissionAmount,
             ownerPayoutAmount,
+            stripeProcessingFee,
+            stripeTransferFee,
+            stripeTotalFee,
+            netOwnerPayout,
             currency: 'AUD',
             stripePaymentIntentId: paymentIntent.id,
             paymentStatus: 'pending',
@@ -180,7 +215,19 @@ exports.createPaymentIntent = async (req, res, next) => {
                         ? commissionSettings.fixedAmount
                         : null,
             },
+            fees: {
+                stripeProcessingFee,
+                stripeTransferFee,
+                stripeTotalFee,
+            },
             ownerPayoutAmount,
+            netOwnerPayout,
+            payoutBreakdown: {
+                rentalAmount: rentalPrice,
+                adminCommission: commissionAmount,
+                stripeFees: stripeTotalFee,
+                finalPayout: netOwnerPayout,
+            },
             message: `Total payment: AUD $${totalAmount.toFixed(
                 2
             )} (Rental: $${rentalPrice.toFixed(
