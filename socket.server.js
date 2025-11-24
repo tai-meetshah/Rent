@@ -101,139 +101,145 @@ const socketHandler = io => {
             }
         });
 
-socket.on('recentChats', async data => {
-    try {
-        const { token } = data;
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded._id;
+        socket.on('recentChats', async data => {
+            try {
+                const { token } = data;
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const userId = decoded._id;
 
-        const recentChats = await Chat.aggregate([
-            {
-                $match: {
-                    $or: [
-                        { sender: new mongoose.Types.ObjectId(userId) },
-                        { receiver: new mongoose.Types.ObjectId(userId) },
-                    ],
-                    deletedBy: {
-                        $ne: new mongoose.Types.ObjectId(userId),
-                    },
-                },
-            },
-            { $sort: { date: -1 } },
-            {
-                $group: {
-                    _id: {
-                        chatWith: {
-                            $cond: [
+                const recentChats = await Chat.aggregate([
+                    {
+                        $match: {
+                            $or: [
+                                { sender: new mongoose.Types.ObjectId(userId) },
                                 {
-                                    $eq: [
-                                        '$sender',
-                                        new mongoose.Types.ObjectId(userId),
-                                    ],
+                                    receiver: new mongoose.Types.ObjectId(
+                                        userId
+                                    ),
                                 },
-                                '$receiver',
-                                '$sender',
                             ],
+                            deletedBy: {
+                                $ne: new mongoose.Types.ObjectId(userId),
+                            },
                         },
-                        product: '$product', // ✅ Group by product too
                     },
-                    chatId: { $first: '$_id' },
-                    lastMessage: { $first: '$message' },
-                    lastMessageDate: { $first: '$date' },
-                    lastMessageSender: { $first: '$sender' },
-                    lastMessageReceiver: { $first: '$receiver' },
-                    product: { $first: '$product' },
-                    unreadCount: {
-                        $sum: {
-                            $cond: [
-                                {
-                                    $and: [
+                    { $sort: { date: -1 } },
+                    {
+                        $group: {
+                            _id: {
+                                chatWith: {
+                                    $cond: [
                                         {
-                                            $ne: [
+                                            $eq: [
                                                 '$sender',
                                                 new mongoose.Types.ObjectId(
                                                     userId
                                                 ),
                                             ],
                                         },
-                                        {
-                                            $not: {
-                                                $in: [
-                                                    new mongoose.Types.ObjectId(
-                                                        userId
-                                                    ),
-                                                    {
-                                                        $ifNull: [
-                                                            '$readBy',
-                                                            [],
-                                                        ],
-                                                    },
-                                                ],
-                                            },
-                                        },
+                                        '$receiver',
+                                        '$sender',
                                     ],
                                 },
-                                1,
-                                0,
-                            ],
+                                product: '$product', // ✅ Group by product too
+                            },
+                            chatId: { $first: '$_id' },
+                            lastMessage: { $first: '$message' },
+                            lastMessageDate: { $first: '$date' },
+                            lastMessageSender: { $first: '$sender' },
+                            lastMessageReceiver: { $first: '$receiver' },
+                            product: { $first: '$product' },
+                            unreadCount: {
+                                $sum: {
+                                    $cond: [
+                                        {
+                                            $and: [
+                                                {
+                                                    $ne: [
+                                                        '$sender',
+                                                        new mongoose.Types.ObjectId(
+                                                            userId
+                                                        ),
+                                                    ],
+                                                },
+                                                {
+                                                    $not: {
+                                                        $in: [
+                                                            new mongoose.Types.ObjectId(
+                                                                userId
+                                                            ),
+                                                            {
+                                                                $ifNull: [
+                                                                    '$readBy',
+                                                                    [],
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                        1,
+                                        0,
+                                    ],
+                                },
+                            },
                         },
                     },
-                },
-            },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: '_id.chatWith',
-                    foreignField: '_id',
-                    as: 'chatWithUser',
-                },
-            },
-            { $unwind: '$chatWithUser' },
-            {
-                $lookup: {
-                    from: 'products',
-                    localField: 'product',
-                    foreignField: '_id',
-                    as: 'productInfo',
-                },
-            },
-            {
-                $unwind: {
-                    path: '$productInfo',
-                    preserveNullAndEmptyArrays: true,
-                },
-            },
-            {
-                $project: {
-                    chatWithName: '$chatWithUser.name',
-                    chatWithId: '$chatWithUser._id',
-                    fcmToken: '$chatWithUser.fcmToken',
-                    images: '$chatWithUser.images',
-                    photo: '$chatWithUser.photo',
-                    lastMessage: 1,
-                    lastMessageDate: 1,
-                    lastMessageSender: 1,
-                    lastMessageReceiver: 1,
-                    unreadCount: 1,
-                    _id: 0,
-                    chatId: 1,
-                    productId: '$productInfo._id',
-                    productTitle: '$productInfo.title',
-                    productImages: '$productInfo.images',
-                },
-            },
-            { $sort: { lastMessageDate: -1 } },
-        ]);
+                    {
+                        $lookup: {
+                            from: 'users',
+                            localField: '_id.chatWith',
+                            foreignField: '_id',
+                            as: 'chatWithUser',
+                        },
+                    },
+                    { $unwind: '$chatWithUser' },
+                    {
+                        $lookup: {
+                            from: 'products',
+                            localField: 'product',
+                            foreignField: '_id',
+                            as: 'productInfo',
+                        },
+                    },
+                    {
+                        $unwind: {
+                            path: '$productInfo',
+                            preserveNullAndEmptyArrays: true,
+                        },
+                    },
+                    {
+                        $project: {
+                            chatWithName: '$chatWithUser.name',
+                            chatWithId: '$chatWithUser._id',
+                            fcmToken: '$chatWithUser.fcmToken',
+                            images: '$chatWithUser.images',
+                            photo: '$chatWithUser.photo',
+                            lastMessage: 1,
+                            lastMessageDate: 1,
+                            lastMessageSender: 1,
+                            lastMessageReceiver: 1,
+                            unreadCount: 1,
+                            _id: 0,
+                            chatId: 1,
+                            productId: '$productInfo._id',
+                            productTitle: '$productInfo.title',
+                            productImages: '$productInfo.images',
+                        },
+                    },
+                    { $sort: { lastMessageDate: -1 } },
+                ]);
 
-        socket.emit('recentChats', recentChats);
-    } catch (error) {
-        console.error('Error retrieving recent chats:', error.message);
-        socket.emit('chatMessages', {
-            success: false,
-            error: error.message,
+                socket.emit('recentChats', recentChats);
+            } catch (error) {
+                console.error('Error retrieving recent chats:', error.message);
+                socket.emit('chatMessages', {
+                    success: false,
+                    error: error.message,
+                });
+            }
         });
-    }
-});
 
         // ==============================
         // ✉️ SEND MESSAGE
@@ -288,7 +294,9 @@ socket.on('recentChats', async data => {
                 );
                 if (!receiverUser) throw new Error('Receiver not found');
 
-                const senderUser = await User.findById(senderId).select('name photo');
+                const senderUser = await User.findById(senderId).select(
+                    'name photo'
+                );
                 const productData = await Product.findById(product).select(
                     'title'
                 );
@@ -336,8 +344,10 @@ socket.on('recentChats', async data => {
                 // ✅ Send push notification to receiver
                 if (receiverUser.fcmToken) {
                     try {
-                        const notificationTitle = senderUser?.name || 'New Message';
-                        const notificationBody = message || 'Sent you an attachment';
+                        const notificationTitle =
+                            senderUser?.name || 'New Message';
+                        const notificationBody =
+                            message || 'Sent you an attachment';
 
                         // Save notification to database
                         await UserNotification.create({
@@ -361,7 +371,10 @@ socket.on('recentChats', async data => {
 
                         // console.log(`📲 Notification sent to ${receiverUser.name}`);
                     } catch (notifError) {
-                        console.error('❌ Error sending notification:', notifError.message);
+                        console.error(
+                            '❌ Error sending notification:',
+                            notifError.message
+                        );
                     }
                 }
             } catch (error) {
@@ -394,7 +407,9 @@ socket.on('recentChats', async data => {
                     query.product = product;
                 }
 
-                await Chat.updateMany(query, { $addToSet: { deletedBy: senderId } });
+                await Chat.updateMany(query, {
+                    $addToSet: { deletedBy: senderId },
+                });
 
                 // ✅ Recalculate unread count for this specific chat after clearing
                 const updatedUnreadCount = await Chat.countDocuments({
@@ -419,8 +434,16 @@ socket.on('recentChats', async data => {
                     {
                         $match: {
                             $or: [
-                                { sender: new mongoose.Types.ObjectId(senderId) },
-                                { receiver: new mongoose.Types.ObjectId(senderId) },
+                                {
+                                    sender: new mongoose.Types.ObjectId(
+                                        senderId
+                                    ),
+                                },
+                                {
+                                    receiver: new mongoose.Types.ObjectId(
+                                        senderId
+                                    ),
+                                },
                             ],
                             deletedBy: {
                                 $ne: new mongoose.Types.ObjectId(senderId),
@@ -436,7 +459,9 @@ socket.on('recentChats', async data => {
                                         {
                                             $eq: [
                                                 '$sender',
-                                                new mongoose.Types.ObjectId(senderId),
+                                                new mongoose.Types.ObjectId(
+                                                    senderId
+                                                ),
                                             ],
                                         },
                                         '$receiver',
@@ -565,7 +590,7 @@ socket.on('recentChats', async data => {
                 }
 
                 const result = await Chat.updateMany(query, {
-                    $addToSet: { readBy: receiverId }
+                    $addToSet: { readBy: receiverId },
                 });
 
                 socket.emit('messageReadByReceiver', {
