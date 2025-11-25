@@ -25,7 +25,7 @@ router.post('/user/photo', upload.none(), async (req, res) => {
     const { id } = req.body;
 
     try {
-        const user = await User.findById(id).select('photo');
+        const user = await User.findById(id).select('photo name');
 
         res.status(200).json({ success: true, user });
     } catch (error) {
