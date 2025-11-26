@@ -65,9 +65,8 @@
                                                         <tr>
                                                             <td><%= i+1 %></td>
                                                             <td><b>#<%= data[i].enquiryNumber %></b></td>
-                                                            <td><b><%= data[i].user.name %></b></td>
-                                                            <td><%= data[i].user.email %></td>
-                                                            <!-- <td><%= data[i].user.contactNo %></td> -->
+                                                            <td><b><%= data[i].user && data[i].user.name %></b></td>
+                                                            <td><%= data[i].user && data[i].user.email %></td>
                                                             <td>
                                                                 <a href="/admin/enquire/chat/<%= data[i]._id %>"><i class="material-icons">chat</i>
 
