@@ -115,11 +115,11 @@
                                                                     <td>
                                                                         <% if (categories[i].isActive) { %>
                                                                             <a href="/admin/product/update-status/<%= categories[i]._id %>/0"
-                                                                                class="waves-effect border-round waves-light btn green mr-1 mb-2"
+                                                                                class="waves-effect border-round waves-light btn purple mr-1 mb-2"
                                                                                 onclick="return confirm('Are you sure want to De-Active this product?');">Active</a>
                                                                             <% } else { %>
                                                                                 <a href="/admin/product/update-status/<%= categories[i]._id %>/1"
-                                                                                    class="waves-effect border-round waves-light btn red mr-1 mb-2"
+                                                                                    class="waves-effect border-round waves-light btn orange mr-1 mb-2"
                                                                                     style="padding: 0px 16px 0px 16px;"
                                                                                     onclick="return confirm('Are you sure want to Active this product?');">De-Active</a>
                                                                                 <% } %>
