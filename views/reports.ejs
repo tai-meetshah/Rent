@@ -267,7 +267,10 @@
     <script>
         // Revenue Trend Chart
         const revenueTrendData = <%- JSON.stringify(revenueTrend) %>;
-        const trendLabels = revenueTrendData.map(d => `${d._id.month}/${d._id.year}`);
+
+        // Convert month numbers to month names
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const trendLabels = revenueTrendData.map(d => `${monthNames[d._id.month - 1]} ${d._id.year}`);
         const revenueData = revenueTrendData.map(d => d.revenue);
         const commissionData = revenueTrendData.map(d => d.commission);
 

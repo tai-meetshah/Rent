@@ -81,13 +81,14 @@ exports.getReports = async (req, res) => {
             refundCount: 0,
         };
 
-        // Get revenue trend (monthly)
+        // Get revenue trend (monthly) - show last 12 months regardless of filter
+        const twelveMonthsAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
         const revenueTrend = await Payment.aggregate([
-            { $match: { paymentStatus: 'paid', ...dateFilter } },
+            { $match: { paymentStatus: 'paid', createdAt: { $gte: twelveMonthsAgo } } },
             {
                 $group: {
                     _id: {
-                        // year: { $year: '$createdAt' },
+                        year: { $year: '$createdAt' },
                         month: { $month: '$createdAt' },
                     },
                     revenue: { $sum: '$totalAmount' },

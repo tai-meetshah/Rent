@@ -80,7 +80,11 @@ exports.getEnquiries = async (req, res) => {
     try {
         const data = await enquiryModel.find().sort({ updatedAt: -1 }).populate('user');
 
-        res.render('enquiry1', { data });
+                const validData = data.filter(
+                    enquiry =>
+                        enquiry.user && enquiry.user.name && enquiry.user.email
+                );
+        res.render('enquiry1', { data:validData });
 
     } catch (error) {
         console.log(error);
