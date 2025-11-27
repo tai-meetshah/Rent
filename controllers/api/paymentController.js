@@ -980,7 +980,7 @@ exports.createStripeConnectAccount = async (req, res, next) => {
         // Create new Stripe Connect Express account
         const account = await stripe.accounts.create({
             type: 'express',
-            country: user.country === 'Australia' ? 'AU' : 'US', // Default to AU or US
+            country: 'AU', // Default to AU or US
             email: user.email,
             capabilities: {
                 card_payments: { requested: true },
@@ -1159,6 +1159,7 @@ exports.getStripeConnectBalance = async (req, res, next) => {
 
 // Webhook handler for Stripe Connect account events
 exports.stripeConnectWebhook = async (req, res) => {
+    console.log('stripeConnectWebhook');
     const sig = req.headers['stripe-signature'];
     let event;
 
