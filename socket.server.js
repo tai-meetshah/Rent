@@ -294,6 +294,18 @@ const socketHandler = io => {
                 });
                 console.log("==============================================");
                     console.log('chatMessage: ', chatMessage);
+                    console.log('=== TIMESTAMP DEBUG START ===');
+
+                    console.log('📩 Received from Flutter:', date);
+                    console.log('🕒 new Date(date) parsed:', new Date(date));
+
+                    console.log(
+                        '🕛 Server current UTC time:',
+                        new Date().toISOString()
+                    );
+
+                    console.log('=== TIMESTAMP DEBUG END ===');
+
                 console.log('==============================================');
 
                 const receiverUser = await User.findById(receiver).select(
