@@ -90,6 +90,7 @@ const socketHandler = io => {
                         images: [],
                     },
                 }));
+                console.log('messages: ', messages);
 
                 socket.emit('chatMessages', messages);
             } catch (error) {
@@ -288,6 +289,7 @@ const socketHandler = io => {
                     file: fileName ? `/uploads/${fileName}` : null,
                     date: date ? new Date(date) : new Date(), // ✅ use timestamp from Flutter
                 });
+                    console.log('chatMessage: ', chatMessage);
 
                 const receiverUser = await User.findById(receiver).select(
                     'fcmToken name photo'
