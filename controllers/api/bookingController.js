@@ -723,33 +723,16 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                                 refundType: 'deposit',
                             },
                         });
-                            console.log('depositRefund: ', depositRefund);
+                        console.log(`Deposit refund created: ${depositRefund.id} - AUD $${(depositRefund.amount / 100).toFixed(2)}`);
 
                         payment.depositRefundId = depositRefund.id;
                         payment.depositRefundedAt = new Date();
                         depositRefunded = true;
                         await payment.save();
 
-                        // Notify renter about deposit refund
-                        if (booking.user?.fcmToken) {
-                   await sendNotificationsToTokens(
-                       'Deposit Refunded',
-                       `AUD $${payment.depositAmount.toFixed(2)} for ${
-                           booking.product.title
-                       } refunded. Arrives in 5–10 business days.`,
-                       [booking.user.fcmToken]
-                   );
-
-                            await userNotificationModel.create({
-                                sentTo: [booking.user._id],
-                                title: 'Deposit Refunded',
-                                body: `Your deposit of AUD $${payment.depositAmount.toFixed(
-                                    2
-                                )} for ${
-                                    booking.product.title
-                                } has been refunded. It will appear in your account within 5-10 business days.`,
-                            });
-                        }
+                        // Note: Deposit refund notification will be sent by the webhook handler
+                        // when Stripe confirms the refund has succeeded (refund.updated event)
+                        console.log(`Deposit refund initiated: ${depositRefund.id} for booking ${booking._id.toString()}`)
                     } catch (refundError) {
                         console.error('Error refunding deposit:', refundError);
                         return res.status(400).json({
@@ -774,11 +757,10 @@ exports.reviewReturnPhoto = async (req, res, next) => {
 
                 // Check if owner has a verified Stripe Connect account
                 if (!owner.stripeConnectAccountId) {
-                    console.warn(
-                        'Owner does not have Stripe Connect account:',
-                        owner._id
+                    console.log(
+                        `⚠ Owner ${owner._id} has no Stripe Connect account. Payout scheduled for 15 days - they have time to connect.`
                     );
-                    // Don't fail, just warn - they have 15 days to set up
+                    // Don't fail, just log - they have 15 days to set up
                 }
 
                 // Calculate payout date: 15 days from now
@@ -791,12 +773,7 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                 await payment.save();
 
                 console.log(
-                    'Payout scheduled for:',
-                    scheduledPayoutDate.toISOString(),
-                    'Amount:',
-                    payment.ownerPayoutAmount,
-                    'Owner:',
-                    owner._id
+                    `✓ Payout scheduled: AUD $${payment.ownerPayoutAmount.toFixed(2)} for owner ${owner._id} on ${scheduledPayoutDate.toISOString()}`
                 );
 
                 // STEP 3: Update booking to completed

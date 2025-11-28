@@ -272,11 +272,7 @@ exports.confirmPayment = async (req, res, next) => {
         // Update payment status
         payment.paymentStatus = 'paid';
         payment.paidAt = new Date();
-        console.log("===============================");
-        console.log('paymentIntent: ', paymentIntent);
-        console.log('===============================');
-        console.log('paymentIntent: ', JSON.stringify(paymentIntent, null, 2));
-        console.log('===============================');
+        console.log(`✓ Payment confirmed: ${paymentIntent.id} - Charge: ${paymentIntent.latest_charge}`);
 
         payment.stripeChargeId = paymentIntent.latest_charge;
 
@@ -716,13 +712,11 @@ exports.stripeWebhook = async (req, res) => {
             // **Handle the refund.updated event** for deposit refunds
             case 'refund.updated':
                 const refund = event.data.object;
-                console.log("===================================");
-                console.log('Refund status updated:', refund.id);
-                console.log('===================================');
+                console.log(`Refund status updated: ${refund.id} - Status: ${refund.status}`);
 
                 // Check if the refund status is "succeeded"
                 if (refund.status === 'succeeded') {
-                    console.log('Refund succeeded:', refund.id);
+                    console.log(`✓ Refund succeeded: ${refund.id} - Amount: ${(refund.amount / 100).toFixed(2)} ${refund.currency.toUpperCase()}`);
 
                     const bookingId = refund.metadata.bookingId; // Assuming you stored the booking ID in metadata
                     const paymentId = refund.metadata.paymentId; // You can store paymentId in metadata too if needed
@@ -733,9 +727,7 @@ exports.stripeWebhook = async (req, res) => {
                         payment.depositRefunded = true;
                         payment.depositRefundedAt = new Date();
                         await payment.save();
-                        console.log(
-                            `Refund for booking ${bookingId} processed successfully.`
-                        );
+                        console.log(`✓ Refund processed successfully for booking ${bookingId}`);
 
                         // Update the booking status, mark as refunded, etc.
                         const booking = await Booking.findById(bookingId);
@@ -746,21 +738,24 @@ exports.stripeWebhook = async (req, res) => {
 
                         // Notify renter about refund
                         const renter = await User.findById(booking.user);
-                        if (renter && renter.fcmToken) {
+                        const booking_populated = await Booking.findById(bookingId).populate('product', 'title');
+                        if (renter && renter.fcmToken && booking_populated) {
+                            const refundAmount = (refund.amount / 100).toFixed(2);
+                            const currency = refund.currency.toUpperCase();
                             await sendNotificationsToTokens(
                                 'Deposit Refunded',
-                                `Your deposit for the booking of ${booking.product.title} has been refunded.`,
+                                `${currency} $${refundAmount} for ${booking_populated.product.title} refunded. Arrives in 5–10 business days.`,
                                 [renter.fcmToken]
                             );
                             await userNotificationModel.create({
                                 sentTo: [renter._id],
                                 title: 'Deposit Refunded',
-                                body: `Your deposit for the booking of ${booking.product.title} has been refunded.`,
+                                body: `Your deposit of ${currency} $${refundAmount} for ${booking_populated.product.title} has been refunded. It will appear in your account within 5-10 business days.`,
                             });
                         }
                     }
                 } else if (refund.status === 'failed') {
-                    console.log('Refund failed:', refund.id);
+                    console.log(`✗ Refund failed: ${refund.id} - Reason: ${refund.failure_reason || 'Unknown'}`);
 
                     const bookingId = refund.metadata.bookingId;
                     const paymentId = refund.metadata.paymentId;
@@ -788,9 +783,21 @@ exports.stripeWebhook = async (req, res) => {
                 }
                 break;
 
+            case 'refund.created':
+                const refundCreated = event.data.object;
+                console.log('Refund created:', refundCreated.id, 'Amount:', refundCreated.amount / 100, refundCreated.currency.toUpperCase());
+                // Refund processing happens in refund.updated when status is 'succeeded'
+                break;
+
             case 'charge.refunded':
                 const chargeRefund = event.data.object;
-                console.log('Charge refunded:', chargeRefund.id);
+                console.log('Charge refunded:', chargeRefund.id, 'Refunds:', chargeRefund.refunds?.data?.length || 0);
+                // Refund details are processed in refund.updated event
+                break;
+
+            case 'charge.refund.updated':
+                console.log('Charge refund updated (acknowledged)');
+                // This event is informational - refund status is tracked in refund.updated
                 break;
 
             // Subscription webhook events for auto-renewal
@@ -1392,7 +1399,6 @@ exports.getStripeConnectBalance = async (req, res, next) => {
 
 // Webhook handler for Stripe Connect account events
 exports.stripeConnectWebhook = async (req, res) => {
-    console.log('stripeConnectWebhook');
     const sig = req.headers['stripe-signature'];
     let event;
 
@@ -1457,6 +1463,25 @@ exports.stripeConnectWebhook = async (req, res) => {
 
             case 'account.external_account.deleted':
                 console.log('External account removed:', event.data.object.id);
+                break;
+
+            // Refund-related events - These are primarily handled in the main webhook
+            // but we acknowledge them here to avoid "unhandled" logs
+            case 'refund.created':
+                console.log('Refund created:', event.data.object.id, '(handled in main webhook)');
+                break;
+
+            case 'refund.updated':
+                console.log('Refund updated:', event.data.object.id, '(handled in main webhook)');
+                break;
+
+            case 'charge.refunded':
+                const chargeRefunded = event.data.object;
+                console.log('Charge refunded:', chargeRefunded.id, '(handled in main webhook)');
+                break;
+
+            case 'charge.refund.updated':
+                console.log('Charge refund updated (acknowledged in Connect webhook)');
                 break;
 
             default:
