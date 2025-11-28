@@ -44,13 +44,6 @@ router.get(
     paymentController.getPaymentDetails
 );
 
-// Stripe webhook (no authentication)
-router.post(
-    '/webhook',
-    express.raw({ type: 'application/json' }),
-    paymentController.stripeWebhook
-);
-
 // Stripe Connect - Create onboarding link
 router.post(
     '/stripe-connect/create-account',
@@ -81,13 +74,6 @@ router.get(
     paymentController.getStripeConnectBalance
 );
 
-// Stripe Connect webhook (for account updates)
-router.post(
-    '/stripe-connect/webhook',
-    express.raw({ type: 'application/json' }),
-    paymentController.stripeConnectWebhook
-);
-
 // Batch Payouts - Process all scheduled payouts
 router.post(
     '/batch-payouts/process',
@@ -101,6 +87,53 @@ router.get(
     '/batch-payouts/pending',
     checkUser,
     paymentController.getPendingPayouts
+);
+
+// ============== SUBSCRIPTION ROUTES ==============
+
+// Get subscription pricing
+router.get(
+    '/subscription/pricing',
+    paymentController.getSubscriptionPricing
+);
+
+// Create subscription payment intent
+router.post(
+    '/subscription/create-payment',
+    fileUpload(),
+    checkUser,
+    paymentController.createSubscriptionPayment
+);
+
+// Confirm subscription payment
+router.post(
+    '/subscription/confirm-payment',
+    fileUpload(),
+    checkUser,
+    paymentController.confirmSubscriptionPayment
+);
+
+// Get user's subscription status
+router.get(
+    '/subscription/status',
+    checkUser,
+    paymentController.getSubscriptionStatus
+);
+
+// Cancel subscription (will stop auto-renewal at end of period)
+router.post(
+    '/subscription/cancel',
+    fileUpload(),
+    checkUser,
+    paymentController.cancelSubscription
+);
+
+// Reactivate canceled subscription (resume auto-renewal)
+router.post(
+    '/subscription/reactivate',
+    fileUpload(),
+    checkUser,
+    paymentController.reactivateSubscription
 );
 
 module.exports = router;

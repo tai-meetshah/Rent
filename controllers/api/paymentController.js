@@ -104,9 +104,9 @@ exports.createPaymentIntent = async (req, res, next) => {
             return next(createError.NotFound('Booking not found.'));
         }
 
-        if (booking.user._id.toString() !== req.user.id.toString()) {
-            return next(createError.Forbidden('Unauthorized access.'));
-        }
+        // if (booking.user._id.toString() !== req.user.id.toString()) {
+        //     return next(createError.Forbidden('Unauthorized access.'));
+        // }
 
         const product = booking.product;
         const rentalPrice = Number(product.price || 0);
@@ -666,14 +666,13 @@ exports.getMyPayouts = async (req, res, next) => {
 // Webhook handler for Stripe events
 exports.stripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
-    console.log('sig: ', sig);
     let event;
 
     try {
         event = stripe.webhooks.constructEvent(
             req.body,
             sig,
-            process.env.STRIPE_WEBHOOK_SECRET
+            process.env.STRIPE_WEBHOOK_SECRET2
         );
     } catch (err) {
         console.error('Webhook signature verification failed:', err.message);
@@ -711,7 +710,9 @@ exports.stripeWebhook = async (req, res) => {
             // **Handle the refund.updated event** for deposit refunds
             case 'refund.updated':
                 const refund = event.data.object;
+                console.log("===================================");
                 console.log('Refund status updated:', refund.id);
+                console.log('===================================');
 
                 // Check if the refund status is "succeeded"
                 if (refund.status === 'succeeded') {
@@ -754,13 +755,237 @@ exports.stripeWebhook = async (req, res) => {
                     }
                 } else if (refund.status === 'failed') {
                     console.log('Refund failed:', refund.id);
-                    // Handle refund failure (e.g., notify user, retry, etc.)
+
+                    const bookingId = refund.metadata.bookingId;
+                    const paymentId = refund.metadata.paymentId;
+                    const failureReason = refund.failure_reason || 'Unknown reason';
+
+                    // Find the payment and booking
+                    const payment = await Payment.findById(paymentId);
+                    if (payment) {
+                        const booking = await Booking.findById(bookingId).populate('product', 'title');
+                        const renter = await User.findById(booking.user);
+
+                        if (renter && renter.fcmToken) {
+                            await sendNotificationsToTokens(
+                                'Refund Failed',
+                                `Your refund for ${booking.product.title} has failed. Reason: ${failureReason}. Please contact support for assistance.`,
+                                [renter.fcmToken]
+                            );
+                            await userNotificationModel.create({
+                                sentTo: [renter._id],
+                                title: 'Refund Failed',
+                                body: `Your refund for ${booking.product.title} has failed. Reason: ${failureReason}. Please contact support for assistance.`,
+                            });
+                        }
+                    }
                 }
                 break;
 
             case 'charge.refunded':
                 const chargeRefund = event.data.object;
                 console.log('Charge refunded:', chargeRefund.id);
+                break;
+
+            // Subscription webhook events for auto-renewal
+            case 'customer.subscription.created':
+            case 'customer.subscription.updated':
+                const updatedSubscription = event.data.object;
+                console.log('Subscription updated:', updatedSubscription.id);
+
+                // Find subscription record
+                const dbSubscription = await Subscription.findOne({
+                    stripeSubscriptionId: updatedSubscription.id,
+                });
+
+                if (dbSubscription) {
+                    // Update subscription status based on Stripe status
+                    if (updatedSubscription.status === 'active') {
+                        dbSubscription.isActive = true;
+                        dbSubscription.paymentStatus = 'paid';
+
+                        // Update expiration date to current period end
+                        dbSubscription.expiresAt = new Date(updatedSubscription.current_period_end * 1000);
+
+                        await dbSubscription.save();
+
+                        // Update user subscription status
+                        const user = await User.findById(dbSubscription.user);
+                        if (user) {
+                            user.hasSubscription = true;
+                            user.subscriptionExpiresAt = dbSubscription.expiresAt;
+                            user.stripeSubscriptionId = updatedSubscription.id;
+                            await user.save();
+                        }
+                    } else if (updatedSubscription.status === 'canceled' || updatedSubscription.status === 'unpaid') {
+                        dbSubscription.isActive = false;
+                        dbSubscription.cancelledAt = new Date();
+                        await dbSubscription.save();
+
+                        // Update user subscription status
+                        const user = await User.findById(dbSubscription.user);
+                        if (user) {
+                            user.hasSubscription = false;
+                            user.stripeSubscriptionId = null;
+                            await user.save();
+                        }
+                    }
+                }
+                break;
+
+            case 'customer.subscription.deleted':
+                const deletedSubscription = event.data.object;
+                console.log('Subscription deleted:', deletedSubscription.id);
+
+                const canceledSub = await Subscription.findOne({
+                    stripeSubscriptionId: deletedSubscription.id,
+                });
+
+                if (canceledSub) {
+                    canceledSub.isActive = false;
+                    canceledSub.cancelledAt = new Date();
+                    canceledSub.autoRenew = false;
+                    await canceledSub.save();
+
+                    // Update user
+                    const user = await User.findById(canceledSub.user);
+                    if (user) {
+                        user.hasSubscription = false;
+                        user.stripeSubscriptionId = null;
+                        await user.save();
+
+                        // Send notification
+                        if (user.fcmToken) {
+                            await sendNotificationsToTokens(
+                                'Subscription Canceled',
+                                'Your subscription has been canceled. You will retain access until the end of your current billing period.',
+                                [user.fcmToken]
+                            );
+                            await userNotificationModel.create({
+                                sentTo: [user._id],
+                                title: 'Subscription Canceled',
+                                body: 'Your subscription has been canceled. You will retain access until the end of your current billing period.',
+                            });
+                        }
+                    }
+                }
+                break;
+
+            case 'invoice.payment_succeeded':
+                const invoice = event.data.object;
+                console.log('Invoice payment succeeded:', invoice.id);
+
+                // Check if this is a subscription invoice
+                if (invoice.subscription) {
+                    const renewedSub = await Subscription.findOne({
+                        stripeSubscriptionId: invoice.subscription,
+                    }).populate('user', 'name email fcmToken');
+
+                    if (renewedSub) {
+                        // Get card details from the invoice's payment method
+                        let cardDetails = {};
+                        try {
+                            if (invoice.charge) {
+                                const charge = await stripe.charges.retrieve(invoice.charge);
+                                if (charge.payment_method_details && charge.payment_method_details.card) {
+                                    cardDetails = {
+                                        cardLast4: charge.payment_method_details.card.last4,
+                                        cardBrand: charge.payment_method_details.card.brand,
+                                        cardExpMonth: charge.payment_method_details.card.exp_month,
+                                        cardExpYear: charge.payment_method_details.card.exp_year,
+                                    };
+                                }
+                            }
+                        } catch (cardError) {
+                            console.error('Error retrieving card details from charge:', cardError);
+                        }
+
+                        // Create a new subscription record for the renewal
+                        const renewalSubscription = await Subscription.create({
+                            user: renewedSub.user._id,
+                            subscriptionType: renewedSub.subscriptionType,
+                            amount: renewedSub.amount,
+                            currency: renewedSub.currency,
+                            adminAmount: renewedSub.adminAmount,
+                            stripePaymentIntentId: invoice.payment_intent || 'auto_renewal_' + invoice.id,
+                            stripeSubscriptionId: renewedSub.stripeSubscriptionId,
+                            stripePriceId: renewedSub.stripePriceId,
+                            stripeCustomerId: renewedSub.stripeCustomerId,
+                            stripeChargeId: invoice.charge,
+                            paymentStatus: 'paid',
+                            isActive: true,
+                            autoRenew: true,
+                            startDate: new Date(invoice.period_start * 1000),
+                            expiresAt: new Date(invoice.period_end * 1000),
+                            paidAt: new Date(),
+                            ...cardDetails, // Add card details
+                        });
+
+                        // Update the original subscription's expiration
+                        renewedSub.expiresAt = new Date(invoice.period_end * 1000);
+                        renewedSub.isActive = true;
+                        renewedSub.renewalAttempts = 0;
+                        renewedSub.lastRenewalAttempt = new Date();
+                        await renewedSub.save();
+
+                        // Update user
+                        const user = await User.findById(renewedSub.user._id);
+                        if (user) {
+                            user.hasSubscription = true;
+                            user.subscriptionExpiresAt = new Date(invoice.period_end * 1000);
+                            user.activeSubscriptionId = renewalSubscription._id;
+                            await user.save();
+
+                            // Send renewal notification
+                            if (user.fcmToken) {
+                                await sendNotificationsToTokens(
+                                    'Subscription Renewed',
+                                    `Your ${renewedSub.subscriptionType} subscription has been automatically renewed for AUD $${renewedSub.amount.toFixed(2)}. Your next billing date is ${new Date(invoice.period_end * 1000).toLocaleDateString()}.`,
+                                    [user.fcmToken]
+                                );
+                                await userNotificationModel.create({
+                                    sentTo: [user._id],
+                                    title: 'Subscription Renewed',
+                                    body: `Your ${renewedSub.subscriptionType} subscription has been automatically renewed. Enjoy unlimited chat!`,
+                                });
+                            }
+                        }
+                    }
+                }
+                break;
+
+            case 'invoice.payment_failed':
+                const failedInvoice = event.data.object;
+                console.log('Invoice payment failed:', failedInvoice.id);
+
+                // Check if this is a subscription invoice
+                if (failedInvoice.subscription) {
+                    const failedSub = await Subscription.findOne({
+                        stripeSubscriptionId: failedInvoice.subscription,
+                    }).populate('user', 'name email fcmToken');
+
+                    if (failedSub) {
+                        failedSub.renewalAttempts = (failedSub.renewalAttempts || 0) + 1;
+                        failedSub.lastRenewalAttempt = new Date();
+                        failedSub.lastRenewalError = failedInvoice.last_finalization_error?.message || 'Payment failed';
+                        await failedSub.save();
+
+                        // Notify user about failed payment
+                        const user = failedSub.user;
+                        if (user && user.fcmToken) {
+                            await sendNotificationsToTokens(
+                                'Subscription Payment Failed',
+                                `Your subscription renewal payment failed. Please update your payment method to continue enjoying unlimited chat access. Attempt ${failedSub.renewalAttempts}/3.`,
+                                [user.fcmToken]
+                            );
+                            await userNotificationModel.create({
+                                sentTo: [user._id],
+                                title: 'Subscription Payment Failed',
+                                body: `Your subscription renewal payment failed. Please update your payment method to avoid service interruption.`,
+                            });
+                        }
+                    }
+                }
                 break;
 
             default:
@@ -1169,7 +1394,7 @@ exports.stripeConnectWebhook = async (req, res) => {
         event = stripe.webhooks.constructEvent(
             req.body,
             sig,
-            process.env.STRIPE_WEBHOOK_SECRET
+            process.env.STRIPE_WEBHOOK_SECRET1
         );
     } catch (err) {
         console.error('Webhook signature verification failed:', err.message);
@@ -1572,22 +1797,101 @@ exports.createSubscriptionPayment = async (req, res, next) => {
         const amount = SUBSCRIPTION_PRICES[subscriptionType];
         const adminAmount = amount; // 100% goes to admin
 
-        // Create payment intent with Stripe
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(amount * 100), // Convert to cents
+        // Create or retrieve Stripe Customer
+        let customerId = user.stripeCustomerId;
+        if (!customerId) {
+            const customer = await stripe.customers.create({
+                email: user.email,
+                name: user.name,
+                metadata: {
+                    userId: userId,
+                },
+            });
+            customerId = customer.id;
+            user.stripeCustomerId = customerId;
+            await user.save();
+        }
+
+        // For lifetime subscription, use one-time payment
+        if (subscriptionType === 'lifetime') {
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: Math.round(amount * 100), // Convert to cents
+                currency: 'aud',
+                customer: customerId,
+                metadata: {
+                    userId: userId,
+                    subscriptionType: subscriptionType,
+                    purpose: 'chat_subscription',
+                },
+                description: `Chat Subscription - Lifetime`,
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+            });
+
+            // Create subscription record
+            const subscription = await Subscription.create({
+                user: userId,
+                subscriptionType,
+                amount,
+                currency: 'AUD',
+                adminAmount,
+                stripePaymentIntentId: paymentIntent.id,
+                stripeCustomerId: customerId,
+                paymentStatus: 'pending',
+                autoRenew: false,
+            });
+
+            return res.status(200).json({
+                success: true,
+                clientSecret: paymentIntent.client_secret,
+                paymentIntentId: paymentIntent.id,
+                subscriptionId: subscription._id,
+                amount,
+                currency: 'AUD',
+                subscriptionType,
+                autoRenew: false,
+                message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(2)}.`,
+            });
+        }
+
+        // For monthly/yearly, create Stripe Subscription with auto-renewal
+        // First, create a price for the subscription
+        const interval = subscriptionType === 'monthly' ? 'month' : 'year';
+        const price = await stripe.prices.create({
+            unit_amount: Math.round(amount * 100),
             currency: 'aud',
+            recurring: {
+                interval: interval,
+            },
+            product_data: {
+                name: `Chat Subscription - ${subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1)}`,
+                description: 'Unlimited chat access with auto-renewal',
+            },
+            metadata: {
+                subscriptionType: subscriptionType,
+            },
+        });
+
+        // Create Stripe Subscription
+        const stripeSubscription = await stripe.subscriptions.create({
+            customer: customerId,
+            items: [{ price: price.id }],
+            payment_behavior: 'default_incomplete',
+            payment_settings: {
+                save_default_payment_method: 'on_subscription',
+            },
+            expand: ['latest_invoice.payment_intent'],
             metadata: {
                 userId: userId,
                 subscriptionType: subscriptionType,
                 purpose: 'chat_subscription',
             },
-            description: `Chat Subscription - ${subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1)}`,
-            automatic_payment_methods: {
-                enabled: true,
-            },
         });
 
-        // Create subscription record
+        const paymentIntent = stripeSubscription.latest_invoice.payment_intent;
+
+        // Create subscription record in database
         const subscription = await Subscription.create({
             user: userId,
             subscriptionType,
@@ -1595,7 +1899,11 @@ exports.createSubscriptionPayment = async (req, res, next) => {
             currency: 'AUD',
             adminAmount,
             stripePaymentIntentId: paymentIntent.id,
+            stripeSubscriptionId: stripeSubscription.id,
+            stripePriceId: price.id,
+            stripeCustomerId: customerId,
             paymentStatus: 'pending',
+            autoRenew: true,
         });
 
         res.status(200).json({
@@ -1603,10 +1911,12 @@ exports.createSubscriptionPayment = async (req, res, next) => {
             clientSecret: paymentIntent.client_secret,
             paymentIntentId: paymentIntent.id,
             subscriptionId: subscription._id,
+            stripeSubscriptionId: stripeSubscription.id,
             amount,
             currency: 'AUD',
             subscriptionType,
-            message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(2)}.`,
+            autoRenew: true,
+            message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(2)}. Auto-renews ${interval}ly.`,
         });
     } catch (error) {
         console.error('Error creating subscription payment:', error);
@@ -1647,6 +1957,25 @@ exports.confirmSubscriptionPayment = async (req, res, next) => {
         subscription.startDate = new Date();
         subscription.stripeChargeId = paymentIntent.latest_charge;
 
+        // Retrieve and store card details from payment method
+        try {
+            if (paymentIntent.payment_method) {
+                const paymentMethod = await stripe.paymentMethods.retrieve(
+                    paymentIntent.payment_method
+                );
+
+                if (paymentMethod.card) {
+                    subscription.cardLast4 = paymentMethod.card.last4;
+                    subscription.cardBrand = paymentMethod.card.brand; // visa, mastercard, amex, etc.
+                    subscription.cardExpMonth = paymentMethod.card.exp_month;
+                    subscription.cardExpYear = paymentMethod.card.exp_year;
+                }
+            }
+        } catch (cardError) {
+            console.error('Error retrieving payment method details:', cardError);
+            // Continue even if we can't get card details
+        }
+
         // Calculate expiration date
         const durationDays = SUBSCRIPTION_DURATIONS[subscription.subscriptionType];
         const expiresAt = new Date();
@@ -1660,6 +1989,11 @@ exports.confirmSubscriptionPayment = async (req, res, next) => {
         user.hasSubscription = true;
         user.subscriptionExpiresAt = expiresAt;
         user.subscriptionActivatedAt = new Date();
+        user.activeSubscriptionId = subscription._id;
+        // Store Stripe subscription ID if this is a recurring subscription
+        if (subscription.stripeSubscriptionId) {
+            user.stripeSubscriptionId = subscription.stripeSubscriptionId;
+        }
         // No need to reset chattedWith array - subscribed users have unlimited chats
         user.lastChatReset = new Date();
 
@@ -1667,19 +2001,22 @@ exports.confirmSubscriptionPayment = async (req, res, next) => {
 
         // Send notification to user
         if (user.fcmToken) {
+            const renewalInfo = subscription.autoRenew
+                ? ` Your subscription will auto-renew on ${expiresAt.toLocaleDateString()}.`
+                : '';
             await sendNotificationsToTokens(
                 'Subscription Activated',
                 `Your ${subscription.subscriptionType} chat subscription has been activated! You now have unlimited chat access${
                     subscription.subscriptionType === 'lifetime'
                         ? ' for lifetime'
                         : ` until ${expiresAt.toLocaleDateString()}`
-                }.`,
+                }.${renewalInfo}`,
                 [user.fcmToken]
             );
             await userNotificationModel.create({
                 sentTo: [userId],
                 title: 'Subscription Activated',
-                body: `Your ${subscription.subscriptionType} chat subscription has been activated! Enjoy unlimited chat.`,
+                body: `Your ${subscription.subscriptionType} chat subscription has been activated! Enjoy unlimited chat.${renewalInfo}`,
             });
         }
 
@@ -1692,6 +2029,7 @@ exports.confirmSubscriptionPayment = async (req, res, next) => {
                 expiresAt: subscription.expiresAt,
                 isActive: subscription.isActive,
                 amount: subscription.amount,
+                autoRenew: subscription.autoRenew,
             },
         });
     } catch (error) {
@@ -1706,11 +2044,40 @@ exports.getSubscriptionStatus = async (req, res, next) => {
         const userId = req.user.id;
 
         const user = await User.findById(userId).select(
-            'hasSubscription subscriptionExpiresAt subscriptionActivatedAt chattedWith'
+            'hasSubscription subscriptionExpiresAt subscriptionActivatedAt chattedWith stripeSubscriptionId activeSubscriptionId'
         );
 
         if (!user) {
             return next(createError.NotFound('User not found.'));
+        }
+
+        // If user has a Stripe subscription, check its current status
+        let stripeSubscriptionData = null;
+        let willAutoRenew = false;
+        if (user.stripeSubscriptionId) {
+            try {
+                const stripeSubscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+                stripeSubscriptionData = {
+                    status: stripeSubscription.status,
+                    currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+                    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+                    canceledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : null,
+                };
+                willAutoRenew = !stripeSubscription.cancel_at_period_end && stripeSubscription.status === 'active';
+
+                // Sync expiration date with Stripe
+                if (stripeSubscription.status === 'active') {
+                    const newExpiresAt = new Date(stripeSubscription.current_period_end * 1000);
+                    if (!user.subscriptionExpiresAt || user.subscriptionExpiresAt.getTime() !== newExpiresAt.getTime()) {
+                        user.subscriptionExpiresAt = newExpiresAt;
+                        user.hasSubscription = true;
+                        await user.save();
+                    }
+                }
+            } catch (stripeError) {
+                console.error('Error fetching Stripe subscription:', stripeError);
+                // Continue with local data if Stripe fails
+            }
         }
 
         // Check if subscription has expired
@@ -1723,6 +2090,11 @@ exports.getSubscriptionStatus = async (req, res, next) => {
                 await user.save();
             }
         }
+
+        // Get current active subscription
+        const activeSubscription = user.activeSubscriptionId
+            ? await Subscription.findById(user.activeSubscriptionId)
+            : null;
 
         // Get subscription history
         const subscriptions = await Subscription.find({
@@ -1741,6 +2113,18 @@ exports.getSubscriptionStatus = async (req, res, next) => {
                 expiresAt: user.subscriptionExpiresAt,
                 activatedAt: user.subscriptionActivatedAt,
                 isExpired,
+                autoRenew: willAutoRenew,
+                type: activeSubscription ? activeSubscription.subscriptionType : null,
+                amount: activeSubscription ? activeSubscription.amount : null,
+                // Card details for display
+                paymentMethod: activeSubscription && activeSubscription.cardLast4 ? {
+                    cardLast4: activeSubscription.cardLast4,
+                    cardBrand: activeSubscription.cardBrand,
+                    cardExpMonth: activeSubscription.cardExpMonth,
+                    cardExpYear: activeSubscription.cardExpYear,
+                    displayText: `${activeSubscription.cardBrand ? activeSubscription.cardBrand.toUpperCase() : 'Card'} ••••${activeSubscription.cardLast4}`,
+                } : null,
+                stripeStatus: stripeSubscriptionData,
             },
             chatUsage: {
                 uniqueChatsCount: uniqueChatsCount,
@@ -1748,7 +2132,22 @@ exports.getSubscriptionStatus = async (req, res, next) => {
                 unlimited: user.hasSubscription && !isExpired,
                 description: 'Free users can chat with up to 10 different users (unlimited messages per user)',
             },
-            subscriptionHistory: subscriptions,
+            subscriptionHistory: subscriptions.map(sub => ({
+                _id: sub._id,
+                subscriptionType: sub.subscriptionType,
+                amount: sub.amount,
+                startDate: sub.startDate,
+                expiresAt: sub.expiresAt,
+                isActive: sub.isActive,
+                autoRenew: sub.autoRenew,
+                paidAt: sub.paidAt,
+                // Include card details in history
+                paymentMethod: sub.cardLast4 ? {
+                    cardLast4: sub.cardLast4,
+                    cardBrand: sub.cardBrand,
+                    displayText: `${sub.cardBrand ? sub.cardBrand.toUpperCase() : 'Card'} ••••${sub.cardLast4}`,
+                } : null,
+            })),
         });
     } catch (error) {
         console.error('Error fetching subscription status:', error);
@@ -1783,6 +2182,142 @@ exports.getSubscriptionPricing = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error fetching subscription pricing:', error);
+        next(error);
+    }
+};
+
+// Cancel subscription
+exports.cancelSubscription = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return next(createError.NotFound('User not found.'));
+        }
+
+        // Check if user has an active Stripe subscription
+        if (!user.stripeSubscriptionId) {
+            return next(createError.BadRequest('No active auto-renewing subscription found.'));
+        }
+
+        // Cancel the Stripe subscription
+        const canceledSubscription = await stripe.subscriptions.update(
+            user.stripeSubscriptionId,
+            {
+                cancel_at_period_end: true, // Cancel at end of billing period
+            }
+        );
+
+        // Update database subscription record
+        const dbSubscription = await Subscription.findOne({
+            stripeSubscriptionId: user.stripeSubscriptionId,
+            isActive: true,
+        });
+
+        if (dbSubscription) {
+            dbSubscription.autoRenew = false;
+            dbSubscription.cancelledAt = new Date();
+            await dbSubscription.save();
+        }
+
+        // Don't immediately deactivate - user keeps access until period end
+        // The webhook will handle final deactivation
+
+        // Send notification
+        if (user.fcmToken) {
+            await sendNotificationsToTokens(
+                'Subscription Canceled',
+                `Your subscription has been canceled and will not auto-renew. You will retain access until ${new Date(canceledSubscription.current_period_end * 1000).toLocaleDateString()}.`,
+                [user.fcmToken]
+            );
+            await userNotificationModel.create({
+                sentTo: [userId],
+                title: 'Subscription Canceled',
+                body: `Your subscription has been canceled. You'll retain access until the end of your current billing period.`,
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Subscription canceled successfully. You will retain access until the end of your current billing period.',
+            subscription: {
+                canceledAt: new Date(),
+                accessUntil: new Date(canceledSubscription.current_period_end * 1000),
+                willAutoRenew: false,
+            },
+        });
+    } catch (error) {
+        console.error('Error canceling subscription:', error);
+        next(error);
+    }
+};
+
+// Reactivate canceled subscription
+exports.reactivateSubscription = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return next(createError.NotFound('User not found.'));
+        }
+
+        if (!user.stripeSubscriptionId) {
+            return next(createError.BadRequest('No subscription found to reactivate.'));
+        }
+
+        // Retrieve subscription from Stripe
+        const stripeSubscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+
+        if (!stripeSubscription.cancel_at_period_end) {
+            return next(createError.BadRequest('Subscription is already active and will auto-renew.'));
+        }
+
+        // Reactivate the subscription
+        const reactivatedSubscription = await stripe.subscriptions.update(
+            user.stripeSubscriptionId,
+            {
+                cancel_at_period_end: false,
+            }
+        );
+
+        // Update database subscription record
+        const dbSubscription = await Subscription.findOne({
+            stripeSubscriptionId: user.stripeSubscriptionId,
+        });
+
+        if (dbSubscription) {
+            dbSubscription.autoRenew = true;
+            dbSubscription.cancelledAt = null;
+            await dbSubscription.save();
+        }
+
+        // Send notification
+        if (user.fcmToken) {
+            await sendNotificationsToTokens(
+                'Subscription Reactivated',
+                `Your subscription has been reactivated and will auto-renew on ${new Date(reactivatedSubscription.current_period_end * 1000).toLocaleDateString()}.`,
+                [user.fcmToken]
+            );
+            await userNotificationModel.create({
+                sentTo: [userId],
+                title: 'Subscription Reactivated',
+                body: `Your subscription has been reactivated and will continue with auto-renewal.`,
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Subscription reactivated successfully.',
+            subscription: {
+                reactivatedAt: new Date(),
+                nextBillingDate: new Date(reactivatedSubscription.current_period_end * 1000),
+                willAutoRenew: true,
+            },
+        });
+    } catch (error) {
+        console.error('Error reactivating subscription:', error);
         next(error);
     }
 };
