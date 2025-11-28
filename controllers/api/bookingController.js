@@ -656,7 +656,7 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                           booking.product?.title
                       } has been approved.${
                           allApproved
-                              ? ' All photos verified! Your deposit will be refunded shortly.'
+                              ? 'Your deposit will be refunded shortly.'
                               : ''
                       }`
                     : `One of your return photos for ${booking.product?.title} was rejected. Reason: ${photo.rejectionReason}`;
@@ -732,15 +732,14 @@ exports.reviewReturnPhoto = async (req, res, next) => {
 
                         // Notify renter about deposit refund
                         if (booking.user?.fcmToken) {
-                            await sendNotificationsToTokens(
-                                'Deposit Refunded',
-                                `Your deposit of AUD $${payment.depositAmount.toFixed(
-                                    2
-                                )} for ${
-                                    booking.product.title
-                                } has been refunded. It will appear in your account within 5-10 business days.`,
-                                [booking.user.fcmToken]
-                            );
+                   await sendNotificationsToTokens(
+                       'Deposit Refunded',
+                       `AUD $${payment.depositAmount.toFixed(2)} for ${
+                           booking.product.title
+                       } refunded. Arrives in 5–10 business days.`,
+                       [booking.user.fcmToken]
+                   );
+
                             await userNotificationModel.create({
                                 sentTo: [booking.user._id],
                                 title: 'Deposit Refunded',
@@ -826,7 +825,7 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                             2
                         )} for ${
                             booking.product.title
-                        } has been scheduled for ${payoutDateStr}. ${commissionInfo}. The deposit has been refunded to the renter.${
+                        } has been scheduled for ${payoutDateStr}. ${commissionInfo}.${
                             !owner.stripeConnectAccountId
                                 ? ' Please connect your Stripe account to receive payouts.'
                                 : ''
@@ -840,7 +839,7 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                             2
                         )} for ${
                             booking.product.title
-                        } has been scheduled for ${payoutDateStr}. ${commissionInfo}. The deposit has been refunded to the renter.${
+                        } has been scheduled for ${payoutDateStr}. ${commissionInfo}.${
                             !owner.stripeConnectAccountId
                                 ? ' Please connect your Stripe account to receive payouts.'
                                 : ''

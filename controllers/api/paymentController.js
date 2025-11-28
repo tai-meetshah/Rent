@@ -272,6 +272,12 @@ exports.confirmPayment = async (req, res, next) => {
         // Update payment status
         payment.paymentStatus = 'paid';
         payment.paidAt = new Date();
+        console.log("===============================");
+        console.log('paymentIntent: ', paymentIntent);
+        console.log('===============================');
+        console.log('paymentIntent: ', JSON.stringify(paymentIntent, null, 2));
+        console.log('===============================');
+
         payment.stripeChargeId = paymentIntent.latest_charge;
 
         await payment.save();

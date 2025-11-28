@@ -250,9 +250,9 @@ const socketHandler = io => {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const senderId = decoded._id;
 
-                // const senderUser = await User.findById(senderId).select(
-                //     'name photo hasSubscription subscriptionExpiresAt chattedWith'
-                // );
+                const senderUser = await User.findById(senderId).select(
+                    'name photo hasSubscription subscriptionExpiresAt chattedWith'
+                );
 
                 // // Check if subscription is expired
                 // const now = new Date();
