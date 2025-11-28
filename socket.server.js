@@ -13,7 +13,7 @@ const onlineUsers = new Map(); // ✅ In-memory store (userId -> socketId)
 
 const socketHandler = io => {
     io.on('connection', socket => {
-        console.log('🟢 Socket connected:', socket.id);
+        // console.log('🟢 Socket connected:', socket.id);
 
         // ==============================
         // 🔹 USER JOIN EVENT
@@ -30,7 +30,7 @@ const socketHandler = io => {
 
                 socket.join(userId);
 
-                console.log(`✅ User ${userId} joined (${socket.id})`);
+                // console.log(`✅ User ${userId} joined (${socket.id})`);
 
                 // ✅ Update MongoDB
                 await User.findByIdAndUpdate(userId, {
@@ -90,10 +90,6 @@ const socketHandler = io => {
                         images: [],
                     },
                 }));
-                console.log('|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||');
-
-                console.log('messages: ', messages);
-                console.log('|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||');
 
                 socket.emit('chatMessages', messages);
             } catch (error) {
@@ -254,6 +250,48 @@ const socketHandler = io => {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const senderId = decoded._id;
 
+                // const senderUser = await User.findById(senderId).select(
+                //     'name photo hasSubscription subscriptionExpiresAt chattedWith'
+                // );
+
+                // // Check if subscription is expired
+                // const now = new Date();
+                // if (
+                //     senderUser.hasSubscription &&
+                //     senderUser.subscriptionExpiresAt &&
+                //     senderUser.subscriptionExpiresAt < now
+                // ) {
+                //     // Subscription expired - deactivate it
+                //     senderUser.hasSubscription = false;
+                //     await senderUser.save();
+                // }
+
+                // if (!senderUser.hasSubscription) {
+                //     // Check if receiver is a new chat partner
+                //     const isExistingChat = senderUser.chattedWith.some(
+                //         userId => userId.toString() === receiver.toString()
+                //     );
+
+                //     // If this is a new chat partner and limit reached
+                //     if (!isExistingChat && senderUser.chattedWith.length >= 10) {
+                //         return socket.emit('receiveMessage', {
+                //             success: false,
+                //             error: 'Chat limit reached',
+                //             limitReached: true,
+                //             uniqueChatsCount: senderUser.chattedWith.length,
+                //             maxChats: 10,
+                //             message:
+                //                 'You have reached your free chat limit of 10 conversations. Please subscribe to chat with more users.',
+                //         });
+                //     }
+
+                //     // Add receiver to chatted list if not already there
+                //     if (!isExistingChat) {
+                //         senderUser.chattedWith.push(receiver);
+                //         await senderUser.save();
+                //     }
+                // }
+
                 let fileName = null;
 
                 if (image) {
@@ -292,30 +330,12 @@ const socketHandler = io => {
                     file: fileName ? `/uploads/${fileName}` : null,
                     date: date ? new Date(date) : new Date(), // ✅ use timestamp from Flutter
                 });
-                console.log("==============================================");
-                    console.log('chatMessage: ', chatMessage);
-                    console.log('=== TIMESTAMP DEBUG START ===');
-
-                    console.log('📩 Received from Flutter:', date);
-                    console.log('🕒 new Date(date) parsed:', new Date(date));
-
-                    console.log(
-                        '🕛 Server current UTC time:',
-                        new Date().toISOString()
-                    );
-
-                    console.log('=== TIMESTAMP DEBUG END ===');
-
-                console.log('==============================================');
 
                 const receiverUser = await User.findById(receiver).select(
                     'fcmToken name photo'
                 );
                 if (!receiverUser) throw new Error('Receiver not found');
 
-                const senderUser = await User.findById(senderId).select(
-                    'name photo'
-                );
                 const productData = await Product.findById(product).select(
                     'title'
                 );
@@ -352,12 +372,19 @@ const socketHandler = io => {
                     unreadCount: receiverUnreadCount,
                 });
 
-                // ✅ Echo back to sender
+                // ✅ Echo back to sender with subscription info
                 socket.emit('receiveMessage', {
                     success: true,
                     ...messageToSend,
                     fcmToken: receiverUser.fcmToken,
                     // unreadCount: senderUnreadCount,
+                    // subscriptionInfo: {
+                    //     hasSubscription: senderUser.hasSubscription,
+                    //     uniqueChatsCount: senderUser.chattedWith.length,
+                    //     remainingChats: senderUser.hasSubscription
+                    //         ? 'unlimited'
+                    //         : Math.max(0, 10 - senderUser.chattedWith.length),
+                    // },
                 });
 
                 // ✅ Send push notification to receiver
@@ -657,9 +684,9 @@ const socketHandler = io => {
                             lastSeen,
                         });
 
-                        console.log(
-                            `🔴 User ${userId} disconnected at ${lastSeen}`
-                        );
+                        // console.log(
+                        //     `🔴 User ${userId} disconnected at ${lastSeen}`
+                        // );
                     }
                     break;
                 }

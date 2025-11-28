@@ -41,6 +41,18 @@ app.use(i18nMiddleware.handle(i18n, { removeLngFromUrl: false }));
 // Serving static files
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Stripe webhook routes MUST come BEFORE express.json() to receive raw body
+app.use(
+    '/api/payment/webhook',
+    express.raw({ type: 'application/json' }),
+    require('./controllers/api/paymentController').stripeWebhook
+);
+app.use(
+    '/api/payment/stripe-connect/webhook',
+    express.raw({ type: 'application/json' }),
+    require('./controllers/api/paymentController').stripeConnectWebhook
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

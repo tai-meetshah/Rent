@@ -3,7 +3,8 @@
     "allow": [
       "Bash(node seedDummyPayments.js:*)",
       "Bash(node deleteDummyPayments.js:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(npm start)"
     ],
     "deny": [],
     "ask": []

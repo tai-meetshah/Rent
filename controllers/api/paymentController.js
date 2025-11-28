@@ -5,6 +5,7 @@ const Booking = require('../../models/Booking');
 const Product = require('../../models/product');
 const AdminCommission = require('../../models/AdminCommission');
 const User = require('../../models/userModel');
+const Subscription = require('../../models/subscriptionModel');
 const createError = require('http-errors');
 const { sendNotificationsToTokens } = require('../../utils/sendNotification');
 const userNotificationModel = require('../../models/userNotificationModel');
@@ -665,6 +666,7 @@ exports.getMyPayouts = async (req, res, next) => {
 // Webhook handler for Stripe events
 exports.stripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
+    console.log('sig: ', sig);
     let event;
 
     try {
@@ -1049,7 +1051,7 @@ exports.getStripeConnectAccountStatus = async (req, res, next) => {
         user.stripeOnboardingComplete =
             account.details_submitted && account.charges_enabled;
 
-        if (account.details_submitted && account.charges_enabled) {
+        if (account.details_submitted && account.charges_enabled && account.payouts_enabled) {
             user.stripeAccountStatus = 'verified';
         } else if (account.details_submitted) {
             user.stripeAccountStatus = 'pending';
@@ -1527,6 +1529,260 @@ exports.getPendingPayouts = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error fetching pending payouts:', error);
+        next(error);
+    }
+};
+
+// ============== SUBSCRIPTION PAYMENTS ==============
+
+// Define subscription pricing
+const SUBSCRIPTION_PRICES = {
+    monthly: 9.99,    // AUD $9.99 per month
+    yearly: 99.99,    // AUD $99.99 per year
+    lifetime: 299.99  // AUD $299.99 one-time
+};
+
+const SUBSCRIPTION_DURATIONS = {
+    monthly: 30,      // 30 days
+    yearly: 365,      // 365 days
+    lifetime: 36500   // 100 years (effectively lifetime)
+};
+
+// Create subscription payment intent
+exports.createSubscriptionPayment = async (req, res, next) => {
+    try {
+        const { subscriptionType = 'monthly' } = req.body;
+        const userId = req.user.id;
+
+        // Validate subscription type
+        if (!['monthly', 'yearly', 'lifetime'].includes(subscriptionType)) {
+            return next(createError.BadRequest('Invalid subscription type.'));
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return next(createError.NotFound('User not found.'));
+        }
+
+        // Check if user already has active subscription
+        if (user.hasSubscription && user.subscriptionExpiresAt > new Date()) {
+            return next(createError.BadRequest('You already have an active subscription.'));
+        }
+
+        const amount = SUBSCRIPTION_PRICES[subscriptionType];
+        const adminAmount = amount; // 100% goes to admin
+
+        // Create payment intent with Stripe
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(amount * 100), // Convert to cents
+            currency: 'aud',
+            metadata: {
+                userId: userId,
+                subscriptionType: subscriptionType,
+                purpose: 'chat_subscription',
+            },
+            description: `Chat Subscription - ${subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1)}`,
+            automatic_payment_methods: {
+                enabled: true,
+            },
+        });
+
+        // Create subscription record
+        const subscription = await Subscription.create({
+            user: userId,
+            subscriptionType,
+            amount,
+            currency: 'AUD',
+            adminAmount,
+            stripePaymentIntentId: paymentIntent.id,
+            paymentStatus: 'pending',
+        });
+
+        res.status(200).json({
+            success: true,
+            clientSecret: paymentIntent.client_secret,
+            paymentIntentId: paymentIntent.id,
+            subscriptionId: subscription._id,
+            amount,
+            currency: 'AUD',
+            subscriptionType,
+            message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(2)}.`,
+        });
+    } catch (error) {
+        console.error('Error creating subscription payment:', error);
+        next(error);
+    }
+};
+
+// Confirm subscription payment and activate subscription
+exports.confirmSubscriptionPayment = async (req, res, next) => {
+    try {
+        const { paymentIntentId } = req.body;
+        const userId = req.user.id;
+
+        // Verify payment with Stripe
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+        if (paymentIntent.status !== 'succeeded') {
+            return next(createError.BadRequest('Payment not completed.'));
+        }
+
+        // Find subscription record
+        const subscription = await Subscription.findOne({
+            stripePaymentIntentId: paymentIntentId,
+        }).populate('user', 'name email fcmToken');
+
+        if (!subscription) {
+            return next(createError.NotFound('Subscription record not found.'));
+        }
+
+        if (subscription.user._id.toString() !== userId) {
+            return next(createError.Forbidden('Unauthorized access.'));
+        }
+
+        // Update subscription status
+        subscription.paymentStatus = 'paid';
+        subscription.isActive = true;
+        subscription.paidAt = new Date();
+        subscription.startDate = new Date();
+        subscription.stripeChargeId = paymentIntent.latest_charge;
+
+        // Calculate expiration date
+        const durationDays = SUBSCRIPTION_DURATIONS[subscription.subscriptionType];
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + durationDays);
+        subscription.expiresAt = expiresAt;
+
+        await subscription.save();
+
+        // Update user subscription status
+        const user = await User.findById(userId);
+        user.hasSubscription = true;
+        user.subscriptionExpiresAt = expiresAt;
+        user.subscriptionActivatedAt = new Date();
+        // No need to reset chattedWith array - subscribed users have unlimited chats
+        user.lastChatReset = new Date();
+
+        await user.save();
+
+        // Send notification to user
+        if (user.fcmToken) {
+            await sendNotificationsToTokens(
+                'Subscription Activated',
+                `Your ${subscription.subscriptionType} chat subscription has been activated! You now have unlimited chat access${
+                    subscription.subscriptionType === 'lifetime'
+                        ? ' for lifetime'
+                        : ` until ${expiresAt.toLocaleDateString()}`
+                }.`,
+                [user.fcmToken]
+            );
+            await userNotificationModel.create({
+                sentTo: [userId],
+                title: 'Subscription Activated',
+                body: `Your ${subscription.subscriptionType} chat subscription has been activated! Enjoy unlimited chat.`,
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Subscription activated successfully.',
+            subscription: {
+                type: subscription.subscriptionType,
+                startDate: subscription.startDate,
+                expiresAt: subscription.expiresAt,
+                isActive: subscription.isActive,
+                amount: subscription.amount,
+            },
+        });
+    } catch (error) {
+        console.error('Error confirming subscription payment:', error);
+        next(error);
+    }
+};
+
+// Get user's subscription status
+exports.getSubscriptionStatus = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+
+        const user = await User.findById(userId).select(
+            'hasSubscription subscriptionExpiresAt subscriptionActivatedAt chattedWith'
+        );
+
+        if (!user) {
+            return next(createError.NotFound('User not found.'));
+        }
+
+        // Check if subscription has expired
+        let isExpired = false;
+        if (user.subscriptionExpiresAt && user.subscriptionExpiresAt < new Date()) {
+            isExpired = true;
+            // Auto-deactivate expired subscription
+            if (user.hasSubscription) {
+                user.hasSubscription = false;
+                await user.save();
+            }
+        }
+
+        // Get subscription history
+        const subscriptions = await Subscription.find({
+            user: userId,
+            paymentStatus: 'paid'
+        }).sort('-createdAt').limit(5);
+
+        // Calculate remaining unique chats
+        const uniqueChatsCount = user.chattedWith ? user.chattedWith.length : 0;
+        const remainingChats = user.hasSubscription ? 'unlimited' : Math.max(0, 10 - uniqueChatsCount);
+
+        res.status(200).json({
+            success: true,
+            subscription: {
+                hasActiveSubscription: user.hasSubscription && !isExpired,
+                expiresAt: user.subscriptionExpiresAt,
+                activatedAt: user.subscriptionActivatedAt,
+                isExpired,
+            },
+            chatUsage: {
+                uniqueChatsCount: uniqueChatsCount,
+                remainingChats,
+                unlimited: user.hasSubscription && !isExpired,
+                description: 'Free users can chat with up to 10 different users (unlimited messages per user)',
+            },
+            subscriptionHistory: subscriptions,
+        });
+    } catch (error) {
+        console.error('Error fetching subscription status:', error);
+        next(error);
+    }
+};
+
+// Get subscription pricing
+exports.getSubscriptionPricing = async (req, res, next) => {
+    try {
+        const pricing = Object.entries(SUBSCRIPTION_PRICES).map(([type, price]) => ({
+            type,
+            price,
+            currency: 'AUD',
+            duration: SUBSCRIPTION_DURATIONS[type],
+            features: [
+                'Unlimited chat messages',
+                'No daily limits',
+                'Priority support',
+                type === 'lifetime' ? 'One-time payment' : `${type.charAt(0).toUpperCase() + type.slice(1)} billing`,
+            ],
+        }));
+
+        res.status(200).json({
+            success: true,
+            pricing,
+            freePlan: {
+                limit: 10,
+                description: 'Free users can chat with up to 10 different users (unlimited messages per conversation)',
+            },
+            message: 'All subscription payments go directly to platform admin.',
+        });
+    } catch (error) {
+        console.error('Error fetching subscription pricing:', error);
         next(error);
     }
 };
