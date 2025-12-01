@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const Booking = require('../../models/Booking');
 const Product = require('../../models/product');
 const Review = require('../../models/reviewModel');
+const Payment = require('../../models/paymentModel');
+const AdminCommission = require('../../models/AdminCommission');
 const enquiryModel = require('../../models/enquiryModel');
 const userNotificationModel = require('../../models/userNotificationModel');
 const { sendNotificationsToTokens } = require('../../utils/sendNotification');
@@ -87,12 +89,10 @@ exports.checkAvailability = async (req, res, next) => {
         // console.log('dates: ', dates);
 
         if (!productId || !Array.isArray(dates)) {
-            return res
-                .status(400)
-                .json({
-                    success: false,
-                    message: 'productId and dates[] are required',
-                });
+            return res.status(400).json({
+                success: false,
+                message: 'productId and dates[] are required',
+            });
         }
         const product = await Product.findById(productId).select(
             '_id selectDate allDaysAvailable stockQuantity'
@@ -196,12 +196,10 @@ exports.createBooking = async (req, res, next) => {
             } catch (_) {}
         }
         if (!productId || !Array.isArray(bookedDates) || !deliveryType) {
-            return res
-                .status(400)
-                .json({
-                    success: false,
-                    message: 'Required: productId, bookedDates[], deliveryType',
-                });
+            return res.status(400).json({
+                success: false,
+                message: 'Required: productId, bookedDates[], deliveryType',
+            });
         }
 
         if (typeof address === 'string') {
@@ -253,39 +251,39 @@ exports.createBooking = async (req, res, next) => {
         // console.log('data: ', data);
 
         // Send notification to seller about new booking
-        if (product.user) {
-            await sendNotificationsToTokens(
-                `New booking request for ${product.title}`,
-                `You have received a new booking request from ${
-                    req.user.name || 'a customer'
-                }.`,
-                [product.user.fcmToken]
-            );
-            await userNotificationModel.create({
-                sentTo: [product.user._id],
-                title: `New booking request for ${product.title}`,
-                body: `You have received a new booking request from ${
-                    req.user.name || 'a customer'
-                }.`,
-            });
-        }
+        // if (product.user) {
+        //     await sendNotificationsToTokens(
+        //         `New booking request for ${product.title}`,
+        //         `You have received a new booking request from ${
+        //             req.user.name || 'a customer'
+        //         }.`,
+        //         [product.user.fcmToken]
+        //     );
+        //     await userNotificationModel.create({
+        //         sentTo: [product.user._id],
+        //         title: `New booking request for ${product.title}`,
+        //         body: `You have received a new booking request from ${
+        //             req.user.name || 'a customer'
+        //         }.`,
+        //     });
+        // }
 
-        if (req.user.fcmToken) {
-            await sendNotificationsToTokens(
-                `Booking request for ${product.title}`,
-                `Your booking request for ${product.title} has been sent.`,
-                [req.user.fcmToken]
-            );
-            await userNotificationModel.create({
-                sentTo: [req.user.id],
-                title: `Booking request for ${product.title}`,
-                body: `Your booking request for ${product.title} has been sent.`,
-            });
-        }
+        // if (req.user.fcmToken) {
+        //     await sendNotificationsToTokens(
+        //         `Booking request for ${product.title}`,
+        //         `Your booking request for ${product.title} has been sent.`,
+        //         [req.user.fcmToken]
+        //     );
+        //     await userNotificationModel.create({
+        //         sentTo: [req.user.id],
+        //         title: `Booking request for ${product.title}`,
+        //         body: `Your booking request for ${product.title} has been sent.`,
+        //     });
+        // }
         res.status(201).json({
             success: true,
             message: 'Booking created successfully.',
-            data : data._id
+            data: data._id,
         });
     } catch (error) {
         console.log(error);
@@ -300,6 +298,7 @@ exports.getMyBookings = async (req, res, next) => {
         const bookings = await Booking.find({
             user: req.user.id,
             status: { $in: ['pending', 'cancelled'] },
+            paymentStatus: { $in: ['paid'] },
         })
             .sort('-createdAt')
             .populate({
@@ -337,6 +336,7 @@ exports.getSellerBookings = async (req, res, next) => {
 
         const bookings = await Booking.find({
             status: { $in: ['pending', 'cancelled'] },
+            paymentStatus: { $in: ['paid'] },
             product: { $in: productIds },
         })
             .populate([
@@ -399,27 +399,258 @@ exports.cancelBooking = async (req, res, next) => {
                 .status(404)
                 .json({ success: false, message: 'Booking not found.' });
 
-        booking.status = 'cancelled';
-        await booking.save();
+        const product = booking.product;
 
-        if (booking.product && booking.product.user) {
-            await sendNotificationsToTokens(
-                `Booking cancelled for ${booking.product.title}`,
-                `Booking has been cancelled by ${
-                    booking.user.name || 'the customer'
-                }.`,
-                [booking.product.user.fcmToken]
-            );
-            await userNotificationModel.create({
-                sentTo: [booking.product.user._id],
-                title: `Booking cancelled for ${booking.product.title}`,
-                body: `Booking has been cancelled by ${
-                    booking.user.name || 'the customer'
-                }.`,
+        // Compute cancellation charge based on product.oCancellationCharges
+        let chargeAmount = 0;
+        let chargePercentage = 0;
+
+        if (
+            product &&
+            product.oCancellationCharges &&
+            product.oCancellationCharges.length > 0
+        ) {
+            const now = new Date();
+            const bookingStartDate =
+                booking.bookedDates && booking.bookedDates.length > 0
+                    ? new Date(booking.bookedDates[0].date)
+                    : booking.startDate
+                    ? new Date(booking.startDate)
+                    : null;
+
+            if (bookingStartDate) {
+                const hoursDifference =
+                    (bookingStartDate - now) / (1000 * 60 * 60);
+
+                const sortedCharges = [...product.oCancellationCharges]
+                    .filter(
+                        c =>
+                            c.hoursBefore &&
+                            c.chargeAmount !== undefined &&
+                            c.chargeAmount !== null
+                    )
+                    .sort(
+                        (a, b) =>
+                            parseFloat(b.hoursBefore) -
+                            parseFloat(a.hoursBefore)
+                    );
+
+                for (const c of sortedCharges) {
+                    if (hoursDifference <= parseFloat(c.hoursBefore)) {
+                        chargePercentage = parseFloat(c.chargeAmount) || 0;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Determine base amount to calculate cancellation charge (prefer booking.totalPrice, then advancePayment, then payment.totalAmount)
+        // let baseAmount = booking.totalPrice || booking.advancePayment || 0;
+        let baseAmount;
+        const existingPayment = await Payment.findOne({ booking: booking._id });
+        if ((!baseAmount || baseAmount === 0) && existingPayment) {
+            baseAmount = existingPayment.rentalAmount || 0;
+        }
+
+        if (chargePercentage > 0 && baseAmount > 0) {
+            // chargeAmount = (baseAmount * chargePercentage) / 100;
+            chargeAmount = baseAmount - chargePercentage;
+        }
+
+        // If there's no payment, just cancel and record charges on booking
+        if (!existingPayment) {
+            booking.status = 'cancelled';
+            booking.cancellationCharges = chargeAmount;
+            booking.cancellationPercentage = chargePercentage;
+            booking.cancellationInitiatedBy = req.user.id;
+            booking.cancellationInitiatedAt = new Date();
+            await booking.save();
+
+            // Notify vendor
+            if (booking.product && booking.product.user) {
+                await sendNotificationsToTokens(
+                    `Booking cancelled for ${booking.product.title}`,
+                    `Booking has been cancelled by ${
+                        booking.user.name || 'the customer'
+                    }.`,
+                    [booking.product.user.fcmToken]
+                );
+                await userNotificationModel.create({
+                    sentTo: [booking.product.user._id],
+                    title: `Booking cancelled for ${booking.product.title}`,
+                    body: `Booking has been cancelled by ${
+                        booking.user.name || 'the customer'
+                    }.`,
+                });
+            }
+
+            return res.json({
+                success: true,
+                message: 'Booking cancelled.',
+                cancellationCharges: chargeAmount,
             });
         }
 
-        res.json({ success: true, message: 'Booking cancelled.' });
+        // If payment exists, process refund and allocate cancellation charge
+        let refundAmount = Math.max(
+            0,
+            existingPayment.totalAmount - chargeAmount
+        );
+
+        try {
+            if (existingPayment.paymentStatus === 'paid' && refundAmount > 0) {
+                const refund = await stripe.refunds.create({
+                    charge: existingPayment.stripeChargeId,
+                    amount: Math.round(refundAmount * 100),
+                    reason: 'requested_by_customer',
+                    metadata: {
+                        bookingId: booking._id.toString(),
+                        paymentId: existingPayment._id.toString(),
+                        cancellation: true,
+                    },
+                });
+
+                existingPayment.refundAmount = refundAmount;
+                existingPayment.cancellationCharges = chargeAmount;
+                existingPayment.cancellationChargesPercentage =
+                    chargePercentage;
+                existingPayment.stripeRefundId = refund.id;
+                existingPayment.refundReason = 'Cancellation';
+                existingPayment.refundedAt = new Date();
+                existingPayment.paymentStatus =
+                    chargeAmount > 0 ? 'partially_refunded' : 'refunded';
+            } else if (
+                existingPayment.paymentStatus === 'paid' &&
+                refundAmount === 0
+            ) {
+                // No refund, but record cancellation
+                existingPayment.cancellationCharges = chargeAmount;
+                existingPayment.cancellationChargesPercentage =
+                    chargePercentage;
+            }
+
+            // Allocate cancellation charge between admin and vendor using AdminCommission
+            const commissionRecord = await AdminCommission.findOne({
+                isActive: true,
+            });
+            let adminCommissionAmount = 0;
+            if (commissionRecord) {
+                if (commissionRecord.commissionType === 'fixed') {
+                    adminCommissionAmount = parseFloat(
+                        commissionRecord.fixedAmount || 0
+                    );
+                } else {
+                    const percent = parseFloat(
+                        commissionRecord.percentage || 0
+                    );
+                    adminCommissionAmount = (chargeAmount * percent) / 100;
+                }
+            }
+
+            // Ensure adminCommissionAmount does not exceed chargeAmount
+            adminCommissionAmount = Math.min(
+                adminCommissionAmount,
+                chargeAmount
+            );
+            const vendorShare = chargeAmount - adminCommissionAmount;
+
+            existingPayment.cancellationAdminCommission = adminCommissionAmount;
+            existingPayment.cancellationVendorAmount = vendorShare;
+
+            await existingPayment.save();
+        } catch (stripeError) {
+            console.error(
+                'Stripe refund error during cancellation:',
+                stripeError
+            );
+            return res.status(400).json({
+                success: false,
+                message: `Failed to process refund: ${stripeError.message}`,
+            });
+        }
+
+        // Update booking
+        booking.status = 'cancelled';
+        booking.cancellationCharges = chargeAmount;
+        booking.refundAmount = refundAmount;
+        booking.cancellationInitiatedBy = req.user.id;
+        booking.cancellationInitiatedAt = new Date();
+        await booking.save();
+
+        // Notify renter
+        if (booking.user && booking.user.fcmToken) {
+            let message = '';
+            if (refundAmount > 0 && chargeAmount > 0) {
+                message = `Your booking has been cancelled. Cancellation charges: AUD $${chargeAmount.toFixed(
+                    2
+                )} (${chargePercentage}%). Refund amount: AUD $${refundAmount.toFixed(
+                    2
+                )} will be processed in 5-10 business days.`;
+            } else if (refundAmount > 0) {
+                message = `Your booking has been cancelled. Full refund of AUD $${refundAmount.toFixed(
+                    2
+                )} will be processed in 5-10 business days.`;
+            } else {
+                message = `Your booking has been cancelled. Cancellation charges of AUD $${chargeAmount.toFixed(
+                    2
+                )} (${chargePercentage}%) applied. No refund available.`;
+            }
+
+            await sendNotificationsToTokens('Booking Cancelled', message, [
+                booking.user.fcmToken,
+            ]);
+            await userNotificationModel.create({
+                sentTo: [booking.user._id],
+                title: 'Booking Cancelled',
+                body: message,
+            });
+        }
+
+        // Notify owner (vendor)
+        const owner = await require('../../models/userModel').findById(
+            product.user
+        );
+        if (owner && owner.fcmToken) {
+            const adminInfo = `Admin commission from cancellation: AUD $${
+                existingPayment.cancellationAdminCommission
+                    ? existingPayment.cancellationAdminCommission.toFixed(2)
+                    : '0.00'
+            }`;
+            await sendNotificationsToTokens(
+                'Booking Cancelled',
+                `Booking for ${product.title} has been cancelled. ${
+                    chargeAmount > 0
+                        ? `Cancellation charges: AUD $${chargeAmount.toFixed(
+                              2
+                          )}. ${adminInfo}`
+                        : ''
+                }`,
+                [owner.fcmToken]
+            );
+            await userNotificationModel.create({
+                sentTo: [owner._id],
+                title: 'Booking Cancelled',
+                body: `Booking for ${product.title} has been cancelled. ${
+                    chargeAmount > 0
+                        ? `Cancellation charges: AUD $${chargeAmount.toFixed(
+                              2
+                          )}. ${adminInfo}`
+                        : ''
+                }`,
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Booking cancelled successfully.',
+            refundAmount,
+            cancellationCharges: chargeAmount,
+            cancellationPercentage: chargePercentage,
+            cancellationAdminCommission:
+                existingPayment.cancellationAdminCommission,
+            cancellationVendorAmount: existingPayment.cancellationVendorAmount,
+            booking,
+        });
     } catch (error) {
         next(error);
     }
@@ -429,80 +660,119 @@ exports.cancelBooking = async (req, res, next) => {
 exports.updateStatus = async (req, res, next) => {
     try {
         const { bookingId, status } = req.body;
-        const allowed = [
-            'pending',
-            'confirmed',
-            'ongoing',
-            'completed',
-            'cancelled',
-        ];
+        const allowed = ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled'];
 
         if (!allowed.includes(status)) {
-            return res
-                .status(400)
-                .json({ success: false, message: 'Invalid status' });
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid status'
+            });
         }
 
         const booking = await Booking.findOne({ _id: bookingId })
             .populate('product')
-            .populate('user', 'name fcmToken');
+            .populate('user', 'name email fcmToken');
+
         if (!booking) {
-            return res
-                .status(404)
-                .json({ success: false, message: 'Booking not found.' });
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found.'
+            });
         }
 
-        const isSeller =
-            booking.product?.user?.toString() === req.user.id.toString();
+        const isSeller = booking.product?.user?.toString() === req.user.id.toString();
         if (!isSeller) {
-            return res
-                .status(403)
-                .json({
-                    success: false,
-                    message: 'Unauthorized: Only seller can update status.',
-                });
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized: Only seller can update status.'
+            });
         }
 
-        // Update and save status
+        /** -----------------------------------------
+         *  SELLER CANCELS → FULL REFUND (rental + deposit)
+         * ------------------------------------------ */
+        let refundAmount = 0;
+        let payment = await Payment.findOne({ booking: booking._id });
+
+        if (status === 'cancelled' && payment && payment.paymentStatus === 'paid') {
+            try {
+                // Full refund = rentalAmount + depositAmount
+                refundAmount = Number(payment.rentalAmount || 0) + Number(payment.depositAmount || 0);
+
+                const refund = await stripe.refunds.create({
+                    charge: payment.stripeChargeId,
+                    amount: Math.round(refundAmount * 100),
+                    reason: 'requested_by_customer',
+                    metadata: {
+                        type: 'seller_cancellation',
+                        bookingId: booking._id.toString(),
+                        paymentId: payment._id.toString()
+                    }
+                });
+
+                // Update payment record
+                payment.refundAmount = refundAmount;
+                payment.stripeRefundId = refund.id;
+                payment.refundedAt = new Date();
+                payment.paymentStatus = 'refunded';
+                payment.cancellationCharges = 0;
+                payment.cancellationAdminCommission = 0;
+                payment.cancellationVendorAmount = 0;
+                await payment.save();
+
+            } catch (err) {
+                console.error("Stripe refund error:", err);
+                return res.status(400).json({
+                    success: false,
+                    message: `Refund failed: ${err.message}`
+                });
+            }
+        }
+
+        // Update booking status
         booking.status = status;
+        if (status === 'cancelled') {
+            booking.cancellationInitiatedBy = req.user.id;
+            booking.cancellationInitiatedAt = new Date();
+            booking.cancellationCharges = 0;
+            booking.refundAmount = refundAmount;
+        }
         await booking.save();
 
-        // Send notification to renter about status change
-        if (booking.user) {
-            let notificationMessage = '';
-            switch (status) {
-                case 'confirmed':
-                    notificationMessage = `Your booking for ${booking.product.title} has been confirmed!`;
-                    break;
-                case 'ongoing':
-                    notificationMessage = `Your booking for ${booking.product.title} is now ongoing.`;
-                    break;
-                case 'completed':
-                    notificationMessage = `Your booking for ${booking.product.title} has been completed.`;
-                    break;
-                case 'cancelled':
-                    notificationMessage = `Your booking for ${booking.product.title} has been cancelled by the seller.`;
-                    break;
-                default:
-                    notificationMessage = `Your booking for ${booking.product.title} status has been updated to ${status}.`;
-            }
+        /** ---------------------
+         * SEND NOTIFICATIONS
+         * -------------------- */
 
-            // console.log('booking: ', booking);
+        if (booking.user && booking.user.fcmToken) {
+            let bodyMsg = '';
+
+            if (status === 'cancelled') {
+                bodyMsg = `Your booking for ${booking.product.title} was cancelled by the seller.
+A full refund of AUD $${refundAmount.toFixed(2)} will be processed in 5–10 business days.`;
+            } else {
+                bodyMsg = `Your booking for ${booking.product.title} status updated to: ${status}.`;
+            }
 
             await sendNotificationsToTokens(
                 `Booking Status Updated - ${booking.product.title}`,
-                notificationMessage,
+                bodyMsg,
                 [booking.user.fcmToken]
             );
-            let data = await userNotificationModel.create({
+
+            await userNotificationModel.create({
                 sentTo: [booking.user._id],
                 title: `Booking Status Updated - ${booking.product.title}`,
-                body: notificationMessage,
+                body: bodyMsg,
             });
-            // console.log('data: ', data);
         }
 
-        res.json({ success: true, message: 'Status updated.', booking });
+        return res.json({
+            success: true,
+            message: 'Status updated.',
+            booking,
+            refundAmount: refundAmount || 0,
+        });
+
     } catch (error) {
         next(error);
     }
@@ -723,7 +993,11 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                                 refundType: 'deposit',
                             },
                         });
-                        console.log(`Deposit refund created: ${depositRefund.id} - AUD $${(depositRefund.amount / 100).toFixed(2)}`);
+                        console.log(
+                            `Deposit refund created: ${
+                                depositRefund.id
+                            } - AUD $${(depositRefund.amount / 100).toFixed(2)}`
+                        );
 
                         payment.depositRefundId = depositRefund.id;
                         payment.depositRefundedAt = new Date();
@@ -732,7 +1006,11 @@ exports.reviewReturnPhoto = async (req, res, next) => {
 
                         // Note: Deposit refund notification will be sent by the webhook handler
                         // when Stripe confirms the refund has succeeded (refund.updated event)
-                        console.log(`Deposit refund initiated: ${depositRefund.id} for booking ${booking._id.toString()}`)
+                        console.log(
+                            `Deposit refund initiated: ${
+                                depositRefund.id
+                            } for booking ${booking._id.toString()}`
+                        );
                     } catch (refundError) {
                         console.error('Error refunding deposit:', refundError);
                         return res.status(400).json({
@@ -773,7 +1051,11 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                 await payment.save();
 
                 console.log(
-                    `✓ Payout scheduled: AUD $${payment.ownerPayoutAmount.toFixed(2)} for owner ${owner._id} on ${scheduledPayoutDate.toISOString()}`
+                    `✓ Payout scheduled: AUD $${payment.ownerPayoutAmount.toFixed(
+                        2
+                    )} for owner ${
+                        owner._id
+                    } on ${scheduledPayoutDate.toISOString()}`
                 );
 
                 // STEP 3: Update booking to completed
@@ -791,10 +1073,12 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                                   payment.commissionPercentage
                               }%): AUD $${payment.commissionAmount.toFixed(2)}`;
 
-                    const payoutDateStr = scheduledPayoutDate.toLocaleDateString(
-                        'en-AU',
-                        { year: 'numeric', month: 'long', day: 'numeric' }
-                    );
+                    const payoutDateStr =
+                        scheduledPayoutDate.toLocaleDateString('en-AU', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                        });
 
                     await sendNotificationsToTokens(
                         'Payout Scheduled',
@@ -894,12 +1178,10 @@ exports.reuploadRejectedPhoto = async (req, res, next) => {
         }
 
         if (!req.file) {
-            return res
-                .status(400)
-                .json({
-                    success: false,
-                    message: 'New photo file is required.',
-                });
+            return res.status(400).json({
+                success: false,
+                message: 'New photo file is required.',
+            });
         }
 
         photo.url = `/${req.file.filename}`;
@@ -1270,13 +1552,11 @@ exports.editBookingByRental = async (req, res, next) => {
         const isRentalOwner =
             booking.user?._id?.toString() === req.user.id.toString();
         if (!isRentalOwner) {
-            return res
-                .status(403)
-                .json({
-                    success: false,
-                    message:
-                        'Unauthorized: Only rental owner can edit this booking.',
-                });
+            return res.status(403).json({
+                success: false,
+                message:
+                    'Unauthorized: Only rental owner can edit this booking.',
+            });
         }
 
         // Check if booking can be edited (only pending or confirmed bookings)
@@ -1393,7 +1673,7 @@ exports.editBookingByRental = async (req, res, next) => {
     }
 };
 
-// not use
+// Seller cancels booking: refund full amount (rental + deposit) to renter
 exports.cancelBookingBySeller = async (req, res, next) => {
     try {
         const { bookingId, reason } = req.body;
@@ -1405,28 +1685,30 @@ exports.cancelBookingBySeller = async (req, res, next) => {
         }
 
         const booking = await Booking.findOne({ _id: bookingId })
-            .populate('product')
-            .populate('user', 'name fcmToken');
+            .populate({
+                path: 'product',
+                populate: { path: 'user', select: 'name email fcmToken' },
+            })
+            .populate('user', 'name email fcmToken')
+            .populate('payment');
+
         if (!booking) {
             return res
                 .status(404)
                 .json({ success: false, message: 'Booking not found.' });
         }
 
-        // Check if the current user is the rental owner (product owner)
-        const isRentalOwner =
-            booking.user?._id?.toString() === req.user.id.toString();
-        if (!isRentalOwner) {
-            return res
-                .status(403)
-                .json({
-                    success: false,
-                    message:
-                        'Unauthorized: Only rental owner can cancel this booking.',
-                });
+        // Verify current user is the product owner (seller)
+        const isSeller =
+            booking.product?.user?.toString() === req.user.id.toString();
+        if (!isSeller) {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized: Only seller can cancel this booking.',
+            });
         }
 
-        // Check if booking can be cancelled (not already completed or cancelled)
+        // Check if booking can be cancelled
         if (booking.status === 'completed') {
             return res.status(400).json({
                 success: false,
@@ -1441,28 +1723,101 @@ exports.cancelBookingBySeller = async (req, res, next) => {
             });
         }
 
-        // Update booking status
+        // If payment exists and was paid, refund full amount (rental + deposit)
+        const payment = booking.payment;
+        if (payment && payment.paymentStatus === 'paid') {
+            if (!payment.stripeChargeId) {
+                console.error(
+                    'Missing stripeChargeId for payment:',
+                    payment._id
+                );
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        'Payment charge id missing. Please refund the user manually.',
+                });
+            }
+
+            const fullRefundAmount =
+                payment.totalAmount ||
+                payment.rentalAmount + (payment.depositAmount || 0);
+
+            try {
+                const refund = await stripe.refunds.create({
+                    charge: payment.stripeChargeId,
+                    amount: Math.round(fullRefundAmount * 100),
+                    reason: 'requested_by_customer',
+                    metadata: {
+                        bookingId: booking._id.toString(),
+                        paymentId: payment._id.toString(),
+                        cancelledBy: 'seller',
+                    },
+                });
+
+                payment.refundAmount = fullRefundAmount;
+                payment.cancellationCharges = 0;
+                payment.cancellationChargesPercentage = 0;
+                payment.cancellationAdminCommission = 0;
+                payment.cancellationVendorAmount = 0;
+                payment.stripeRefundId = refund.id;
+                payment.refundedAt = new Date();
+                payment.paymentStatus = 'refunded';
+                await payment.save();
+            } catch (stripeError) {
+                console.error(
+                    'Stripe refund error (seller cancellation):',
+                    stripeError
+                );
+                return res.status(400).json({
+                    success: false,
+                    message: `Failed to process refund: ${stripeError.message}`,
+                });
+            }
+        }
+
+        // Update booking record
         booking.status = 'cancelled';
         if (reason) booking.cancellationReason = reason;
+        booking.cancellationInitiatedBy = 'seller';
+        booking.cancellationInitiatedAt = new Date();
+        booking.refundAmount = payment ? payment.refundAmount || 0 : 0;
+        booking.cancellationCharges = 0;
         await booking.save();
 
-        // Send notification to renter about booking cancellation
+        // Notify renter about refund
         if (booking.user && booking.user.fcmToken) {
             await sendNotificationsToTokens(
                 `Booking Cancelled - ${booking.product.title}`,
-                `Your booking for ${booking.product.title} has been cancelled successfully.`,
+                `Your booking for ${
+                    booking.product.title
+                } was cancelled by the seller. A full refund of AUD $${(
+                    booking.refundAmount || 0
+                ).toFixed(2)} will be processed in 5-10 business days.`,
                 [booking.user.fcmToken]
             );
             await userNotificationModel.create({
                 sentTo: [booking.user._id],
                 title: `Booking Cancelled - ${booking.product.title}`,
-                body: `Your booking for ${booking.product.title} has been cancelled successfully.`,
+                body: `Your booking for ${
+                    booking.product.title
+                } was cancelled by the seller. A full refund of AUD $${(
+                    booking.refundAmount || 0
+                ).toFixed(2)} will be processed in 5-10 business days.`,
             });
+        }
+
+        // Notify seller (confirmation)
+        if (booking.product?.user && booking.product.user.fcmToken) {
+            await sendNotificationsToTokens(
+                `You cancelled booking - ${booking.product.title}`,
+                `You have cancelled the booking for ${booking.product.title}. The renter will be refunded the full amount.`,
+                [booking.product.user.fcmToken]
+            );
         }
 
         res.json({
             success: true,
-            message: 'Booking cancelled successfully.',
+            message: 'Booking cancelled and refund initiated.',
             booking,
         });
     } catch (error) {

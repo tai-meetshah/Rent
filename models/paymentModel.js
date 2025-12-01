@@ -123,6 +123,7 @@ const paymentSchema = new mongoose.Schema(
         },
 
         refundReason: String,
+        rentalDays: String,
         stripeRefundId: String,
         // Cancellation
         cancellationCharges: {
@@ -133,6 +134,15 @@ const paymentSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        // Cancellation split: admin commission and vendor share of the cancellation charge
+        cancellationAdminCommission: {
+            type: Number,
+            default: 0,
+        },
+        cancellationVendorAmount: {
+            type: Number,
+            default: 0,
+        },
         // Dates
         paidAt: Date,
         payoutAt: Date,
@@ -140,7 +150,7 @@ const paymentSchema = new mongoose.Schema(
         depositRefundId: {
             type: String,
         },
-        depositRefunded : Boolean,
+        depositRefunded: Boolean,
         depositRefundedAt: {
             type: Date,
         },

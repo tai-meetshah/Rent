@@ -13,7 +13,6 @@ router.post('/check-availability', fileUpload(), checkUser, bookingController.ch
 router.post('/my-bookings', upload.single('verificationId'), checkUser, bookingController.createBooking);
 router.get('/my-bookings', checkUser, bookingController.getMyBookings);
 router.get('/my-bookings/:id', checkUser, bookingController.getBookingById);
-router.post('/cancel', fileUpload(), checkUser, bookingController.cancelBooking);
 
 router.get('/seller-bookings', checkUser, bookingController.getSellerBookings);
 router.post('/status', fileUpload(), checkUser, bookingController.updateStatus); //By seller

@@ -74,9 +74,9 @@ const calculateCommission = (totalAmount, commissionSettings) => {
 
 // Calculate Stripe processing fees
 // Stripe Australia charges: 1.75% + $0.30 AUD per transaction
-const calculateStripeProcessingFee = (amount) => {
+const calculateStripeProcessingFee = amount => {
     const percentageFee = amount * 0.0175; // 1.75%
-    const fixedFee = 0.30; // $0.30 AUD
+    const fixedFee = 0.3; // $0.30 AUD
     return percentageFee + fixedFee;
 };
 
@@ -109,12 +109,36 @@ exports.createPaymentIntent = async (req, res, next) => {
         // }
 
         const product = booking.product;
-        const rentalPrice = Number(product.price || 0);
+
+        // Determine rental days
+        let rentalDays = 1;
+        if (
+            Array.isArray(booking.bookedDates) &&
+            booking.bookedDates.length > 0
+        ) {
+            rentalDays = booking.bookedDates.length;
+        } else if (booking.startDate && booking.endDate) {
+            try {
+                const start = new Date(booking.startDate);
+                const end = new Date(booking.endDate);
+                const diffMs = Math.abs(end - start);
+                const msPerDay = 1000 * 60 * 60 * 24;
+                rentalDays = Math.max(1, Math.ceil(diffMs / msPerDay));
+            } catch (err) {
+                rentalDays = 1;
+            }
+        }
+
+        // Base price per day
+        const basePricePerDay = Number(product.price || 0);
+        // Total rental amount for the booking (price * days)
+        const rentalPrice = basePricePerDay * rentalDays;
+
         const depositAmount = product.deposit
             ? Number(product.depositAmount || 0)
             : 0;
 
-        // Total amount = rental price + deposit
+        // Total amount = rental price (for all days) + deposit
         const totalAmount = rentalPrice + depositAmount;
 
         if (!totalAmount || totalAmount <= 0) {
@@ -155,6 +179,7 @@ exports.createPaymentIntent = async (req, res, next) => {
                 ownerId: product.user.toString(),
                 productId: product._id.toString(),
                 rentalAmount: rentalPrice.toString(),
+                rentalDays: rentalDays.toString(),
                 depositAmount: depositAmount.toString(),
             },
             description: `Rental payment for ${product.title}`,
@@ -172,6 +197,7 @@ exports.createPaymentIntent = async (req, res, next) => {
             totalAmount,
             depositAmount: depositAmount,
             rentalAmount: rentalPrice,
+            rentalDays,
             commissionType: commissionSettings.commissionType,
             commissionPercentage:
                 commissionSettings.commissionType === 'percentage'
@@ -272,8 +298,6 @@ exports.confirmPayment = async (req, res, next) => {
         // Update payment status
         payment.paymentStatus = 'paid';
         payment.paidAt = new Date();
-        console.log(`✓ Payment confirmed: ${paymentIntent.id} - Charge: ${paymentIntent.latest_charge}`);
-
         payment.stripeChargeId = paymentIntent.latest_charge;
 
         await payment.save();
@@ -712,11 +736,9 @@ exports.stripeWebhook = async (req, res) => {
             // **Handle the refund.updated event** for deposit refunds
             case 'refund.updated':
                 const refund = event.data.object;
-                console.log(`Refund status updated: ${refund.id} - Status: ${refund.status}`);
 
                 // Check if the refund status is "succeeded"
                 if (refund.status === 'succeeded') {
-                    console.log(`✓ Refund succeeded: ${refund.id} - Amount: ${(refund.amount / 100).toFixed(2)} ${refund.currency.toUpperCase()}`);
 
                     const bookingId = refund.metadata.bookingId; // Assuming you stored the booking ID in metadata
                     const paymentId = refund.metadata.paymentId; // You can store paymentId in metadata too if needed
@@ -727,7 +749,6 @@ exports.stripeWebhook = async (req, res) => {
                         payment.depositRefunded = true;
                         payment.depositRefundedAt = new Date();
                         await payment.save();
-                        console.log(`✓ Refund processed successfully for booking ${bookingId}`);
 
                         // Update the booking status, mark as refunded, etc.
                         const booking = await Booking.findById(bookingId);
@@ -738,9 +759,13 @@ exports.stripeWebhook = async (req, res) => {
 
                         // Notify renter about refund
                         const renter = await User.findById(booking.user);
-                        const booking_populated = await Booking.findById(bookingId).populate('product', 'title');
+                        const booking_populated = await Booking.findById(
+                            bookingId
+                        ).populate('product', 'title');
                         if (renter && renter.fcmToken && booking_populated) {
-                            const refundAmount = (refund.amount / 100).toFixed(2);
+                            const refundAmount = (refund.amount / 100).toFixed(
+                                2
+                            );
                             const currency = refund.currency.toUpperCase();
                             await sendNotificationsToTokens(
                                 'Deposit Refunded',
@@ -755,16 +780,23 @@ exports.stripeWebhook = async (req, res) => {
                         }
                     }
                 } else if (refund.status === 'failed') {
-                    console.log(`✗ Refund failed: ${refund.id} - Reason: ${refund.failure_reason || 'Unknown'}`);
+                    console.log(
+                        `✗ Refund failed: ${refund.id} - Reason: ${
+                            refund.failure_reason || 'Unknown'
+                        }`
+                    );
 
                     const bookingId = refund.metadata.bookingId;
                     const paymentId = refund.metadata.paymentId;
-                    const failureReason = refund.failure_reason || 'Unknown reason';
+                    const failureReason =
+                        refund.failure_reason || 'Unknown reason';
 
                     // Find the payment and booking
                     const payment = await Payment.findById(paymentId);
                     if (payment) {
-                        const booking = await Booking.findById(bookingId).populate('product', 'title');
+                        const booking = await Booking.findById(
+                            bookingId
+                        ).populate('product', 'title');
                         const renter = await User.findById(booking.user);
 
                         if (renter && renter.fcmToken) {
@@ -785,13 +817,11 @@ exports.stripeWebhook = async (req, res) => {
 
             case 'refund.created':
                 const refundCreated = event.data.object;
-                console.log('Refund created:', refundCreated.id, 'Amount:', refundCreated.amount / 100, refundCreated.currency.toUpperCase());
                 // Refund processing happens in refund.updated when status is 'succeeded'
                 break;
 
             case 'charge.refunded':
                 const chargeRefund = event.data.object;
-                console.log('Charge refunded:', chargeRefund.id, 'Refunds:', chargeRefund.refunds?.data?.length || 0);
                 // Refund details are processed in refund.updated event
                 break;
 
@@ -818,7 +848,9 @@ exports.stripeWebhook = async (req, res) => {
                         dbSubscription.paymentStatus = 'paid';
 
                         // Update expiration date to current period end
-                        dbSubscription.expiresAt = new Date(updatedSubscription.current_period_end * 1000);
+                        dbSubscription.expiresAt = new Date(
+                            updatedSubscription.current_period_end * 1000
+                        );
 
                         await dbSubscription.save();
 
@@ -826,11 +858,15 @@ exports.stripeWebhook = async (req, res) => {
                         const user = await User.findById(dbSubscription.user);
                         if (user) {
                             user.hasSubscription = true;
-                            user.subscriptionExpiresAt = dbSubscription.expiresAt;
+                            user.subscriptionExpiresAt =
+                                dbSubscription.expiresAt;
                             user.stripeSubscriptionId = updatedSubscription.id;
                             await user.save();
                         }
-                    } else if (updatedSubscription.status === 'canceled' || updatedSubscription.status === 'unpaid') {
+                    } else if (
+                        updatedSubscription.status === 'canceled' ||
+                        updatedSubscription.status === 'unpaid'
+                    ) {
                         dbSubscription.isActive = false;
                         dbSubscription.cancelledAt = new Date();
                         await dbSubscription.save();
@@ -899,18 +935,34 @@ exports.stripeWebhook = async (req, res) => {
                         let cardDetails = {};
                         try {
                             if (invoice.charge) {
-                                const charge = await stripe.charges.retrieve(invoice.charge);
-                                if (charge.payment_method_details && charge.payment_method_details.card) {
+                                const charge = await stripe.charges.retrieve(
+                                    invoice.charge
+                                );
+                                if (
+                                    charge.payment_method_details &&
+                                    charge.payment_method_details.card
+                                ) {
                                     cardDetails = {
-                                        cardLast4: charge.payment_method_details.card.last4,
-                                        cardBrand: charge.payment_method_details.card.brand,
-                                        cardExpMonth: charge.payment_method_details.card.exp_month,
-                                        cardExpYear: charge.payment_method_details.card.exp_year,
+                                        cardLast4:
+                                            charge.payment_method_details.card
+                                                .last4,
+                                        cardBrand:
+                                            charge.payment_method_details.card
+                                                .brand,
+                                        cardExpMonth:
+                                            charge.payment_method_details.card
+                                                .exp_month,
+                                        cardExpYear:
+                                            charge.payment_method_details.card
+                                                .exp_year,
                                     };
                                 }
                             }
                         } catch (cardError) {
-                            console.error('Error retrieving card details from charge:', cardError);
+                            console.error(
+                                'Error retrieving card details from charge:',
+                                cardError
+                            );
                         }
 
                         // Create a new subscription record for the renewal
@@ -920,8 +972,11 @@ exports.stripeWebhook = async (req, res) => {
                             amount: renewedSub.amount,
                             currency: renewedSub.currency,
                             adminAmount: renewedSub.adminAmount,
-                            stripePaymentIntentId: invoice.payment_intent || 'auto_renewal_' + invoice.id,
-                            stripeSubscriptionId: renewedSub.stripeSubscriptionId,
+                            stripePaymentIntentId:
+                                invoice.payment_intent ||
+                                'auto_renewal_' + invoice.id,
+                            stripeSubscriptionId:
+                                renewedSub.stripeSubscriptionId,
                             stripePriceId: renewedSub.stripePriceId,
                             stripeCustomerId: renewedSub.stripeCustomerId,
                             stripeChargeId: invoice.charge,
@@ -935,7 +990,9 @@ exports.stripeWebhook = async (req, res) => {
                         });
 
                         // Update the original subscription's expiration
-                        renewedSub.expiresAt = new Date(invoice.period_end * 1000);
+                        renewedSub.expiresAt = new Date(
+                            invoice.period_end * 1000
+                        );
                         renewedSub.isActive = true;
                         renewedSub.renewalAttempts = 0;
                         renewedSub.lastRenewalAttempt = new Date();
@@ -945,7 +1002,9 @@ exports.stripeWebhook = async (req, res) => {
                         const user = await User.findById(renewedSub.user._id);
                         if (user) {
                             user.hasSubscription = true;
-                            user.subscriptionExpiresAt = new Date(invoice.period_end * 1000);
+                            user.subscriptionExpiresAt = new Date(
+                                invoice.period_end * 1000
+                            );
                             user.activeSubscriptionId = renewalSubscription._id;
                             await user.save();
 
@@ -953,7 +1012,13 @@ exports.stripeWebhook = async (req, res) => {
                             if (user.fcmToken) {
                                 await sendNotificationsToTokens(
                                     'Subscription Renewed',
-                                    `Your ${renewedSub.subscriptionType} subscription has been automatically renewed for AUD $${renewedSub.amount.toFixed(2)}. Your next billing date is ${new Date(invoice.period_end * 1000).toLocaleDateString()}.`,
+                                    `Your ${
+                                        renewedSub.subscriptionType
+                                    } subscription has been automatically renewed for AUD $${renewedSub.amount.toFixed(
+                                        2
+                                    )}. Your next billing date is ${new Date(
+                                        invoice.period_end * 1000
+                                    ).toLocaleDateString()}.`,
                                     [user.fcmToken]
                                 );
                                 await userNotificationModel.create({
@@ -978,9 +1043,12 @@ exports.stripeWebhook = async (req, res) => {
                     }).populate('user', 'name email fcmToken');
 
                     if (failedSub) {
-                        failedSub.renewalAttempts = (failedSub.renewalAttempts || 0) + 1;
+                        failedSub.renewalAttempts =
+                            (failedSub.renewalAttempts || 0) + 1;
                         failedSub.lastRenewalAttempt = new Date();
-                        failedSub.lastRenewalError = failedInvoice.last_finalization_error?.message || 'Payment failed';
+                        failedSub.lastRenewalError =
+                            failedInvoice.last_finalization_error?.message ||
+                            'Payment failed';
                         await failedSub.save();
 
                         // Notify user about failed payment
@@ -1289,7 +1357,11 @@ exports.getStripeConnectAccountStatus = async (req, res, next) => {
         user.stripeOnboardingComplete =
             account.details_submitted && account.charges_enabled;
 
-        if (account.details_submitted && account.charges_enabled && account.payouts_enabled) {
+        if (
+            account.details_submitted &&
+            account.charges_enabled &&
+            account.payouts_enabled
+        ) {
             user.stripeAccountStatus = 'verified';
         } else if (account.details_submitted) {
             user.stripeAccountStatus = 'pending';
@@ -1468,20 +1540,34 @@ exports.stripeConnectWebhook = async (req, res) => {
             // Refund-related events - These are primarily handled in the main webhook
             // but we acknowledge them here to avoid "unhandled" logs
             case 'refund.created':
-                console.log('Refund created:', event.data.object.id, '(handled in main webhook)');
+                console.log(
+                    'Refund created:',
+                    event.data.object.id,
+                    '(handled in main webhook)'
+                );
                 break;
 
             case 'refund.updated':
-                console.log('Refund updated:', event.data.object.id, '(handled in main webhook)');
+                console.log(
+                    'Refund updated:',
+                    event.data.object.id,
+                    '(handled in main webhook)'
+                );
                 break;
 
             case 'charge.refunded':
                 const chargeRefunded = event.data.object;
-                console.log('Charge refunded:', chargeRefunded.id, '(handled in main webhook)');
+                console.log(
+                    'Charge refunded:',
+                    chargeRefunded.id,
+                    '(handled in main webhook)'
+                );
                 break;
 
             case 'charge.refund.updated':
-                console.log('Charge refund updated (acknowledged in Connect webhook)');
+                console.log(
+                    'Charge refund updated (acknowledged in Connect webhook)'
+                );
                 break;
 
             default:
@@ -1793,15 +1879,15 @@ exports.getPendingPayouts = async (req, res, next) => {
 
 // Define subscription pricing
 const SUBSCRIPTION_PRICES = {
-    monthly: 9.99,    // AUD $9.99 per month
-    yearly: 99.99,    // AUD $99.99 per year
-    lifetime: 299.99  // AUD $299.99 one-time
+    monthly: 9.99, // AUD $9.99 per month
+    yearly: 99.99, // AUD $99.99 per year
+    lifetime: 299.99, // AUD $299.99 one-time
 };
 
 const SUBSCRIPTION_DURATIONS = {
-    monthly: 30,      // 30 days
-    yearly: 365,      // 365 days
-    lifetime: 36500   // 100 years (effectively lifetime)
+    monthly: 30, // 30 days
+    yearly: 365, // 365 days
+    lifetime: 36500, // 100 years (effectively lifetime)
 };
 
 // Create subscription payment intent
@@ -1822,7 +1908,11 @@ exports.createSubscriptionPayment = async (req, res, next) => {
 
         // Check if user already has active subscription
         if (user.hasSubscription && user.subscriptionExpiresAt > new Date()) {
-            return next(createError.BadRequest('You already have an active subscription.'));
+            return next(
+                createError.BadRequest(
+                    'You already have an active subscription.'
+                )
+            );
         }
 
         const amount = SUBSCRIPTION_PRICES[subscriptionType];
@@ -1882,7 +1972,9 @@ exports.createSubscriptionPayment = async (req, res, next) => {
                 currency: 'AUD',
                 subscriptionType,
                 autoRenew: false,
-                message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(2)}.`,
+                message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(
+                    2
+                )}.`,
             });
         }
 
@@ -1896,7 +1988,10 @@ exports.createSubscriptionPayment = async (req, res, next) => {
                 interval: interval,
             },
             product_data: {
-                name: `Chat Subscription - ${subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1)}`,
+                name: `Chat Subscription - ${
+                    subscriptionType.charAt(0).toUpperCase() +
+                    subscriptionType.slice(1)
+                }`,
                 description: 'Unlimited chat access with auto-renewal',
             },
             metadata: {
@@ -1947,7 +2042,9 @@ exports.createSubscriptionPayment = async (req, res, next) => {
             currency: 'AUD',
             subscriptionType,
             autoRenew: true,
-            message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(2)}. Auto-renews ${interval}ly.`,
+            message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(
+                2
+            )}. Auto-renews ${interval}ly.`,
         });
     } catch (error) {
         console.error('Error creating subscription payment:', error);
@@ -1962,7 +2059,9 @@ exports.confirmSubscriptionPayment = async (req, res, next) => {
         const userId = req.user.id;
 
         // Verify payment with Stripe
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+        const paymentIntent = await stripe.paymentIntents.retrieve(
+            paymentIntentId
+        );
 
         if (paymentIntent.status !== 'succeeded') {
             return next(createError.BadRequest('Payment not completed.'));
@@ -2003,12 +2102,16 @@ exports.confirmSubscriptionPayment = async (req, res, next) => {
                 }
             }
         } catch (cardError) {
-            console.error('Error retrieving payment method details:', cardError);
+            console.error(
+                'Error retrieving payment method details:',
+                cardError
+            );
             // Continue even if we can't get card details
         }
 
         // Calculate expiration date
-        const durationDays = SUBSCRIPTION_DURATIONS[subscription.subscriptionType];
+        const durationDays =
+            SUBSCRIPTION_DURATIONS[subscription.subscriptionType];
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + durationDays);
         subscription.expiresAt = expiresAt;
@@ -2037,7 +2140,9 @@ exports.confirmSubscriptionPayment = async (req, res, next) => {
                 : '';
             await sendNotificationsToTokens(
                 'Subscription Activated',
-                `Your ${subscription.subscriptionType} chat subscription has been activated! You now have unlimited chat access${
+                `Your ${
+                    subscription.subscriptionType
+                } chat subscription has been activated! You now have unlimited chat access${
                     subscription.subscriptionType === 'lifetime'
                         ? ' for lifetime'
                         : ` until ${expiresAt.toLocaleDateString()}`
@@ -2087,33 +2192,53 @@ exports.getSubscriptionStatus = async (req, res, next) => {
         let willAutoRenew = false;
         if (user.stripeSubscriptionId) {
             try {
-                const stripeSubscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+                const stripeSubscription = await stripe.subscriptions.retrieve(
+                    user.stripeSubscriptionId
+                );
                 stripeSubscriptionData = {
                     status: stripeSubscription.status,
-                    currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+                    currentPeriodEnd: new Date(
+                        stripeSubscription.current_period_end * 1000
+                    ),
                     cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-                    canceledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : null,
+                    canceledAt: stripeSubscription.canceled_at
+                        ? new Date(stripeSubscription.canceled_at * 1000)
+                        : null,
                 };
-                willAutoRenew = !stripeSubscription.cancel_at_period_end && stripeSubscription.status === 'active';
+                willAutoRenew =
+                    !stripeSubscription.cancel_at_period_end &&
+                    stripeSubscription.status === 'active';
 
                 // Sync expiration date with Stripe
                 if (stripeSubscription.status === 'active') {
-                    const newExpiresAt = new Date(stripeSubscription.current_period_end * 1000);
-                    if (!user.subscriptionExpiresAt || user.subscriptionExpiresAt.getTime() !== newExpiresAt.getTime()) {
+                    const newExpiresAt = new Date(
+                        stripeSubscription.current_period_end * 1000
+                    );
+                    if (
+                        !user.subscriptionExpiresAt ||
+                        user.subscriptionExpiresAt.getTime() !==
+                            newExpiresAt.getTime()
+                    ) {
                         user.subscriptionExpiresAt = newExpiresAt;
                         user.hasSubscription = true;
                         await user.save();
                     }
                 }
             } catch (stripeError) {
-                console.error('Error fetching Stripe subscription:', stripeError);
+                console.error(
+                    'Error fetching Stripe subscription:',
+                    stripeError
+                );
                 // Continue with local data if Stripe fails
             }
         }
 
         // Check if subscription has expired
         let isExpired = false;
-        if (user.subscriptionExpiresAt && user.subscriptionExpiresAt < new Date()) {
+        if (
+            user.subscriptionExpiresAt &&
+            user.subscriptionExpiresAt < new Date()
+        ) {
             isExpired = true;
             // Auto-deactivate expired subscription
             if (user.hasSubscription) {
@@ -2130,12 +2255,16 @@ exports.getSubscriptionStatus = async (req, res, next) => {
         // Get subscription history
         const subscriptions = await Subscription.find({
             user: userId,
-            paymentStatus: 'paid'
-        }).sort('-createdAt').limit(5);
+            paymentStatus: 'paid',
+        })
+            .sort('-createdAt')
+            .limit(5);
 
         // Calculate remaining unique chats
         const uniqueChatsCount = user.chattedWith ? user.chattedWith.length : 0;
-        const remainingChats = user.hasSubscription ? 'unlimited' : Math.max(0, 10 - uniqueChatsCount);
+        const remainingChats = user.hasSubscription
+            ? 'unlimited'
+            : Math.max(0, 10 - uniqueChatsCount);
 
         res.status(200).json({
             success: true,
@@ -2145,23 +2274,33 @@ exports.getSubscriptionStatus = async (req, res, next) => {
                 activatedAt: user.subscriptionActivatedAt,
                 isExpired,
                 autoRenew: willAutoRenew,
-                type: activeSubscription ? activeSubscription.subscriptionType : null,
+                type: activeSubscription
+                    ? activeSubscription.subscriptionType
+                    : null,
                 amount: activeSubscription ? activeSubscription.amount : null,
                 // Card details for display
-                paymentMethod: activeSubscription && activeSubscription.cardLast4 ? {
-                    cardLast4: activeSubscription.cardLast4,
-                    cardBrand: activeSubscription.cardBrand,
-                    cardExpMonth: activeSubscription.cardExpMonth,
-                    cardExpYear: activeSubscription.cardExpYear,
-                    displayText: `${activeSubscription.cardBrand ? activeSubscription.cardBrand.toUpperCase() : 'Card'} ••••${activeSubscription.cardLast4}`,
-                } : null,
+                paymentMethod:
+                    activeSubscription && activeSubscription.cardLast4
+                        ? {
+                              cardLast4: activeSubscription.cardLast4,
+                              cardBrand: activeSubscription.cardBrand,
+                              cardExpMonth: activeSubscription.cardExpMonth,
+                              cardExpYear: activeSubscription.cardExpYear,
+                              displayText: `${
+                                  activeSubscription.cardBrand
+                                      ? activeSubscription.cardBrand.toUpperCase()
+                                      : 'Card'
+                              } ••••${activeSubscription.cardLast4}`,
+                          }
+                        : null,
                 stripeStatus: stripeSubscriptionData,
             },
             chatUsage: {
                 uniqueChatsCount: uniqueChatsCount,
                 remainingChats,
                 unlimited: user.hasSubscription && !isExpired,
-                description: 'Free users can chat with up to 10 different users (unlimited messages per user)',
+                description:
+                    'Free users can chat with up to 10 different users (unlimited messages per user)',
             },
             subscriptionHistory: subscriptions.map(sub => ({
                 _id: sub._id,
@@ -2173,11 +2312,17 @@ exports.getSubscriptionStatus = async (req, res, next) => {
                 autoRenew: sub.autoRenew,
                 paidAt: sub.paidAt,
                 // Include card details in history
-                paymentMethod: sub.cardLast4 ? {
-                    cardLast4: sub.cardLast4,
-                    cardBrand: sub.cardBrand,
-                    displayText: `${sub.cardBrand ? sub.cardBrand.toUpperCase() : 'Card'} ••••${sub.cardLast4}`,
-                } : null,
+                paymentMethod: sub.cardLast4
+                    ? {
+                          cardLast4: sub.cardLast4,
+                          cardBrand: sub.cardBrand,
+                          displayText: `${
+                              sub.cardBrand
+                                  ? sub.cardBrand.toUpperCase()
+                                  : 'Card'
+                          } ••••${sub.cardLast4}`,
+                      }
+                    : null,
             })),
         });
     } catch (error) {
@@ -2189,25 +2334,32 @@ exports.getSubscriptionStatus = async (req, res, next) => {
 // Get subscription pricing
 exports.getSubscriptionPricing = async (req, res, next) => {
     try {
-        const pricing = Object.entries(SUBSCRIPTION_PRICES).map(([type, price]) => ({
-            type,
-            price,
-            currency: 'AUD',
-            duration: SUBSCRIPTION_DURATIONS[type],
-            features: [
-                'Unlimited chat messages',
-                'No daily limits',
-                'Priority support',
-                type === 'lifetime' ? 'One-time payment' : `${type.charAt(0).toUpperCase() + type.slice(1)} billing`,
-            ],
-        }));
+        const pricing = Object.entries(SUBSCRIPTION_PRICES).map(
+            ([type, price]) => ({
+                type,
+                price,
+                currency: 'AUD',
+                duration: SUBSCRIPTION_DURATIONS[type],
+                features: [
+                    'Unlimited chat messages',
+                    'No daily limits',
+                    'Priority support',
+                    type === 'lifetime'
+                        ? 'One-time payment'
+                        : `${
+                              type.charAt(0).toUpperCase() + type.slice(1)
+                          } billing`,
+                ],
+            })
+        );
 
         res.status(200).json({
             success: true,
             pricing,
             freePlan: {
                 limit: 10,
-                description: 'Free users can chat with up to 10 different users (unlimited messages per conversation)',
+                description:
+                    'Free users can chat with up to 10 different users (unlimited messages per conversation)',
             },
             message: 'All subscription payments go directly to platform admin.',
         });
@@ -2229,7 +2381,11 @@ exports.cancelSubscription = async (req, res, next) => {
 
         // Check if user has an active Stripe subscription
         if (!user.stripeSubscriptionId) {
-            return next(createError.BadRequest('No active auto-renewing subscription found.'));
+            return next(
+                createError.BadRequest(
+                    'No active auto-renewing subscription found.'
+                )
+            );
         }
 
         // Cancel the Stripe subscription
@@ -2259,7 +2415,9 @@ exports.cancelSubscription = async (req, res, next) => {
         if (user.fcmToken) {
             await sendNotificationsToTokens(
                 'Subscription Canceled',
-                `Your subscription has been canceled and will not auto-renew. You will retain access until ${new Date(canceledSubscription.current_period_end * 1000).toLocaleDateString()}.`,
+                `Your subscription has been canceled and will not auto-renew. You will retain access until ${new Date(
+                    canceledSubscription.current_period_end * 1000
+                ).toLocaleDateString()}.`,
                 [user.fcmToken]
             );
             await userNotificationModel.create({
@@ -2271,10 +2429,13 @@ exports.cancelSubscription = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            message: 'Subscription canceled successfully. You will retain access until the end of your current billing period.',
+            message:
+                'Subscription canceled successfully. You will retain access until the end of your current billing period.',
             subscription: {
                 canceledAt: new Date(),
-                accessUntil: new Date(canceledSubscription.current_period_end * 1000),
+                accessUntil: new Date(
+                    canceledSubscription.current_period_end * 1000
+                ),
                 willAutoRenew: false,
             },
         });
@@ -2295,14 +2456,22 @@ exports.reactivateSubscription = async (req, res, next) => {
         }
 
         if (!user.stripeSubscriptionId) {
-            return next(createError.BadRequest('No subscription found to reactivate.'));
+            return next(
+                createError.BadRequest('No subscription found to reactivate.')
+            );
         }
 
         // Retrieve subscription from Stripe
-        const stripeSubscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+        const stripeSubscription = await stripe.subscriptions.retrieve(
+            user.stripeSubscriptionId
+        );
 
         if (!stripeSubscription.cancel_at_period_end) {
-            return next(createError.BadRequest('Subscription is already active and will auto-renew.'));
+            return next(
+                createError.BadRequest(
+                    'Subscription is already active and will auto-renew.'
+                )
+            );
         }
 
         // Reactivate the subscription
@@ -2328,7 +2497,9 @@ exports.reactivateSubscription = async (req, res, next) => {
         if (user.fcmToken) {
             await sendNotificationsToTokens(
                 'Subscription Reactivated',
-                `Your subscription has been reactivated and will auto-renew on ${new Date(reactivatedSubscription.current_period_end * 1000).toLocaleDateString()}.`,
+                `Your subscription has been reactivated and will auto-renew on ${new Date(
+                    reactivatedSubscription.current_period_end * 1000
+                ).toLocaleDateString()}.`,
                 [user.fcmToken]
             );
             await userNotificationModel.create({
@@ -2343,7 +2514,9 @@ exports.reactivateSubscription = async (req, res, next) => {
             message: 'Subscription reactivated successfully.',
             subscription: {
                 reactivatedAt: new Date(),
-                nextBillingDate: new Date(reactivatedSubscription.current_period_end * 1000),
+                nextBillingDate: new Date(
+                    reactivatedSubscription.current_period_end * 1000
+                ),
                 willAutoRenew: true,
             },
         });

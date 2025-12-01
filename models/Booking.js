@@ -87,6 +87,9 @@ const bookingSchema = new mongoose.Schema(
         cancellationReason: {
             type: String,
         },
+        cancellationCharges: {
+            type: String,
+        },
         // Stripe Connect fields
         stripeAccountId: {
             type: String,
