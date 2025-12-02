@@ -308,6 +308,10 @@ exports.getMyBookings = async (req, res, next) => {
                     { path: 'category', select: 'name' },
                     { path: 'subcategory', select: 'name' },
                 ],
+            })
+            .populate({
+                path: 'payment',
+                select: 'totalAmount depositAmount rentalAmount paymentStatus',
             });
         const filteredBookings = bookings.filter(
             booking =>
@@ -348,6 +352,10 @@ exports.getSellerBookings = async (req, res, next) => {
                     ],
                 },
             ])
+            .populate({
+                path: 'payment',
+                select: 'totalAmount depositAmount rentalAmount paymentStatus commissionType commissionPercentage commissionFixedAmount commissionAmount ownerPayoutAmount',
+            })
             .sort({ createdAt: -1 });
 
         // const filteredBookings = bookings.filter(b => b.product !== null);
@@ -1249,6 +1257,10 @@ exports.getActiveOrders = async (req, res, next) => {
                     { path: 'category', select: 'name' },
                     { path: 'subcategory', select: 'name' },
                 ],
+            })
+            .populate({
+                path: 'payment',
+                select: 'totalAmount depositAmount rentalAmount paymentStatus',
             });
 
         const filtered = bookings.filter(
@@ -1301,7 +1313,11 @@ exports.getSellerActiveOrders = async (req, res, next) => {
                     ],
                 },
                 { path: 'user', select: 'name email image avatar' },
-            ]);
+            ])
+            .populate({
+                path: 'payment',
+                select: 'totalAmount depositAmount rentalAmount paymentStatus commissionType commissionPercentage commissionFixedAmount commissionAmount ownerPayoutAmount',
+            });
 
         const filtered = bookings.filter(
             b =>
@@ -1333,6 +1349,10 @@ exports.getOrderHistory = async (req, res, next) => {
                     { path: 'subcategory', select: 'name' },
                 ],
                 // });
+            })
+            .populate({
+                path: 'payment',
+                select: 'totalAmount depositAmount rentalAmount paymentStatus',
             });
 
         const filtered = bookings.filter(
@@ -1385,7 +1405,11 @@ exports.getSellerOrderHistory = async (req, res, next) => {
                     ],
                 },
                 { path: 'user', select: 'name email image avatar' },
-            ]);
+            ])
+            .populate({
+                path: 'payment',
+                select: 'totalAmount depositAmount rentalAmount paymentStatus commissionType commissionPercentage commissionFixedAmount commissionAmount ownerPayoutAmount',
+            });
 
         const filtered = bookings.filter(
             b => b.product && b.product.isActive && !b.product.isDeleted

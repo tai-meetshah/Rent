@@ -307,6 +307,18 @@ exports.confirmPayment = async (req, res, next) => {
         booking.paymentStatus = 'paid';
         await booking.save();
 
+        if (req.user.fcmToken) {
+            await sendNotificationsToTokens(
+                `Booking request for ${payment.product.title}`,
+                `Your booking request for ${payment.product.title} has been sent.`,
+                [req.user.fcmToken]
+            );
+            await userNotificationModel.create({
+                sentTo: [req.user.id],
+                title: `Booking request for ${payment.product.title}`,
+                body: `Your booking request for ${payment.product.title} has been sent.`,
+            });
+        }
         // Send notification to owner
         if (payment.owner && payment.owner.fcmToken) {
             await sendNotificationsToTokens(
