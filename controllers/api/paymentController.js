@@ -187,6 +187,7 @@ exports.createPaymentIntent = async (req, res, next) => {
                 enabled: true,
             },
         });
+            console.log('paymentIntent: ', JSON.stringify(paymentIntent, null, 2));
 
         // Create payment record
         const payment = await Payment.create({

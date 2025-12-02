@@ -24,7 +24,7 @@ const processBatchPayoutsJob = async () => {
 
         // Find all payments that are scheduled and eligible
         const eligiblePayments = await Payment.find({
-            payoutStatus: 'scheduled',
+            // payoutStatus: 'scheduled',
             scheduledPayoutDate: { $lte: now },
         })
             .populate('owner', 'name email fcmToken stripeConnectAccountId stripePayoutsEnabled')
@@ -72,7 +72,13 @@ const processBatchPayoutsJob = async () => {
 
             // Use netOwnerPayout if available, otherwise fallback to ownerPayoutAmount
             const totalPayout = payments.reduce((sum, p) => {
-                return sum + (p.netOwnerPayout || p.ownerPayoutAmount);
+                // return sum + (p.netOwnerPayout || p.ownerPayoutAmount);
+                return (
+                    sum +
+                    (p.netOwnerPayout || p.ownerPayoutAmount || 0) +
+                    (p.cancellationVendorAmount || 0) // 🟢 added
+                );
+
             }, 0);
 
             const totalStripeFees = payments.reduce((sum, p) => sum + (p.stripeTotalFee || 0), 0);
@@ -156,6 +162,9 @@ const processBatchPayoutsJob = async () => {
                     payment.stripeTransferId = transfer.id;
                     payment.payoutStatus = 'paid';
                     payment.payoutAt = now;
+                    if (payment.cancellationVendorAmount > 0) {
+                        payment.cancellationPayoutStatus = 'paid';
+                    }
                     await payment.save();
 
                     results.successful++;
@@ -198,6 +207,9 @@ const processBatchPayoutsJob = async () => {
 
                 for (const payment of payments) {
                     payment.payoutStatus = 'failed';
+                    if (payment.cancellationVendorAmount > 0) {
+                        payment.cancellationPayoutStatus = 'failed';
+                    }
                     await payment.save();
 
                     results.failed++;
@@ -212,13 +224,13 @@ const processBatchPayoutsJob = async () => {
                 }
 
                 // Notify owner of failure
-                if (owner.fcmToken) {
-                    await sendNotificationsToTokens(
-                        'Payout Failed',
-                        `There was an issue processing your payout of AUD $${totalPayout.toFixed(2)}. Please contact support or check your payment account settings.`,
-                        [owner.fcmToken]
-                    );
-                }
+                // if (owner.fcmToken) {
+                //     await sendNotificationsToTokens(
+                //         'Payout Failed',
+                //         `There was an issue processing your payout of AUD $${totalPayout.toFixed(2)}. Please contact support or check your payment account settings.`,
+                //         [owner.fcmToken]
+                //     );
+                // }
             }
         }
 
@@ -262,12 +274,125 @@ const startPayoutScheduler = () => {
     return task;
 };
 
+async function processPayouts() {
+    try {
+        console.log('Checking eligible payouts...');
+
+        // 1️⃣ Find payments ready for payout
+        const payments = await Payment.find({
+            payoutStatus: 'scheduled',
+            cancellationPayout: { $ne: true }, // example filter
+        }).populate('owner');
+
+        if (payments.length === 0) {
+            console.log('No payouts to process.');
+            return;
+        }
+
+        console.log(`Found ${payments.length} eligible payouts.`);
+
+        // 2️⃣ Sum total payouts required
+        const payoutsByOwner = {};
+        payments.forEach(p => {
+            const ownerId = p.owner._id.toString();
+            payoutsByOwner[ownerId] = payoutsByOwner[ownerId] || [];
+            payoutsByOwner[ownerId].push(p);
+        });
+
+        for (const [ownerId, ownerPayments] of Object.entries(payoutsByOwner)) {
+            const owner = ownerPayments[0].owner;
+            const totalPayout = ownerPayments.reduce(
+                (sum, p) => sum + (p.netOwnerPayout || 0),
+                0
+            );
+
+            console.log(
+                `Processing payouts for owner: ${owner.name} (${ownerId})`
+            );
+            console.log(`Total payout: AUD $${totalPayout.toFixed(2)}`);
+
+            // 3️⃣ Check available Stripe balance
+            const balance = await stripe.balance.retrieve();
+            const available =
+                balance.available.find(b => b.currency === 'aud')?.amount /
+                    100 || 0;
+            console.log(
+                `Stripe available balance: AUD $${available.toFixed(2)}`
+            );
+
+            if (available < totalPayout) {
+                console.log(
+                    '⚠️ Available balance insufficient, creating test charge...'
+                );
+
+                // 4️⃣ Create test payment to top up balance (test mode only)
+                const topUpAmount = Math.ceil(totalPayout - available);
+                await stripe.charges.create({
+                    amount: Math.round(topUpAmount * 100),
+                    currency: 'aud',
+                    source: 'tok_visa', // test token
+                    description: 'Test top-up for payouts',
+                });
+
+                console.log(
+                    `✅ Added AUD $${topUpAmount} to available balance via test charge.`
+                );
+            }
+
+            // 5️⃣ Create payout
+            try {
+                const payout = await stripe.payouts.create({
+                    amount: Math.round(totalPayout * 100),
+                    currency: 'aud',
+                    method: 'standard',
+                });
+
+                console.log(`✅ Payout created: ${payout.id}`);
+
+                // 6️⃣ Update payments as paid
+                for (const p of ownerPayments) {
+                    p.payoutStatus = 'paid';
+                    await p.save();
+                }
+            } catch (err) {
+                console.error('❌ Stripe payout failed:', err.message);
+            }
+        }
+    } catch (err) {
+        console.error('Error in payout cron:', err);
+    }
+}
+
+
 // Allow manual triggering for testing
 const triggerManualPayout = async () => {
     console.log('🔧 Manual payout trigger activated');
-    return await processBatchPayoutsJob();
-};
+    // return await processBatchPayoutsJob();
 
+ processPayouts();
+
+    const task = cron.schedule(
+        '* * * * *',
+        async () => {
+            try {
+                await processBatchPayoutsJob();
+            } catch (error) {
+                console.error('Cron job error:', error);
+            }
+        },
+        {
+            scheduled: true,
+            timezone: 'Australia/Sydney', // Adjust to your timezone
+        }
+    );
+
+    console.log(
+        '✅ Payout scheduler initialized - will run daily at 2:00 AM (Australia/Sydney)'
+    );
+
+    return task;
+};
+// triggerManualPayout();
 module.exports = {
     startPayoutScheduler,
     processBatchPayoutsJob,

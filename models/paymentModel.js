@@ -1,4 +1,3 @@
-// models/paymentModel.js
 const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema(
@@ -23,74 +22,38 @@ const paymentSchema = new mongoose.Schema(
             ref: 'Product',
             required: true,
         },
-        // Payment amounts in AUD
-        totalAmount: {
-            type: Number,
-            required: true,
-        },
-        depositAmount: {
-            type: Number,
-            default: 0,
-        },
-        rentalAmount: {
-            type: Number,
-            required: true,
-        },
+
+        // Payment amounts
+        totalAmount: { type: Number, required: true },
+        depositAmount: { type: Number, default: 0 },
+        rentalAmount: { type: Number, required: true },
+
         // Commission details
         commissionType: {
             type: String,
             enum: ['fixed', 'percentage'],
             required: true,
         },
-        commissionPercentage: {
-            type: Number,
-        },
-        commissionFixedAmount: {
-            type: Number,
-        },
-        commissionAmount: {
-            type: Number,
-            required: true,
-        },
-        ownerPayoutAmount: {
-            type: Number,
-            required: true,
-        },
+        commissionPercentage: Number,
+        commissionFixedAmount: Number,
+        commissionAmount: { type: Number, required: true },
+
+        ownerPayoutAmount: { type: Number, required: true },
+
         // Stripe fees
-        stripeProcessingFee: {
-            type: Number,
-            default: 0,
-            comment: 'Stripe payment processing fee (1.75% + $0.30)',
-        },
-        stripeTransferFee: {
-            type: Number,
-            default: 0,
-            comment: 'Stripe transfer fee (if applicable)',
-        },
-        stripeTotalFee: {
-            type: Number,
-            default: 0,
-            comment: 'Total Stripe fees (processing + transfer)',
-        },
-        netOwnerPayout: {
-            type: Number,
-            comment: 'Final payout after all deductions including Stripe fees',
-        },
-        // Currency
-        currency: {
-            type: String,
-            default: 'AUD',
-        },
+        stripeProcessingFee: { type: Number, default: 0 },
+        stripeTransferFee: { type: Number, default: 0 },
+        stripeTotalFee: { type: Number, default: 0 },
+
+        netOwnerPayout: Number,
+
+        currency: { type: String, default: 'AUD' },
+
         // Stripe details
-        stripePaymentIntentId: {
-            type: String,
-        },
-        stripeChargeId: {
-            type: String,
-        },
-        stripeTransferId: {
-            type: String,
-        },
+        stripePaymentIntentId: String,
+        stripeChargeId: String,
+        stripeTransferId: String,
+
         // Payment status
         paymentStatus: {
             type: String,
@@ -104,56 +67,47 @@ const paymentSchema = new mongoose.Schema(
             ],
             default: 'pending',
         },
+
         payoutStatus: {
             type: String,
             enum: ['pending', 'scheduled', 'processing', 'paid', 'failed'],
             default: 'pending',
         },
-        // Scheduled payout date (15 days after return verification)
-        scheduledPayoutDate: {
-            type: Date,
-        },
-        payoutEligibleDate: {
-            type: Date,
-        },
-        // Refund details
-        refundAmount: {
-            type: Number,
-            default: 0,
-        },
 
+        scheduledPayoutDate: Date,
+        payoutEligibleDate: Date,
+
+        // Refunds
+        refundAmount: { type: Number, default: 0 },
         refundReason: String,
         rentalDays: String,
         stripeRefundId: String,
+
         // Cancellation
-        cancellationCharges: {
-            type: Number,
-            default: 0,
+        cancellationCharges: { type: Number, default: 0 },
+        cancellationChargesPercentage: { type: Number, default: 0 },
+
+        cancellationAdminCommission: { type: Number, default: 0 },
+        cancellationVendorAmount: { type: Number, default: 0 },
+
+        // NEW fields for cancellation payout flow
+        cancellationPayout: {
+            type: Boolean,
+            default: false,
         },
-        cancellationChargesPercentage: {
-            type: Number,
-            default: 0,
+        cancellationPayoutStatus: {
+            type: String,
+            enum: ['pending', 'scheduled', 'paid', 'failed'],
+            default: 'pending',
         },
-        // Cancellation split: admin commission and vendor share of the cancellation charge
-        cancellationAdminCommission: {
-            type: Number,
-            default: 0,
-        },
-        cancellationVendorAmount: {
-            type: Number,
-            default: 0,
-        },
+
         // Dates
         paidAt: Date,
         payoutAt: Date,
         refundedAt: Date,
-        depositRefundId: {
-            type: String,
-        },
+        depositRefundId: String,
         depositRefunded: Boolean,
-        depositRefundedAt: {
-            type: Date,
-        },
+        depositRefundedAt: Date,
     },
     { timestamps: true }
 );
