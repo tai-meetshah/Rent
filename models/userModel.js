@@ -104,44 +104,44 @@ const userSchema = new mongoose.Schema(
             default: false,
         },
         // Chat subscription fields
-        // hasSubscription: {
-        //     type: Boolean,
-        //     default: false,
-        // },
-        // subscriptionExpiresAt: {
-        //     type: Date,
-        //     default: null,
-        // },
-        // subscriptionActivatedAt: {
-        //     type: Date,
-        //     default: null,
-        // },
-        // // Current active subscription ID
-        // activeSubscriptionId: {
-        //     type: mongoose.Schema.Types.ObjectId,
-        //     ref: 'Subscription',
-        //     default: null,
-        // },
-        // // Stripe subscription details
-        // stripeSubscriptionId: {
-        //     type: String,
-        //     default: null,
-        // },
-        // stripeCustomerId: {
-        //     type: String,
-        //     default: null,
-        // },
-        // // Track unique users they've chatted with (for free tier limit)
-        // chattedWith: [
-        //     {
-        //         type: mongoose.Schema.Types.ObjectId,
-        //         ref: 'User',
-        //     },
-        // ],
-        // lastChatReset: {
-        //     type: Date,
-        //     default: Date.now,
-        // },
+        hasSubscription: {
+            type: Boolean,
+            default: false,
+        },
+        subscriptionExpiresAt: {
+            type: Date,
+            default: null,
+        },
+        subscriptionActivatedAt: {
+            type: Date,
+            default: null,
+        },
+        // Current active subscription ID
+        activeSubscriptionId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Subscription',
+            default: null,
+        },
+        // Stripe subscription details
+        stripeSubscriptionId: {
+            type: String,
+            default: null,
+        },
+        stripeCustomerId: {
+            type: String,
+            default: null,
+        },
+        // Track unique users they've chatted with (for free tier limit)
+        chattedWith: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+            },
+        ],
+        lastChatReset: {
+            type: Date,
+            default: Date.now,
+        },
     },
     { timestamps: true }
 );

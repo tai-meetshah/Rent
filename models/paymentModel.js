@@ -27,7 +27,7 @@ const paymentSchema = new mongoose.Schema(
         totalAmount: { type: Number, required: true },
         depositAmount: { type: Number, default: 0 },
         rentalAmount: { type: Number, required: true },
-
+        deliveryCharge: { type: Number, default: 0 },
         // Commission details
         commissionType: {
             type: String,

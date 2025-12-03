@@ -91,10 +91,54 @@ const calculateStripeTransferFee = (amount, accountType = 'standard') => {
     return 0;
 };
 
+function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth radius in km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+function getDeliverySlabAmount(slabs, distanceKm) {
+    if (!Array.isArray(slabs) || slabs.length === 0) return 0;
+
+    // Try exact match first
+    for (const slab of slabs) {
+        if (distanceKm >= slab.from && distanceKm <= slab.to) {
+            return Number(slab.amount || 0);
+        }
+    }
+
+    // No exact match → use last slab
+    const lastSlab = slabs[slabs.length - 1];
+    if (distanceKm > lastSlab.to) {
+        return Number(lastSlab.amount || 0);
+    }
+
+    return 0;
+}
+
 // Create payment intent
 exports.createPaymentIntent = async (req, res, next) => {
     try {
         const { bookingId } = req.body;
+        const { latitude, longitude } = req.body;
+
+        if (!latitude || !longitude) {
+            return next(
+                createError.BadRequest(
+                    'User location required for delivery cost.'
+                )
+            );
+        }
 
         const booking = await Booking.findById(bookingId)
             .populate('product')
@@ -110,6 +154,24 @@ exports.createPaymentIntent = async (req, res, next) => {
 
         const product = booking.product;
 
+        const userLat = Number(latitude);
+        const userLng = Number(longitude);
+
+        const ownerLat = Number(product.oCoordinates.coordinates[1]);
+        const ownerLng = Number(product.oCoordinates.coordinates[0]);
+
+        const distanceKm = calculateDistanceKm(
+            userLat,
+            userLng,
+            ownerLat,
+            ownerLng
+        );
+
+        let deliveryCharge = getDeliverySlabAmount(product.slabs, distanceKm);
+
+        if (booking.deliveryType == 'self-pickup') {
+            deliveryCharge = 0;
+        }
         // Determine rental days
         let rentalDays = 1;
         if (
@@ -139,7 +201,7 @@ exports.createPaymentIntent = async (req, res, next) => {
             : 0;
 
         // Total amount = rental price (for all days) + deposit
-        const totalAmount = rentalPrice + depositAmount;
+        const totalAmount = rentalPrice + depositAmount + deliveryCharge;
 
         if (!totalAmount || totalAmount <= 0) {
             return next(createError.BadRequest('Invalid payment amount.'));
@@ -187,7 +249,7 @@ exports.createPaymentIntent = async (req, res, next) => {
                 enabled: true,
             },
         });
-            console.log('paymentIntent: ', JSON.stringify(paymentIntent, null, 2));
+        console.log('paymentIntent: ', JSON.stringify(paymentIntent, null, 2));
 
         // Create payment record
         const payment = await Payment.create({
@@ -198,6 +260,7 @@ exports.createPaymentIntent = async (req, res, next) => {
             totalAmount,
             depositAmount: depositAmount,
             rentalAmount: rentalPrice,
+            deliveryCharge: deliveryCharge,
             rentalDays,
             commissionType: commissionSettings.commissionType,
             commissionPercentage:
@@ -653,7 +716,7 @@ exports.getPaymentDetails = async (req, res, next) => {
         if (!isRenter && !isOwner) {
             return next(createError.Forbidden('Unauthorized access.'));
         }
-
+ 
         res.status(200).json({
             success: true,
             payment,
@@ -752,7 +815,6 @@ exports.stripeWebhook = async (req, res) => {
 
                 // Check if the refund status is "succeeded"
                 if (refund.status === 'succeeded') {
-
                     const bookingId = refund.metadata.bookingId; // Assuming you stored the booking ID in metadata
                     const paymentId = refund.metadata.paymentId; // You can store paymentId in metadata too if needed
 
@@ -1892,15 +1954,15 @@ exports.getPendingPayouts = async (req, res, next) => {
 
 // Define subscription pricing
 const SUBSCRIPTION_PRICES = {
-    monthly: 9.99, // AUD $9.99 per month
+    // monthly: 9.99, // AUD $9.99 per month
     yearly: 99.99, // AUD $99.99 per year
-    lifetime: 299.99, // AUD $299.99 one-time
+    // lifetime: 299.99, // AUD $299.99 one-time
 };
 
 const SUBSCRIPTION_DURATIONS = {
-    monthly: 30, // 30 days
+    // monthly: 30, // 30 days
     yearly: 365, // 365 days
-    lifetime: 36500, // 100 years (effectively lifetime)
+    // lifetime: 36500, // 100 years (effectively lifetime)
 };
 
 // Create subscription payment intent
@@ -1946,91 +2008,23 @@ exports.createSubscriptionPayment = async (req, res, next) => {
             await user.save();
         }
 
-        // For lifetime subscription, use one-time payment
-        if (subscriptionType === 'lifetime') {
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: Math.round(amount * 100), // Convert to cents
-                currency: 'aud',
-                customer: customerId,
-                metadata: {
-                    userId: userId,
-                    subscriptionType: subscriptionType,
-                    purpose: 'chat_subscription',
-                },
-                description: `Chat Subscription - Lifetime`,
-                automatic_payment_methods: {
-                    enabled: true,
-                },
-            });
-
-            // Create subscription record
-            const subscription = await Subscription.create({
-                user: userId,
-                subscriptionType,
-                amount,
-                currency: 'AUD',
-                adminAmount,
-                stripePaymentIntentId: paymentIntent.id,
-                stripeCustomerId: customerId,
-                paymentStatus: 'pending',
-                autoRenew: false,
-            });
-
-            return res.status(200).json({
-                success: true,
-                clientSecret: paymentIntent.client_secret,
-                paymentIntentId: paymentIntent.id,
-                subscriptionId: subscription._id,
-                amount,
-                currency: 'AUD',
-                subscriptionType,
-                autoRenew: false,
-                message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(
-                    2
-                )}.`,
-            });
-        }
-
-        // For monthly/yearly, create Stripe Subscription with auto-renewal
-        // First, create a price for the subscription
-        const interval = subscriptionType === 'monthly' ? 'month' : 'year';
-        const price = await stripe.prices.create({
-            unit_amount: Math.round(amount * 100),
+        // if (subscriptionType === 'lifetime') {
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(amount * 100), // Convert to cents
             currency: 'aud',
-            recurring: {
-                interval: interval,
-            },
-            product_data: {
-                name: `Chat Subscription - ${
-                    subscriptionType.charAt(0).toUpperCase() +
-                    subscriptionType.slice(1)
-                }`,
-                description: 'Unlimited chat access with auto-renewal',
-            },
-            metadata: {
-                subscriptionType: subscriptionType,
-            },
-        });
-
-        // Create Stripe Subscription
-        const stripeSubscription = await stripe.subscriptions.create({
             customer: customerId,
-            items: [{ price: price.id }],
-            payment_behavior: 'default_incomplete',
-            payment_settings: {
-                save_default_payment_method: 'on_subscription',
-            },
-            expand: ['latest_invoice.payment_intent'],
             metadata: {
                 userId: userId,
                 subscriptionType: subscriptionType,
                 purpose: 'chat_subscription',
             },
+            description: `Chat Subscription`,
+            automatic_payment_methods: {
+                enabled: true,
+            },
         });
 
-        const paymentIntent = stripeSubscription.latest_invoice.payment_intent;
-
-        // Create subscription record in database
+        // Create subscription record
         const subscription = await Subscription.create({
             user: userId,
             subscriptionType,
@@ -2038,27 +2032,94 @@ exports.createSubscriptionPayment = async (req, res, next) => {
             currency: 'AUD',
             adminAmount,
             stripePaymentIntentId: paymentIntent.id,
-            stripeSubscriptionId: stripeSubscription.id,
-            stripePriceId: price.id,
             stripeCustomerId: customerId,
             paymentStatus: 'pending',
-            autoRenew: true,
+            autoRenew: false,
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             clientSecret: paymentIntent.client_secret,
             paymentIntentId: paymentIntent.id,
             subscriptionId: subscription._id,
-            stripeSubscriptionId: stripeSubscription.id,
             amount,
             currency: 'AUD',
             subscriptionType,
-            autoRenew: true,
+            autoRenew: false,
             message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(
                 2
-            )}. Auto-renews ${interval}ly.`,
+            )}.`,
         });
+        // }
+
+        // For monthly/yearly, create Stripe Subscription with auto-renewal
+        // First, create a price for the subscription
+        // const interval = subscriptionType === 'monthly' ? 'month' : 'year';
+        // const price = await stripe.prices.create({
+        //     unit_amount: Math.round(amount * 100),
+        //     currency: 'aud',
+        //     recurring: {
+        //         interval: interval,
+        //     },
+        //     product_data: {
+        //         name: `Chat Subscription - ${
+        //             subscriptionType.charAt(0).toUpperCase() +
+        //             subscriptionType.slice(1)
+        //         }`,
+        //         description: 'Unlimited chat access with auto-renewal',
+        //     },
+        //     metadata: {
+        //         subscriptionType: subscriptionType,
+        //     },
+        // });
+
+        // Create Stripe Subscription
+        // const stripeSubscription = await stripe.subscriptions.create({
+        //     customer: customerId,
+        //     items: [{ price: price.id }],
+        //     payment_behavior: 'default_incomplete',
+        //     payment_settings: {
+        //         save_default_payment_method: 'on_subscription',
+        //     },
+        //     expand: ['latest_invoice.payment_intent'],
+        //     metadata: {
+        //         userId: userId,
+        //         subscriptionType: subscriptionType,
+        //         purpose: 'chat_subscription',
+        //     },
+        // });
+
+        // const paymentIntent = stripeSubscription.latest_invoice.payment_intent;
+
+        // Create subscription record in database
+        // const subscription = await Subscription.create({
+        //     user: userId,
+        //     subscriptionType,
+        //     amount,
+        //     currency: 'AUD',
+        //     adminAmount,
+        //     stripePaymentIntentId: paymentIntent.id,
+        //     stripeSubscriptionId: stripeSubscription.id,
+        //     stripePriceId: price.id,
+        //     stripeCustomerId: customerId,
+        //     paymentStatus: 'pending',
+        //     autoRenew: true,
+        // });
+
+        // res.status(200).json({
+        //     success: true,
+        //     clientSecret: paymentIntent.client_secret,
+        //     paymentIntentId: paymentIntent.id,
+        //     subscriptionId: subscription._id,
+        //     stripeSubscriptionId: stripeSubscription.id,
+        //     amount,
+        //     currency: 'AUD',
+        //     subscriptionType,
+        //     autoRenew: true,
+        //     message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(
+        //         2
+        //     )}. Auto-renews ${interval}ly.`,
+        // });
     } catch (error) {
         console.error('Error creating subscription payment:', error);
         next(error);

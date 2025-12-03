@@ -207,17 +207,6 @@ exports.createBooking = async (req, res, next) => {
                 address = JSON.parse(address);
             } catch (_) {}
         }
-        // if (!address || typeof address !== 'object') {
-        //      address = {
-        //           fullName: req.body.fullName,
-        //           mobileNumber: req.body.mobileNumber,
-        //           addressLine: req.body.addressLine,
-        //           city: req.body.city,
-        //           state: req.body.state,
-        //           pincode: req.body.pincode,
-        //           country: req.body.country,
-        //      };
-        // }
 
         const product = await Product.findById(productId).populate(
             'user',
@@ -248,38 +237,7 @@ exports.createBooking = async (req, res, next) => {
             notes,
             address,
         });
-        // console.log('data: ', data);
 
-        // Send notification to seller about new booking
-        // if (product.user) {
-        //     await sendNotificationsToTokens(
-        //         `New booking request for ${product.title}`,
-        //         `You have received a new booking request from ${
-        //             req.user.name || 'a customer'
-        //         }.`,
-        //         [product.user.fcmToken]
-        //     );
-        //     await userNotificationModel.create({
-        //         sentTo: [product.user._id],
-        //         title: `New booking request for ${product.title}`,
-        //         body: `You have received a new booking request from ${
-        //             req.user.name || 'a customer'
-        //         }.`,
-        //     });
-        // }
-
-        // if (req.user.fcmToken) {
-        //     await sendNotificationsToTokens(
-        //         `Booking request for ${product.title}`,
-        //         `Your booking request for ${product.title} has been sent.`,
-        //         [req.user.fcmToken]
-        //     );
-        //     await userNotificationModel.create({
-        //         sentTo: [req.user.id],
-        //         title: `Booking request for ${product.title}`,
-        //         body: `Your booking request for ${product.title} has been sent.`,
-        //     });
-        // }
         res.status(201).json({
             success: true,
             message: 'Booking created successfully.',
@@ -311,7 +269,7 @@ exports.getMyBookings = async (req, res, next) => {
             })
             .populate({
                 path: 'payment',
-                select: 'totalAmount depositAmount rentalAmount paymentStatus',
+                select: 'totalAmount depositAmount rentalAmount paymentStatus deliveryCharge',
             });
         const filteredBookings = bookings.filter(
             booking =>
@@ -354,7 +312,7 @@ exports.getSellerBookings = async (req, res, next) => {
             ])
             .populate({
                 path: 'payment',
-                select: 'totalAmount depositAmount rentalAmount paymentStatus commissionType commissionPercentage commissionFixedAmount commissionAmount ownerPayoutAmount',
+                select: 'deliveryCharge totalAmount depositAmount rentalAmount paymentStatus commissionType commissionPercentage commissionFixedAmount commissionAmount ownerPayoutAmount',
             })
             .sort({ createdAt: -1 });
 
@@ -472,9 +430,10 @@ exports.cancelBooking = async (req, res, next) => {
         // -------------------------------------------
         const rentalAmount = payment.rentalAmount || 0;
         const depositAmount = payment.depositAmount || 0;
+        const deliveryCharge = payment.deliveryCharge || 0;
 
         let refundableRental = Math.max(0, rentalAmount - cancellationCharge);
-        let totalRefund = refundableRental + depositAmount;
+        let totalRefund = refundableRental + depositAmount + deliveryCharge;
         console.log('====================');
         console.log('totalRefund: ', totalRefund);
         console.log('====================');
@@ -659,6 +618,7 @@ exports.updateStatus = async (req, res, next) => {
                 // Full refund = rentalAmount + depositAmount
                 refundAmount =
                     Number(payment.rentalAmount || 0) +
+                    Number(payment.deliveryCharge || 0) +
                     Number(payment.depositAmount || 0);
 
                 const refund = await stripe.refunds.create({
@@ -671,6 +631,7 @@ exports.updateStatus = async (req, res, next) => {
                         paymentId: payment._id.toString(),
                     },
                 });
+                    // console.log('refund: ', refund);
 
                 // Update payment record
                 payment.refundAmount = refundAmount;
@@ -1216,7 +1177,7 @@ exports.getActiveOrders = async (req, res, next) => {
             })
             .populate({
                 path: 'payment',
-                select: 'totalAmount depositAmount rentalAmount paymentStatus',
+                select: 'deliveryCharge totalAmount depositAmount rentalAmount paymentStatus',
             });
 
         const filtered = bookings.filter(
@@ -1272,7 +1233,7 @@ exports.getSellerActiveOrders = async (req, res, next) => {
             ])
             .populate({
                 path: 'payment',
-                select: 'totalAmount depositAmount rentalAmount paymentStatus commissionType commissionPercentage commissionFixedAmount commissionAmount ownerPayoutAmount',
+                select: 'deliveryCharge totalAmount depositAmount rentalAmount paymentStatus commissionType commissionPercentage commissionFixedAmount commissionAmount ownerPayoutAmount',
             });
 
         const filtered = bookings.filter(
@@ -1308,7 +1269,7 @@ exports.getOrderHistory = async (req, res, next) => {
             })
             .populate({
                 path: 'payment',
-                select: 'totalAmount depositAmount rentalAmount paymentStatus',
+                select: 'deliveryCharge totalAmount depositAmount rentalAmount paymentStatus',
             });
 
         const filtered = bookings.filter(
@@ -1364,7 +1325,7 @@ exports.getSellerOrderHistory = async (req, res, next) => {
             ])
             .populate({
                 path: 'payment',
-                select: 'totalAmount depositAmount rentalAmount paymentStatus commissionType commissionPercentage commissionFixedAmount commissionAmount ownerPayoutAmount',
+                select: 'deliveryCharge totalAmount depositAmount rentalAmount paymentStatus commissionType commissionPercentage commissionFixedAmount commissionAmount ownerPayoutAmount',
             });
 
         const filtered = bookings.filter(
