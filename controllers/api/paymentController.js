@@ -716,7 +716,7 @@ exports.getPaymentDetails = async (req, res, next) => {
         if (!isRenter && !isOwner) {
             return next(createError.Forbidden('Unauthorized access.'));
         }
- 
+
         res.status(200).json({
             success: true,
             payment,
@@ -1955,7 +1955,7 @@ exports.getPendingPayouts = async (req, res, next) => {
 // Define subscription pricing
 const SUBSCRIPTION_PRICES = {
     // monthly: 9.99, // AUD $9.99 per month
-    yearly: 99.99, // AUD $99.99 per year
+    yearly: 10, // AUD $99.99 per year
     // lifetime: 299.99, // AUD $299.99 one-time
 };
 
@@ -1968,7 +1968,7 @@ const SUBSCRIPTION_DURATIONS = {
 // Create subscription payment intent
 exports.createSubscriptionPayment = async (req, res, next) => {
     try {
-        const { subscriptionType = 'monthly' } = req.body;
+        const { subscriptionType = 'yearly' } = req.body;
         const userId = req.user.id;
 
         // Validate subscription type
@@ -2044,11 +2044,11 @@ exports.createSubscriptionPayment = async (req, res, next) => {
             subscriptionId: subscription._id,
             amount,
             currency: 'AUD',
-            subscriptionType,
-            autoRenew: false,
-            message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(
-                2
-            )}.`,
+            // subscriptionType,
+            // autoRenew: false,
+            // message: `Subscription payment for ${subscriptionType} plan. Amount: AUD $${amount.toFixed(
+            //     2
+            // )}.`,
         });
         // }
 
@@ -2254,7 +2254,7 @@ exports.getSubscriptionStatus = async (req, res, next) => {
         const userId = req.user.id;
 
         const user = await User.findById(userId).select(
-            'hasSubscription subscriptionExpiresAt subscriptionActivatedAt chattedWith stripeSubscriptionId activeSubscriptionId'
+            'hasSubscription subscriptionExpiresAt subscriptionActivatedAt stripeSubscriptionId activeSubscriptionId'
         );
 
         if (!user) {
@@ -2264,48 +2264,48 @@ exports.getSubscriptionStatus = async (req, res, next) => {
         // If user has a Stripe subscription, check its current status
         let stripeSubscriptionData = null;
         let willAutoRenew = false;
-        if (user.stripeSubscriptionId) {
-            try {
-                const stripeSubscription = await stripe.subscriptions.retrieve(
-                    user.stripeSubscriptionId
-                );
-                stripeSubscriptionData = {
-                    status: stripeSubscription.status,
-                    currentPeriodEnd: new Date(
-                        stripeSubscription.current_period_end * 1000
-                    ),
-                    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-                    canceledAt: stripeSubscription.canceled_at
-                        ? new Date(stripeSubscription.canceled_at * 1000)
-                        : null,
-                };
-                willAutoRenew =
-                    !stripeSubscription.cancel_at_period_end &&
-                    stripeSubscription.status === 'active';
+        // if (user.stripeSubscriptionId) {
+        //     try {
+        //         const stripeSubscription = await stripe.subscriptions.retrieve(
+        //             user.stripeSubscriptionId
+        //         );
+        //         stripeSubscriptionData = {
+        //             status: stripeSubscription.status,
+        //             currentPeriodEnd: new Date(
+        //                 stripeSubscription.current_period_end * 1000
+        //             ),
+        //             cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+        //             canceledAt: stripeSubscription.canceled_at
+        //                 ? new Date(stripeSubscription.canceled_at * 1000)
+        //                 : null,
+        //         };
+        //         willAutoRenew =
+        //             !stripeSubscription.cancel_at_period_end &&
+        //             stripeSubscription.status === 'active';
 
-                // Sync expiration date with Stripe
-                if (stripeSubscription.status === 'active') {
-                    const newExpiresAt = new Date(
-                        stripeSubscription.current_period_end * 1000
-                    );
-                    if (
-                        !user.subscriptionExpiresAt ||
-                        user.subscriptionExpiresAt.getTime() !==
-                            newExpiresAt.getTime()
-                    ) {
-                        user.subscriptionExpiresAt = newExpiresAt;
-                        user.hasSubscription = true;
-                        await user.save();
-                    }
-                }
-            } catch (stripeError) {
-                console.error(
-                    'Error fetching Stripe subscription:',
-                    stripeError
-                );
-                // Continue with local data if Stripe fails
-            }
-        }
+        //         // Sync expiration date with Stripe
+        //         if (stripeSubscription.status === 'active') {
+        //             const newExpiresAt = new Date(
+        //                 stripeSubscription.current_period_end * 1000
+        //             );
+        //             if (
+        //                 !user.subscriptionExpiresAt ||
+        //                 user.subscriptionExpiresAt.getTime() !==
+        //                     newExpiresAt.getTime()
+        //             ) {
+        //                 user.subscriptionExpiresAt = newExpiresAt;
+        //                 user.hasSubscription = true;
+        //                 await user.save();
+        //             }
+        //         }
+        //     } catch (stripeError) {
+        //         console.error(
+        //             'Error fetching Stripe subscription:',
+        //             stripeError
+        //         );
+        //         // Continue with local data if Stripe fails
+        //     }
+        // }
 
         // Check if subscription has expired
         let isExpired = false;
@@ -2347,7 +2347,7 @@ exports.getSubscriptionStatus = async (req, res, next) => {
                 expiresAt: user.subscriptionExpiresAt,
                 activatedAt: user.subscriptionActivatedAt,
                 isExpired,
-                autoRenew: willAutoRenew,
+                // autoRenew: willAutoRenew,
                 type: activeSubscription
                     ? activeSubscription.subscriptionType
                     : null,
@@ -2378,12 +2378,12 @@ exports.getSubscriptionStatus = async (req, res, next) => {
             },
             subscriptionHistory: subscriptions.map(sub => ({
                 _id: sub._id,
-                subscriptionType: sub.subscriptionType,
+                // subscriptionType: sub.subscriptionType,
                 amount: sub.amount,
                 startDate: sub.startDate,
                 expiresAt: sub.expiresAt,
                 isActive: sub.isActive,
-                autoRenew: sub.autoRenew,
+                // autoRenew: sub.autoRenew,
                 paidAt: sub.paidAt,
                 // Include card details in history
                 paymentMethod: sub.cardLast4
@@ -2430,12 +2430,11 @@ exports.getSubscriptionPricing = async (req, res, next) => {
         res.status(200).json({
             success: true,
             pricing,
-            freePlan: {
-                limit: 10,
-                description:
-                    'Free users can chat with up to 10 different users (unlimited messages per conversation)',
-            },
-            message: 'All subscription payments go directly to platform admin.',
+            // freePlan: {
+            //     limit: 10,
+            //     description:
+            //         'Free users can chat with up to 10 different users (unlimited messages per conversation)',
+            // },
         });
     } catch (error) {
         console.error('Error fetching subscription pricing:', error);

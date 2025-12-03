@@ -273,7 +273,8 @@ const socketHandler = io => {
                     );
 
                     // If this is a new chat partner and limit reached
-                    if (!isExistingChat && senderUser.chattedWith.length >= 10) {
+                    // !change 5 to 10
+                    if (!isExistingChat && senderUser.chattedWith.length >= 5) {
                         return socket.emit('receiveMessage', {
                             success: false,
                             error: 'Chat limit reached',
@@ -428,6 +429,85 @@ const socketHandler = io => {
                 socket.emit('receiveMessage', {
                     success: false,
                     error: error.message,
+                });
+            }
+        });
+
+        socket.on('checkChatAllowed', async data => {
+            try {
+                const { token, receiver } = data;
+
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const senderId = decoded._id;
+
+                const senderUser = await User.findById(senderId).select(
+                    'hasSubscription subscriptionExpiresAt chattedWith'
+                );
+
+                if (!senderUser) {
+                    return socket.emit('chatAllowedResponse', {
+                        success: false,
+                        error: 'User not found',
+                    });
+                }
+
+                const now = new Date();
+
+                // 🔥 Auto-expire subscription
+                if (
+                    senderUser.hasSubscription &&
+                    senderUser.subscriptionExpiresAt &&
+                    senderUser.subscriptionExpiresAt < now
+                ) {
+                    senderUser.hasSubscription = false;
+                    await senderUser.save();
+                }
+
+                // 🟢 Subscribed users = unlimited chat
+                if (senderUser.hasSubscription) {
+                    return socket.emit('chatAllowedResponse', {
+                        success: true,
+                        allowed: true,
+                        hasSubscription: true,
+                        uniqueChatsCount: senderUser.chattedWith.length,
+                        remainingChats: 'unlimited',
+                    });
+                }
+
+                // Check if the receiver is an existing chat partner
+                const isExistingChat = senderUser.chattedWith.some(
+                    id => id.toString() === receiver.toString()
+                );
+
+                // If NEW chat + limit reached → BLOCK
+                if (!isExistingChat && senderUser.chattedWith.length >= 5) {
+                    return socket.emit('chatAllowedResponse', {
+                        success: false,
+                        allowed: false,
+                        limitReached: true,
+                        uniqueChatsCount: senderUser.chattedWith.length,
+                        maxChats: 10,
+                        message:
+                            'You have reached your free chat limit of 10 conversations. Please subscribe to continue.',
+                    });
+                }
+
+                // 🟢 Allowed (free user under limit)
+                return socket.emit('chatAllowedResponse', {
+                    success: true,
+                    allowed: true,
+                    hasSubscription: false,
+                    uniqueChatsCount: senderUser.chattedWith.length,
+                    remainingChats: Math.max(
+                        0,
+                        10 - senderUser.chattedWith.length
+                    ),
+                });
+            } catch (err) {
+                console.error('Chat limit check error:', err.message);
+                socket.emit('chatAllowedResponse', {
+                    success: false,
+                    error: err.message,
                 });
             }
         });

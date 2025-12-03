@@ -13,6 +13,11 @@ const adminCommissionSchema = new mongoose.Schema(
         percentage: {
             type: Number,
         },
+        subscriptionAmount: {
+            type: Number,
+            default: 10,
+            required: true,
+        },
         isActive: {
             type: Boolean,
             default: true,
