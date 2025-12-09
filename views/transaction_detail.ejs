@@ -282,6 +282,13 @@
                                     </div>
                                     <% } %>
 
+                                    <% if (transaction.deliveryCharge > 0) { %>
+                                      <div class="amount-row">
+                                        <span>Delivery Charge:</span>
+                                        <strong>$<%= transaction.deliveryCharge.toFixed(2) %></strong>
+                                      </div>
+                                    <% } %>
+
                                     <div class="amount-row total">
                                         <span>Total Amount:</span>
                                         <strong>$<%= transaction.totalAmount.toFixed(2) %></strong>

@@ -16,7 +16,8 @@ router.get('/commission', async (req, res) => {
 // 🔹 Create Commission Setting
 router.post('/commission', async (req, res) => {
     try {
-        const { commissionType, fixedAmount, percentage } = req.body;
+        const { commissionType, fixedAmount, percentage, subscriptionAmount } =
+            req.body;
 
         let commission = await AdminCommission.findOne();
         if (commission) {
@@ -24,6 +25,7 @@ router.post('/commission', async (req, res) => {
             commission.commissionType = commissionType;
             commission.fixedAmount = fixedAmount;
             commission.percentage = percentage;
+            commission.subscriptionAmount = subscriptionAmount;
             await commission.save();
         } else {
             // create new
@@ -31,6 +33,7 @@ router.post('/commission', async (req, res) => {
                 commissionType,
                 fixedAmount,
                 percentage,
+                subscriptionAmount,
             });
             await commission.save();
         }
@@ -68,10 +71,22 @@ router.get('/:id', async (req, res) => {
 // 🔹 Update Commission
 router.put('/:id', async (req, res) => {
     try {
-        const { commissionType, fixedAmount, percentage, isActive } = req.body;
+        const {
+            commissionType,
+            fixedAmount,
+            percentage,
+            isActive,
+            subscriptionAmount,
+        } = req.body;
         const updated = await AdminCommission.findByIdAndUpdate(
             req.params.id,
-            { commissionType, fixedAmount, percentage, isActive },
+            {
+                commissionType,
+                fixedAmount,
+                percentage,
+                isActive,
+                subscriptionAmount,
+            },
             { new: true }
         );
         if (!updated) return res.status(404).json({ message: 'Not found' });

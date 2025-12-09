@@ -1971,6 +1971,8 @@ exports.createSubscriptionPayment = async (req, res, next) => {
         const { subscriptionType = 'yearly' } = req.body;
         const userId = req.user.id;
 
+        const commission = await AdminCommission.findOne();
+        const adminAmount = commission.subscriptionAmount || 10;
         // Validate subscription type
         if (!['monthly', 'yearly', 'lifetime'].includes(subscriptionType)) {
             return next(createError.BadRequest('Invalid subscription type.'));
@@ -1990,8 +1992,8 @@ exports.createSubscriptionPayment = async (req, res, next) => {
             );
         }
 
-        const amount = SUBSCRIPTION_PRICES[subscriptionType];
-        const adminAmount = amount; // 100% goes to admin
+        const amount = adminAmount;
+        // const adminAmount = amount; // 100% goes to admin
 
         // Create or retrieve Stripe Customer
         let customerId = user.stripeCustomerId;
@@ -2010,7 +2012,7 @@ exports.createSubscriptionPayment = async (req, res, next) => {
 
         // if (subscriptionType === 'lifetime') {
         const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(amount * 100), // Convert to cents
+            amount: Math.round(adminAmount * 100), // Convert to cents
             currency: 'aud',
             customer: customerId,
             metadata: {
@@ -2368,36 +2370,34 @@ exports.getSubscriptionStatus = async (req, res, next) => {
                           }
                         : null,
                 stripeStatus: stripeSubscriptionData,
-            },
-            chatUsage: {
                 uniqueChatsCount: uniqueChatsCount,
                 remainingChats,
                 unlimited: user.hasSubscription && !isExpired,
                 description:
                     'Free users can chat with up to 10 different users (unlimited messages per user)',
             },
-            subscriptionHistory: subscriptions.map(sub => ({
-                _id: sub._id,
-                // subscriptionType: sub.subscriptionType,
-                amount: sub.amount,
-                startDate: sub.startDate,
-                expiresAt: sub.expiresAt,
-                isActive: sub.isActive,
-                // autoRenew: sub.autoRenew,
-                paidAt: sub.paidAt,
-                // Include card details in history
-                paymentMethod: sub.cardLast4
-                    ? {
-                          cardLast4: sub.cardLast4,
-                          cardBrand: sub.cardBrand,
-                          displayText: `${
-                              sub.cardBrand
-                                  ? sub.cardBrand.toUpperCase()
-                                  : 'Card'
-                          } ••••${sub.cardLast4}`,
-                      }
-                    : null,
-            })),
+            // subscriptionHistory: subscriptions.map(sub => ({
+            //     _id: sub._id,
+            //     // subscriptionType: sub.subscriptionType,
+            //     amount: sub.amount,
+            //     startDate: sub.startDate,
+            //     expiresAt: sub.expiresAt,
+            //     isActive: sub.isActive,
+            //     // autoRenew: sub.autoRenew,
+            //     paidAt: sub.paidAt,
+            //     // Include card details in history
+            //     paymentMethod: sub.cardLast4
+            //         ? {
+            //               cardLast4: sub.cardLast4,
+            //               cardBrand: sub.cardBrand,
+            //               displayText: `${
+            //                   sub.cardBrand
+            //                       ? sub.cardBrand.toUpperCase()
+            //                       : 'Card'
+            //               } ••••${sub.cardLast4}`,
+            //           }
+            //         : null,
+            // })),
         });
     } catch (error) {
         console.error('Error fetching subscription status:', error);

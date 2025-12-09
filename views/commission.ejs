@@ -38,15 +38,15 @@
             <div id="basic-form" class="card-default scrollspy">
               <div class="card-content">
                 <form method="POST" action="/admin/commission" id="commissionForm">
-                            <%- include('messages', { messages: messages }) %>
+                  <%- include('messages', { messages: messages }) %>
 
                   <!-- Commission Type -->
                   <div class="input-field col s12">
-                    <label>Commission Type</label><br><br>
+                    <label><b>Rental Commission Type</b></label><br><br>
                     <p>
                       <label>
                         <input name="commissionType" type="radio" value="fixed" <%= commission && commission.commissionType === 'fixed' ? 'checked' : '' %> />
-                        <span>Fixed Commission (₹)</span>
+                        <span>Fixed Commission ($)</span>
                       </label>
                     </p>
                     <p>
@@ -60,7 +60,7 @@
 
                   <!-- Fixed Amount -->
                   <div class="input-field col s12" id="fixedField" style="<%= commission && commission.commissionType === 'percentage' ? 'display:none;' : '' %>">
-                    <label for="fixedAmount">Fixed Amount (₹)</label>
+                    <label for="fixedAmount">Fixed Amount ($)</label>
                     <input class="validate" id="fixedAmount" name="fixedAmount" type="number" value="<%= commission && commission.fixedAmount ? commission.fixedAmount : '' %>">
                     <div class="error-message" id="fixedError"></div>
                   </div>
@@ -72,10 +72,20 @@
                     <div class="error-message" id="percentageError"></div>
                   </div>
 
+                  <div class="divider" style="margin: 20px 0;"></div>
+
+                  <!-- Subscription Amount -->
+                  <div class="input-field col s12">
+                    <label for="subscriptionAmount"><b>Admin Fee ($)</b></label>
+                    <input class="validate" id="subscriptionAmount" name="subscriptionAmount" type="number" min="1" step="0.01" required value="<%= commission && commission.subscriptionAmount ? commission.subscriptionAmount : 99 %>">
+                    <!-- <span class="helper-text">This is the monthly subscription price for unlimited chat access</span> -->
+                    <div class="error-message" id="subscriptionError"></div>
+                  </div>
+
                   <div class="row">
                     <div class="col s12 display-flex justify-content-end">
                       <button class="btn btn-edit" type="submit" name="action">
-                        <%= commission ? 'Update' : 'Save' %>
+                        <%= commission ? 'Update Settings' : 'Save Settings' %>
                       </button>
                     </div>
                   </div>
@@ -85,13 +95,24 @@
 
               <% if (commission) { %>
               <div class="card-content">
-                <h6><b>Current Commission:</b></h6>
-                <p>Type: <%= commission.commissionType %></p>
-                <% if (commission.commissionType === 'fixed') { %>
-                <p>Amount: ₹<%= commission.fixedAmount %></p>
-                <% } else { %>
-                <p>Percentage: <%= commission.percentage %>%</p>
-                <% } %>
+                <h6><b>Current Settings:</b></h6>
+
+                <div style="margin-bottom: 15px;">
+                  <p><b>Rental Commission:</b></p>
+                  <p>Type: <%= commission.commissionType %></p>
+                  <% if (commission.commissionType === 'fixed') { %>
+                  <p>Amount: $<%= commission.fixedAmount %></p>
+                  <% } else { %>
+                  <p>Percentage: <%= commission.percentage %>%</p>
+                  <% } %>
+                </div>
+
+                <div class="divider" style="margin: 10px 0;"></div>
+
+                <div style="margin-top: 15px;">
+                  <p><b>Admin Fee:</b></p>
+                  <p>Price: $<%= commission.subscriptionAmount %></p>
+                </div>
               </div>
               <% } %>
 
@@ -128,6 +149,7 @@
         const type = $('input[name="commissionType"]:checked').val();
         const fixed = $('#fixedAmount').val().trim();
         const percent = $('#percentage').val().trim();
+        const subscription = $('#subscriptionAmount').val().trim();
 
         $('.error-message').text('');
 
@@ -137,6 +159,10 @@
         }
         if (type === "percentage" && !percent) {
           $('#percentageError').text('Please enter a percentage commission.');
+          valid = false;
+        }
+        if (!subscription || parseFloat(subscription) <= 0) {
+          $('#subscriptionError').text('Please enter a valid amount greater than 0.');
           valid = false;
         }
 

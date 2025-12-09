@@ -30,7 +30,7 @@ const socketHandler = io => {
 
                 socket.join(userId);
 
-                // console.log(`✅ User ${userId} joined (${socket.id})`);
+                console.log(`✅ User ${userId} joined (${socket.id})`);
 
                 // ✅ Update MongoDB
                 await User.findByIdAndUpdate(userId, {
@@ -43,6 +43,10 @@ const socketHandler = io => {
 
                 // ✅ Give this user the list of currently online users
                 const allOnline = Array.from(onlineUsers.keys());
+                console.log('onlineUsers: ', onlineUsers);
+                console.log('-----------------------------');
+                console.log('allOnline: ', allOnline);
+                console.log("-----------------------------");
                 socket.emit('onlineUsers', allOnline);
             } catch (error) {
                 console.error('❌ Invalid token in join:', error.message);
@@ -764,9 +768,9 @@ const socketHandler = io => {
                             lastSeen,
                         });
 
-                        // console.log(
-                        //     `🔴 User ${userId} disconnected at ${lastSeen}`
-                        // );
+                        console.log(
+                            `🔴 User ${userId} disconnected at ${lastSeen}`
+                        );
                     }
                     break;
                 }
