@@ -1,178 +1,182 @@
 <!DOCTYPE html>
 <html class="loading" lang="en" data-textdirection="ltr">
+
 <head>
-    <%- include('_layouts/head') %>
-    <title>Transactions | <%= title %></title>
-    <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/jquery.dataTables.min.css">
-    <style>
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-        .status-paid { background: #e8f5e9; color: #2e7d32; }
-        .status-pending { background: #fff3e0; color: #f57c00; }
-        .status-refunded { background: #ffebee; color: #c62828; }
-        .status-held { background: #e3f2fd; color: #1565c0; }
-    </style>
+  <%- include('_layouts/head') %>
+  <title>Transactions | <%= title %></title>
+  <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/extensions/responsive/css/responsive.dataTables.min.css">
+  <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/select.dataTables.min.css">
+  <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+  <style>
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-paid {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .status-pending {
+      background: #fff3e0;
+      color: #f57c00;
+    }
+
+    .status-refunded {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .status-held {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+  </style>
 </head>
 
-<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns"
-      data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
 
-    <%- include('_layouts/sidenavbar') %>
+  <%- include('_layouts/sidenavbar') %>
 
-    <div id="main">
-        <div class="row">
-            <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
-                <div class="container">
-                    <div class="row">
-                        <%- include('messages', { messages: messages }) %>
-                        <div class="col s12 m6 l6">
-                            <h6 class="breadcrumbs-title"><span>All Transactions</span></h6>
-                        </div>
-                        <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
-                            <ol class="breadcrumbs mb-0">
-                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
-                                <li class="breadcrumb-item"><a href="/admin/reports">Reports</a></li>
-                                <li class="breadcrumb-item active">Transactions</li>
-                            </ol>
-                        </div>
-                    </div>
-                </div>
+  <div id="main">
+    <div class="row">
+      <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+        <div class="container">
+          <div class="row">
+            <%- include('messages', { messages: messages }) %>
+            <div class="col s12 m6 l6">
+              <h6 class="breadcrumbs-title"><span>All Transactions</span></h6>
             </div>
-
-            <div class="col s12">
-                <div class="container">
-
-                    <!-- Filter Section -->
-                    <div class="card">
-                        <div class="card-content">
-                            <form action="/admin/reports/transactions" method="GET">
-                                <div class="row">
-                                    <div class="col s12 m4">
-                                        <label>Payment Status</label>
-                                        <select name="status" class="browser-default" onchange="this.form.submit()">
-                                            <option value="all" <%= status === 'all' ? 'selected' : '' %>>All Status</option>
-                                            <option value="paid" <%= status === 'paid' ? 'selected' : '' %>>Paid</option>
-                                            <option value="pending" <%= status === 'pending' ? 'selected' : '' %>>Pending</option>
-                                            <option value="refunded" <%= status === 'refunded' ? 'selected' : '' %>>Refunded</option>
-                                            <option value="held" <%= status === 'held' ? 'selected' : '' %>>Held</option>
-                                        </select>
-                                    </div>
-                                    <!-- <div class="col s12 m6">
-                                        <label>Search (Booking ID)</label>
-                                        <input type="text" name="search" value="<%= search %>" placeholder="Enter booking ID" class="browser-default">
-                                    </div>
-                                    <div class="col s12 m2">
-                                        <label>&nbsp;</label>
-                                        <button type="submit" class="btn btn-edit waves-effect" style="width: 100%;">Search</button>
-                                    </div> -->
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Transactions Table -->
-                    <div class="card">
-                        <div class="card-content">
-                            <div class="row">
-                                <div class="col s12">
-                                    <table id="transactions-table" class="display responsive-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Date</th>
-                                                <th>Transaction ID</th>
-                                                <th>Renter</th>
-                                                <th>Product</th>
-                                                <th>Amount</th>
-                                                <th>Commission</th>
-                                                <th>Owner Payout</th>
-                                                <th>Status</th>
-                                                <th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <% transactions.forEach(transaction => { %>
-                                            <tr>
-                                                <td><%= new Date(transaction.createdAt).toLocaleDateString() %></td>
-                                                <td><%= transaction._id.toString().slice(-8) %></td>
-                                                <td><%= transaction.renter?.name || 'N/A' %></td>
-                                                <td><%= transaction.product?.title || 'N/A' %></td>
-                                                <td>$<%= transaction.totalAmount.toFixed(2) %></td>
-                                                <td>$<%= transaction.commissionAmount.toFixed(2) %></td>
-                                                <td>$<%= transaction.ownerPayoutAmount.toFixed(2) %></td>
-                                                <td>
-                                                    <span class="status-badge status-<%= transaction.paymentStatus %>">
-                                                        <%= transaction.paymentStatus %>
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <a href="/admin/reports/transactions/<%= transaction._id %>"
-                                                       class="btn-small waves-effect blue">
-                                                        <i class="material-icons">visibility</i>
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                            <% }); %>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <!-- Pagination -->
-                            <% if (totalPages > 1) { %>
-                            <div class="row">
-                                <div class="col s12 center-align">
-                                    <ul class="pagination">
-                                        <% if (currentPage > 1) { %>
-                                        <li class="waves-effect">
-                                            <a href="?page=<%= Number(currentPage) - 1 %>&status=<%= status %>&search=<%= search %>">
-                                                <i class="material-icons">chevron_left</i>
-                                            </a>
-                                        </li>
-                                        <% } %>
-
-                                        <% for(let i = 1; i <= totalPages; i++) { %>
-                                        <li class="<%= i == currentPage ? 'active' : 'waves-effect' %>">
-                                            <a href="?page=<%= i %>&status=<%= status %>&search=<%= search %>"><%= i %></a>
-                                        </li>
-                                        <% } %>
-
-                                        <% if (currentPage < totalPages) { %>
-                                        <li class="waves-effect">
-                                            <a href="?page=<%= Number(currentPage) + 1 %>&status=<%= status %>&search=<%= search %>">
-                                                <i class="material-icons">chevron_right</i>
-                                            </a>
-                                        </li>
-                                        <% } %>
-                                    </ul>
-                                </div>
-                            </div>
-                            <% } %>
-
-                        </div>
-                    </div>
-
-                </div>
+            <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+              <ol class="breadcrumbs mb-0">
+                <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/admin/reports">Reports</a></li>
+                <li class="breadcrumb-item active">Transactions</li>
+              </ol>
             </div>
+          </div>
         </div>
+      </div>
+
+      <div class="col s12">
+        <div class="container">
+          <div class="section section-data-tables">
+
+            <!-- Filter Section -->
+            <div class="row">
+              <div class="col s12">
+                <div class="card">
+                  <div class="card-content">
+                    <form action="/admin/reports/transactions" method="GET">
+                      <div class="row">
+                        <div class="col s12 m4">
+                          <label>Payment Status</label>
+                          <select name="status" class="browser-default" onchange="this.form.submit()">
+                            <option value="all" <%= status === 'all' ? 'selected' : '' %>>All Status</option>
+                            <option value="paid" <%= status === 'paid' ? 'selected' : '' %>>Paid</option>
+                            <option value="pending" <%= status === 'pending' ? 'selected' : '' %>>Pending</option>
+                            <option value="refunded" <%= status === 'refunded' ? 'selected' : '' %>>Refunded</option>
+                            <option value="held" <%= status === 'held' ? 'selected' : '' %>>Held</option>
+                          </select>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transactions Table -->
+            <div class="row">
+              <div class="col s12">
+                <div class="card">
+                  <div class="card-content">
+                    <div class="row">
+                      <div class="col s12 overflow">
+                        <table id="page-length-option" class="display">
+                          <thead>
+                            <tr>
+                              <th>Sr</th>
+                              <th>Date</th>
+                              <th>Transaction ID</th>
+                              <th>Renter</th>
+                              <th>Product</th>
+                              <th>Amount</th>
+                              <th>Commission</th>
+                              <th>Owner Payout</th>
+                              <th>Status</th>
+                              <th data-orderable="false">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% transactions.forEach((transaction, index) => { %>
+                            <tr>
+                              <td><%= index + 1 %></td>
+                              <td><%= new Date(transaction.createdAt).toLocaleDateString() %></td>
+                              <td><%= transaction._id.toString().slice(-8) %></td>
+                              <td><%= transaction.renter?.name || 'N/A' %></td>
+                              <td><%= transaction.product?.title || 'N/A' %></td>
+                              <td>$<%= transaction.totalAmount.toFixed(2) %></td>
+                              <td>$<%= transaction.commissionAmount.toFixed(2) %></td>
+                              <td>$<%= transaction.ownerPayoutAmount.toFixed(2) %></td>
+                              <td>
+                                <span class="status-badge status-<%= transaction.paymentStatus %>">
+                                  <%= transaction.paymentStatus %>
+                                </span>
+                              </td>
+                              <td>
+                                <a href="/admin/reports/transactions/<%= transaction._id %>" class="btn-floating waves-effect waves-light blue">
+                                  <i class="material-icons">visibility</i>
+                                </a>
+                              </td>
+                            </tr>
+                            <% }); %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <div class="content-overlay"></div>
+      </div>
     </div>
+  </div>
 
-    <%- include('_layouts/commonJs') %>
-    <script src="/app-assets/vendors/data-tables/js/jquery.dataTables.min.js"></script>
+  <%- include('_layouts/commonJs') %>
+  <script src="/app-assets/vendors/data-tables/js/jquery.dataTables.min.js"></script>
 
-    <script>
-        $(document).ready(function() {
-            $('#transactions-table').DataTable({
-                responsive: true,
-                paging: false,
-                searching: false,
-                order: [[0, 'desc']]
-            });
+  <script>
+    $(document).ready(function() {
+      // Prevent multiple initializations
+      if (!$.fn.DataTable.isDataTable('#page-length-option')) {
+        $('#page-length-option').DataTable({
+          responsive: true,
+          pageLength: 10,
+          lengthMenu: [
+            [10, 25, 50, -1],
+            [10, 25, 50, "All"]
+          ],
+          order: [
+            [1, 'desc']
+          ], // Sort by date descending
+          columnDefs: [{
+            orderable: false,
+            targets: [9]
+          }]
         });
-    </script>
+      }
+    });
+  </script>
 
 </body>
+
 </html>
