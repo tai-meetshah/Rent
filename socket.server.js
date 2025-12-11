@@ -259,43 +259,43 @@ const socketHandler = io => {
                 );
 
                 // Check if subscription is expired
-                const now = new Date();
-                if (
-                    senderUser.hasSubscription &&
-                    senderUser.subscriptionExpiresAt &&
-                    senderUser.subscriptionExpiresAt < now
-                ) {
-                    // Subscription expired - deactivate it
-                    senderUser.hasSubscription = false;
-                    await senderUser.save();
-                }
+                // const now = new Date();
+                // if (
+                //     senderUser.hasSubscription &&
+                //     senderUser.subscriptionExpiresAt &&
+                //     senderUser.subscriptionExpiresAt < now
+                // ) {
+                //     // Subscription expired - deactivate it
+                //     senderUser.hasSubscription = false;
+                //     await senderUser.save();
+                // }
 
-                if (!senderUser.hasSubscription) {
-                    // Check if receiver is a new chat partner
-                    const isExistingChat = senderUser.chattedWith.some(
-                        userId => userId.toString() === receiver.toString()
-                    );
+                // if (!senderUser.hasSubscription) {
+                //     // Check if receiver is a new chat partner
+                //     const isExistingChat = senderUser.chattedWith.some(
+                //         userId => userId.toString() === receiver.toString()
+                //     );
 
-                    // If this is a new chat partner and limit reached
-                    // !change 5 to 10
-                    if (!isExistingChat && senderUser.chattedWith.length >= 5) {
-                        return socket.emit('receiveMessage', {
-                            success: false,
-                            error: 'Chat limit reached',
-                            limitReached: true,
-                            uniqueChatsCount: senderUser.chattedWith.length,
-                            maxChats: 10,
-                            message:
-                                'You have reached your free chat limit of 10 conversations. Please subscribe to chat with more users.',
-                        });
-                    }
+                //     // If this is a new chat partner and limit reached
+                //     // !change 5 to 10
+                //     if (!isExistingChat && senderUser.chattedWith.length >= 5) {
+                //         return socket.emit('receiveMessage', {
+                //             success: false,
+                //             error: 'Chat limit reached',
+                //             limitReached: true,
+                //             uniqueChatsCount: senderUser.chattedWith.length,
+                //             maxChats: 10,
+                //             message:
+                //                 'You have reached your free chat limit of 10 conversations. Please subscribe to chat with more users.',
+                //         });
+                //     }
 
-                    // Add receiver to chatted list if not already there
-                    if (!isExistingChat) {
-                        senderUser.chattedWith.push(receiver);
-                        await senderUser.save();
-                    }
-                }
+                //     // Add receiver to chatted list if not already there
+                //     if (!isExistingChat) {
+                //         senderUser.chattedWith.push(receiver);
+                //         await senderUser.save();
+                //     }
+                // }
 
                 let fileName = null;
 

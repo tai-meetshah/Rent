@@ -98,7 +98,7 @@
                 <h6><b>Current Settings:</b></h6>
 
                 <div style="margin-bottom: 15px;">
-                  <p><b>Rental Commission:</b></p>
+                  <p><b>Rental Commission:(Taken from the seller)</b></p>
                   <p>Type: <%= commission.commissionType %></p>
                   <% if (commission.commissionType === 'fixed') { %>
                   <p>Amount: $<%= commission.fixedAmount %></p>
@@ -110,7 +110,7 @@
                 <div class="divider" style="margin: 10px 0;"></div>
 
                 <div style="margin-top: 15px;">
-                  <p><b>Admin Fee:</b></p>
+                  <p><b>Admin Fee:(Taken from the buyer)</b></p>
                   <p>Price: $<%= commission.subscriptionAmount %></p>
                 </div>
               </div>

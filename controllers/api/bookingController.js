@@ -567,7 +567,7 @@ exports.cancelBooking = async (req, res, next) => {
 // Only seller can update booking status
 exports.updateStatus = async (req, res, next) => {
     try {
-        const { bookingId, status } = req.body;
+        const { bookingId, status, bookingRejectionReason } = req.body;
         const allowed = [
             'pending',
             'confirmed',
@@ -653,6 +653,8 @@ exports.updateStatus = async (req, res, next) => {
 
         // Update booking status
         booking.status = status;
+        booking.bookingRejectionReason = bookingRejectionReason;
+
         if (status === 'cancelled') {
             booking.cancellationInitiatedBy = req.user.id;
             booking.cancellationInitiatedAt = new Date();
@@ -1005,9 +1007,13 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                             day: 'numeric',
                         });
 
+                        const totalPayoutAmount =
+                            Number(payment.ownerPayoutAmount || 0) +
+                            Number(payment.deliveryCharge || 0);
+
                     await sendNotificationsToTokens(
                         'Payout Scheduled',
-                        `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
+                        `Your payout of AUD $${totalPayoutAmount.toFixed(
                             2
                         )} for ${
                             booking.product.title
@@ -1021,7 +1027,7 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                     await userNotificationModel.create({
                         sentTo: [owner._id],
                         title: 'Payout Scheduled',
-                        body: `Your payout of AUD $${payment.ownerPayoutAmount.toFixed(
+                        body: `Your payout of AUD $${totalPayoutAmount.toFixed(
                             2
                         )} for ${
                             booking.product.title

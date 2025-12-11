@@ -65,16 +65,22 @@
     <!-- BEGIN: Page Main-->
     <div id="main">
       <div class="row">
-        <!-- <div id="breadcrumbs-wrapper" style="background-color: white;">
+        <div id="breadcrumbs-wrapper" style="background-color: white;">
           <div class="container">
             <div class="row">
               <div class="col s12 m6 l6">
                 <h5 class="breadcrumbs-title"><span>Product View</span></h5>
               </div>
-
+ <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+   <ol class="breadcrumbs mb-0">
+     <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
+     <li class="breadcrumb-item"><a href="/admin/product">Products</a></li>
+     <li class="breadcrumb-item active">Detail</li>
+   </ol>
+ </div>
             </div>
           </div>
-        </div> -->
+        </div>
         <%- include('messages', { messages: messages }) %>
 
           <div class="col s12">
@@ -237,12 +243,12 @@
                               </td>
                             </tr>
 
-                            <tr>
+                            <!-- <tr>
                               <th>Owner Lat / Long</th>
                               <td>
                                 <%= vendor.oLatitude %>, <%= vendor.oLongitude %>
                               </td>
-                            </tr>
+                            </tr> -->
 
                             <!-- <tr>
                               <th>Owner Name</th>
@@ -279,12 +285,26 @@
                               </td>
                             </tr> -->
 
-                            <tr>
-                              <th>All Days Available</th>
-                              <td>
-                                <%= vendor.allDaysAvailable ? 'Yes' : 'No' %>
-                              </td>
-                            </tr>
+                           <tr>
+                             <th>All Days Available</th>
+                             <td>
+                               <% if (vendor.allDaysAvailable) { %>
+                               Yes
+                               <% } else { %>
+                               <strong>Selected Dates:</strong><br>
+
+                               <% if (vendor.selectDate && vendor.selectDate.length > 0) { %>
+                               <% vendor.selectDate.forEach(date => { %>
+                               <div><%= new Date(date).toLocaleDateString("en-AU") %></div>
+                               <% }) %>
+                               <% } else { %>
+                               -
+                               <% } %>
+
+                               <% } %>
+                             </td>
+                           </tr>
+
 
                             <tr>
                               <th>Keywords</th>
@@ -375,8 +395,18 @@
                         </table>
                       </div>
                     </div>
+<!-- Back Button Section -->
+<!-- <div class="row">
+  <div class="col s12">
+    <a href="javascript:window.history.back();" class="waves-effect waves-light btn blue">Back</a>
+  </div>
+</div> -->
 
-
+  <div class="detail-card">
+    <a href="/admin/product" class="btn waves-effect" style="width: 40%;">
+      <i class="material-icons left">arrow_back</i>Back to Product
+    </a>
+  </div>
                   </div>
                 </div>
                 <!-- users view card details ends -->

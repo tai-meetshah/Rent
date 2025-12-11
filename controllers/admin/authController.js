@@ -8,8 +8,10 @@ const Admin = require('../../models/adminModel');
 const OTP = require('../../models/adminOtpModel');
 const User = require('../../models/userModel');
 const adminModel = require('../../models/adminModel');
-const categoryModel = require('../../models/categoryModel');
-const product = require('../../models/product');
+const Category = require('../../models/categoryModel');
+const Product = require('../../models/product');
+const Booking = require('../../models/Booking');
+const Transaction = require('../../models/paymentModel');
 
 exports.checkAdmin = async (req, res, next) => {
     try {
@@ -97,11 +99,243 @@ exports.checkPermission = (moduleKey, action) => {
 exports.getDashboard = async (req, res) => {
     var data = {};
     data.user = await User.find({ isDelete: false }).count();
-    data.category = await categoryModel.find({ isDeleted: false }).count();
-    data.product = await product.find({ isDeleted: false }).count();
+    data.category = await Category.find({ isDeleted: false }).count();
+    data.product = await Product.find({ isDeleted: false }).count();
 
     res.render('index', { data });
 };
+
+// Dashboard Controller
+// Add this to your admin dashboard route handler
+
+// exports.getDashboard = async (req, res) => {
+//     try {
+//         // Get today's start and end times
+//         const today = new Date();
+//         today.setHours(0, 0, 0, 0);
+//         const tomorrow = new Date(today);
+//         tomorrow.setDate(tomorrow.getDate() + 1);
+
+//         // Get 30 days ago for revenue trend
+//         const thirtyDaysAgo = new Date();
+//         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+//         thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+//         // Parallel queries for better performance
+//         const [
+//             totalUsers,
+//             todayUsers,
+//             todayUsersList,
+//             totalProducts,
+//             todayProducts,
+//             todayProductsList,
+//             totalBookings,
+//             pendingBookings,
+//             pendingApprovals,
+//             activeProducts,
+//             activeUsers,
+//             revenueStats,
+//             revenueTrendData,
+//             totalCategory,
+//         ] = await Promise.all([
+//             // Total users count
+//             User.countDocuments({ isActive: true }),
+
+//             // Today's users count
+//             User.countDocuments({
+//                 createdAt: { $gte: today, $lt: tomorrow },
+//             }),
+
+//             // Today's users list (top 10)
+//             User.find({
+//                 createdAt: { $gte: today, $lt: tomorrow },
+//             })
+//                 .sort({ createdAt: -1 })
+//                 .limit(10)
+//                 .select('name email city photo createdAt'),
+
+//             // Total products count
+//             Product.countDocuments({ isActive: true, isDeleted: false }),
+
+//             // Today's products count
+//             Product.countDocuments({
+//                 createdAt: { $gte: today, $lt: tomorrow },
+//                 isActive: true,
+//                 isDeleted: false,
+//             }),
+
+//             // Today's products list (top 10)
+//             Product.find({
+//                 createdAt: { $gte: today, $lt: tomorrow },
+//                 isActive: true,
+//                 isDeleted: false,
+//             })
+//                 .populate('user', 'name email')
+//                 .sort({ createdAt: -1 })
+//                 .limit(10)
+//                 .select('title images price user createdAt'),
+
+//             // Total bookings count
+//             Booking.countDocuments(),
+
+//             // Pending bookings count
+//             Booking.countDocuments({ status: 'pending' }),
+
+//             // Pending approvals count
+//             Product.countDocuments({
+//                 approvalStatus: 'pending',
+//                 isActive: true,
+//                 isDeleted: false,
+//             }),
+
+//             // Active products count
+//             Product.countDocuments({
+//                 isDeleted: false,
+//                 isActive: true,
+//                 approvalStatus: 'approved',
+//             }),
+
+//             // Active users count
+//             User.countDocuments({ isActive: true }),
+
+//             // Revenue statistics
+//             Transaction.aggregate([
+//                 {
+//                     $match: {
+//                         paymentStatus: 'paid',
+//                     },
+//                 },
+//                 {
+//                     $group: {
+//                         _id: null,
+//                         totalRevenue: { $sum: '$totalAmount' },
+//                         todayRevenue: {
+//                             $sum: {
+//                                 $cond: [
+//                                     {
+//                                         $and: [
+//                                             { $gte: ['$createdAt', today] },
+//                                             { $lt: ['$createdAt', tomorrow] },
+//                                         ],
+//                                     },
+//                                     '$totalAmount',
+//                                     0,
+//                                 ],
+//                             },
+//                         },
+//                     },
+//                 },
+//             ]),
+
+//             // Revenue trend for last 30 days
+//             Transaction.aggregate([
+//                 {
+//                     $match: {
+//                         paymentStatus: 'paid',
+//                         createdAt: { $gte: thirtyDaysAgo },
+//                     },
+//                 },
+//                 {
+//                     $group: {
+//                         _id: {
+//                             $dateToString: {
+//                                 format: '%Y-%m-%d',
+//                                 date: '$createdAt',
+//                             },
+//                         },
+//                         revenue: { $sum: '$totalAmount' },
+//                     },
+//                 },
+//                 {
+//                     $sort: { _id: 1 },
+//                 },
+//                 {
+//                     $project: {
+//                         _id: 0,
+//                         date: '$_id',
+//                         revenue: 1,
+//                     },
+//                 },
+//             ]),
+
+//             Category.countDocuments({
+//                 isDeleted: false,
+//                 isActive: true,
+//             }),
+//         ]);
+
+//         // Fill in missing days in revenue trend with 0
+//         const revenueTrend = [];
+//         const currentDate = new Date(thirtyDaysAgo);
+//         const revenueMap = new Map(
+//             revenueTrendData.map(d => [d.date, d.revenue])
+//         );
+
+//         while (currentDate < today) {
+//             const dateStr = currentDate.toISOString().split('T')[0];
+//             revenueTrend.push({
+//                 date: dateStr,
+//                 revenue: revenueMap.get(dateStr) || 0,
+//             });
+//             currentDate.setDate(currentDate.getDate() + 1);
+//         }
+
+//         // Prepare stats object
+//         const stats = {
+//             totalUsers,
+//             todayUsers,
+//             totalProducts,
+//             todayProducts,
+//             totalBookings,
+//             pendingBookings,
+//             pendingApprovals,
+//             activeProducts,
+//             activeUsers,
+//             totalRevenue: revenueStats[0]?.totalRevenue || 0,
+//             todayRevenue: revenueStats[0]?.todayRevenue || 0,
+//         };
+
+//         // Render dashboard with all data
+//         res.render('index', {
+//             title: 'Admin Dashboard',
+//             url: req.url,
+//             stats,
+//             todayUsers: todayUsersList,
+//             todayProducts: todayProductsList,
+//             revenueTrend,
+//             messages: req.flash(),
+//         });
+//     } catch (error) {
+//         console.error('Dashboard error:', error);
+//         req.flash('error', 'Error loading dashboard data');
+//         res.render('index', {
+//             title: 'Admin Dashboard',
+//             url: req.url,
+//             stats: {},
+//             todayUsers: [],
+//             todayProducts: [],
+//             revenueTrend: [],
+//             messages: req.flash(),
+//         });
+//     }
+// };
+
+// ==========================================
+// Example route setup (in your routes file):
+// ==========================================
+
+// const { getDashboardData } = require('./controllers/dashboardController');
+
+// router.get('/admin', ensureAuthenticated, getDashboardData);
+
+// ==========================================
+// Required Models (ensure these are imported):
+// ==========================================
+
+// const User = require('./models/User');
+// const Product = require('./models/Product');
+// const Booking = require('./models/Booking');
+// const Transaction = require('./models/Transaction');
 
 exports.getLogin = async (req, res) => {
     try {

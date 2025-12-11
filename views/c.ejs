@@ -3,171 +3,354 @@
 
 <head>
   <%- include('_layouts/head') %>
-  <title>Commission Settings | <%= title %></title>
+  <title>Dashboard | <%= title %></title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+  <style>
+    .stat-card {
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      color: white;
+    }
+
+    .stat-card h5 {
+      font-size: 14px;
+      margin: 0 0 10px 0;
+      opacity: 0.9;
+    }
+
+    .stat-card h3 {
+      font-size: 32px;
+      margin: 0;
+      font-weight: bold;
+    }
+
+    .stat-card.users {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .stat-card.products {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .stat-card.bookings {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .stat-card.revenue {
+      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 350px;
+      margin-bottom: 20px;
+    }
+
+    .data-table {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    .product-img {
+      width: 50px;
+      height: 50px;
+      border-radius: 4px;
+      object-fit: cover;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    table.compact-table {
+      font-size: 13px;
+    }
+
+    table.compact-table td,
+    table.compact-table th {
+      padding: 8px 5px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .section-header h6 {
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .view-all-btn {
+      font-size: 12px;
+      padding: 5px 15px;
+    }
+  </style>
 </head>
 
 <body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
 
   <%- include('_layouts/sidenavbar') %>
 
-  <!-- BEGIN: Page Main-->
   <div id="main">
     <div class="row">
       <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
         <div class="container">
           <div class="row">
-            <div class="col s12 m6 l6">
-              <h6 class="breadcrumbs-title"><span>Admin Commission & Subscription</span></h6>
-            </div>
-            <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
-              <ol class="breadcrumbs mb-0">
-                <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
-                <li class="breadcrumb-item active">Commission</li>
-              </ol>
-            </div>
+            <%- include('messages', { messages: messages }) %>
+            <!-- <div class="col s12 m6 l6">
+                            <h6 class="breadcrumbs-title"><span>Dashboard</span></h6>
+                        </div> -->
+            <!-- <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                            <ol class="breadcrumbs mb-0">
+                                <li class="breadcrumb-item active">Dashboard</li>
+                            </ol>
+                        </div> -->
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Commission Form -->
-    <div class="container pl-2 pr-2">
-      <div class="card">
-        <div class="row">
-          <div class="col s12">
-            <div id="basic-form" class="card-default scrollspy">
-              <div class="card-content">
-                <form method="POST" action="/admin/commission" id="commissionForm">
-                  <%- include('messages', { messages: messages }) %>
+      <div class="col s12 mt-1">
+        <div class="container">
 
-                  <!-- Commission Type -->
-                  <div class="input-field col s12">
-                    <label><b>Rental Commission Type</b></label><br><br>
-                    <p>
-                      <label>
-                        <input name="commissionType" type="radio" value="fixed" <%= commission && commission.commissionType === 'fixed' ? 'checked' : '' %> />
-                        <span>Fixed Commission ($)</span>
-                      </label>
-                    </p>
-                    <p>
-                      <label>
-                        <input name="commissionType" type="radio" value="percentage" <%= commission && commission.commissionType === 'percentage' ? 'checked' : '' %> />
-                        <span>Percentage Commission (%)</span>
-                      </label>
-                    </p>
-                    <span class="error-message" id="typeError"></span>
+          <!-- Stats Cards -->
+          <div class="row">
+            <div class="col s12 m6 l3">
+              <div class="stat-card users">
+                <h5>Total Users</h5>
+                <h3><%= stats.totalUsers || 0 %></h3>
+                <p><%= stats.todayUsers || 0 %> registered today</p>
+              </div>
+            </div>
+            <div class="col s12 m6 l3">
+              <div class="stat-card products">
+                <h5>Total Products</h5>
+                <h3><%= stats.totalProducts || 0 %></h3>
+                <p><%= stats.todayProducts || 0 %> added today</p>
+              </div>
+            </div>
+            <!-- <div class="col s12 m6 l3">
+              <div class="stat-card bookings">
+                <h5>Total Bookings</h5>
+                <h3><%= stats.totalBookings || 0 %></h3>
+                <p><%= stats.pendingBookings || 0 %> pending</p>
+              </div>
+            </div> -->
+            <div class="col s12 m6 l3">
+              <div class="stat-card revenue">
+                <h5>Total Revenue</h5>
+                <h3>$<%= (stats.totalRevenue || 0).toFixed(2) %></h3>
+                <p>$<%= (stats.todayRevenue || 0).toFixed(2) %> today</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Revenue Graph -->
+          <div class="row">
+            <div class="col s12">
+              <div class="card">
+                <div class="card-content">
+                  <div class="section-header">
+                    <h6><i class="material-icons left">trending_up</i>Revenue Trend (Last 30 Days)</h6>
                   </div>
-
-                  <!-- Fixed Amount -->
-                  <div class="input-field col s12" id="fixedField" style="<%= commission && commission.commissionType === 'percentage' ? 'display:none;' : '' %>">
-                    <label for="fixedAmount">Fixed Amount ($)</label>
-                    <input class="validate" id="fixedAmount" name="fixedAmount" type="number" value="<%= commission && commission.fixedAmount ? commission.fixedAmount : '' %>">
-                    <div class="error-message" id="fixedError"></div>
+                  <div class="chart-container">
+                    <canvas id="revenueTrendChart"></canvas>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                  <!-- Percentage -->
-                  <div class="input-field col s12" id="percentageField" style="<%= commission && commission.commissionType === 'fixed' ? 'display:none;' : '' %>">
-                    <label for="percentage">Percentage (%)</label>
-                    <input class="validate" id="percentage" name="percentage" type="number" min="0" max="100" value="<%= commission && commission.percentage ? commission.percentage : '' %>">
-                    <div class="error-message" id="percentageError"></div>
-                  </div>
+          <!-- Today's Products and Users -->
+          <div class="row">
+            <!-- Today's Products -->
+            <div class="col s12 l6">
+              <div class="data-table">
+                <div class="section-header">
+                  <h6><i class="material-icons left">shopping_bag</i>Today's Products (Top 10)</h6>
+                  <a href="/admin/product" class="btn-small waves-effect view-all-btn">View All</a>
+                </div>
+                <% if (todayProducts && todayProducts.length > 0) { %>
+                <table class="striped compact-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Owner</th>
+                      <th>Price</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% todayProducts.slice(0, 10).forEach(product => { %>
+                    <tr>
+                      <td>
+                        <img src="<%= product.images && product.images.length > 0 ? process.env.IMAGE_URL + product.images[0] : '/images/default.png' %>" alt="Product" class="product-img">
+                        <span><%= product.title %></span>
+                      </td>
+                      <td><%= product.user?.name || 'N/A' %></td>
+                      <td>$<%= (product.price || 0).toFixed(2) %></td>
+                      <td><%= new Date(product.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %></td>
+                    </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+                <% } else { %>
+                <p class="center-align grey-text">No products added today</p>
+                <% } %>
+              </div>
+            </div>
 
-                  <div class="divider" style="margin: 20px 0;"></div>
+            <!-- Today's Users -->
+            <div class="col s12 l6">
+              <div class="data-table">
+                <div class="section-header">
+                  <h6><i class="material-icons left">people</i>Today's Users (Top 10)</h6>
+                  <a href="/admin/user" class="btn-small waves-effect view-all-btn">View All</a>
+                </div>
+                <% if (todayUsers && todayUsers.length > 0) { %>
+                <table class="striped compact-table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>City</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% todayUsers.slice(0, 10).forEach(user => { %>
+                    <tr>
+                      <td>
+                        <img src="<%= user.photo ? process.env.IMAGE_URL + user.photo : '/img/avatar.png' %>" alt="User" class="user-avatar">
+                        <span><%= user.name %></span>
+                      </td>
+                      <td><%= user.email %></td>
+                      <td><%= user.city || '-' %></td>
+                      <td><%= new Date(user.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %></td>
+                    </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+                <% } else { %>
+                <p class="center-align grey-text">No users registered today</p>
+                <% } %>
+              </div>
+            </div>
+          </div>
 
-                  <!-- Subscription Amount -->
-                  <div class="input-field col s12">
-                    <label for="subscriptionAmount"><b>Chat Subscription Amount ($)</b></label>
-                    <input class="validate" id="subscriptionAmount" name="subscriptionAmount" type="number" min="1" step="0.01" required value="<%= commission && commission.subscriptionAmount ? commission.subscriptionAmount : 99 %>">
-                    <!-- <span class="helper-text">This is the monthly subscription price for unlimited chat access</span> -->
-                    <div class="error-message" id="subscriptionError"></div>
-                  </div>
-
-                  <div class="row">
-                    <div class="col s12 display-flex justify-content-end">
-                      <button class="btn btn-edit" type="submit" name="action">
-                        <%= commission ? 'Update Settings' : 'Save Settings' %>
-                      </button>
+          <!-- Recent Activity Section -->
+          <div class="row">
+            <div class="col s12">
+              <div class="data-table">
+                <div class="section-header">
+                  <h6><i class="material-icons left">access_time</i>Recent Activity</h6>
+                </div>
+                <div class="row">
+                  <div class="col s12 m4">
+                    <div class="center-align">
+                      <h6>Pending Approvals</h6>
+                      <h4><%= stats.pendingApprovals || 0 %></h4>
+                      <a href="/admin/product" class="btn-small waves-effect orange">Review</a>
                     </div>
                   </div>
-
-                </form>
-              </div>
-
-              <% if (commission) { %>
-              <div class="card-content">
-                <h6><b>Current Settings:</b></h6>
-
-                <div style="margin-bottom: 15px;">
-                  <p><b>Rental Commission:</b></p>
-                  <p>Type: <%= commission.commissionType %></p>
-                  <% if (commission.commissionType === 'fixed') { %>
-                  <p>Amount: $<%= commission.fixedAmount %></p>
-                  <% } else { %>
-                  <p>Percentage: <%= commission.percentage %>%</p>
-                  <% } %>
-                </div>
-
-                <div class="divider" style="margin: 10px 0;"></div>
-
-                <div style="margin-top: 15px;">
-                  <p><b>Chat Subscription:</b></p>
-                  <p>Price: $<%= commission.subscriptionAmount %></p>
+                  <div class="col s12 m4">
+                    <div class="center-align">
+                      <h6>Active Products</h6>
+                      <h4><%= stats.activeProducts || 0 %></h4>
+                      <a href="/admin/product" class="btn-small waves-effect green">View</a>
+                    </div>
+                  </div>
+                  <div class="col s12 m4">
+                    <div class="center-align">
+                      <h6>Active Users</h6>
+                      <h4><%= stats.activeUsers || 0 %></h4>
+                      <a href="/admin/user" class="btn-small waves-effect blue">View</a>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <% } %>
-
             </div>
           </div>
+
         </div>
       </div>
     </div>
-
   </div>
-  <!-- END: Page Main-->
 
   <%- include('_layouts/commonJs') %>
 
   <script>
-    $(document).ready(function() {
-      // Toggle visibility of fields based on type
-      $('input[name="commissionType"]').on('change', function() {
-        const type = $(this).val();
-        if (type === "fixed") {
-          $("#fixedField").show();
-          $("#percentageField").hide();
-          $("#percentage").val('');
-        } else {
-          $("#fixedField").hide();
-          $("#percentageField").show();
-          $("#fixedAmount").val('');
-        }
+    // Revenue Trend Chart
+    const revenueTrendData = <%- JSON.stringify(revenueTrend || []) %>;
+
+    // Prepare data for last 30 days
+    const labels = revenueTrendData.map(d => {
+      const date = new Date(d.date);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
       });
+    });
+    const revenueData = revenueTrendData.map(d => d.revenue);
 
-      // Validation
-      $('#commissionForm').on('submit', function(e) {
-        let valid = true;
-        const type = $('input[name="commissionType"]:checked').val();
-        const fixed = $('#fixedAmount').val().trim();
-        const percent = $('#percentage').val().trim();
-        const subscription = $('#subscriptionAmount').val().trim();
-
-        $('.error-message').text('');
-
-        if (type === "fixed" && !fixed) {
-          $('#fixedError').text('Please enter a fixed commission amount.');
-          valid = false;
+    new Chart(document.getElementById('revenueTrendChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Revenue ($)',
+          data: revenueData,
+          borderColor: '#43e97b',
+          backgroundColor: 'rgba(67, 233, 123, 0.1)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#43e97b',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return 'Revenue: $' + context.parsed.y.toFixed(2);
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return '$' + value;
+              }
+            }
+          }
         }
-        if (type === "percentage" && !percent) {
-          $('#percentageError').text('Please enter a percentage commission.');
-          valid = false;
-        }
-        if (!subscription || parseFloat(subscription) <= 0) {
-          $('#subscriptionError').text('Please enter a valid subscription amount greater than 0.');
-          valid = false;
-        }
-
-        if (!valid) e.preventDefault();
-      });
+      }
     });
   </script>
 

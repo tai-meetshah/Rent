@@ -5,6 +5,14 @@
 <head>
     <%- include('_layouts/head') %>
     <title> Category Add | <%= title %></title>
+<style>
+  .required-label::after {
+    content: " *";
+    color: red;
+    font-weight: bold;
+    margin-left: 1px;
+  }
+</style>
 
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/css/dropify.min.css">
 </head>
@@ -49,19 +57,17 @@
                                     <div id="file-upload" class="section" style="margin: 0px 10px -20px 10px;">
                                         <div class="row section">
                                             <div class="input-field col s12">
-                                                <p>Upload a category image</p>
+                                                <p class="required-label">Upload a category image</p>
                                                 <input type="file" id="input-file-events" name="image" accept=".jpeg, .jpg, .png" class="dropify-event" />
                                                 <span class="error-message" id="imageError"></span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="input-field col s12">
-                                        <label for="ename">Category Name </label>
-                                        <input class="validate" id="ename" name="ename" type="text">
-                                        <div class="error-message" id="enameError"></div>
-                                    </div>
-
-
+                                  <div class="input-field col s12">
+                                    <label for="ename" class="required-label">Category Name</label>
+                                    <input class="validate" id="ename" name="ename" type="text">
+                                    <div class="error-message" id="enameError"></div>
+                                  </div>
 
                                     <div class="row">
                                         <div class="col s12 display-flex justify-content-end">
@@ -107,7 +113,7 @@
                 let isValid = true;
 
                 if (!image) {
-                    $('#imageError').text('Please upload the banner image.');
+                    $('#imageError').text('Please upload the category image.');
                     isValid = false;
                 } else {
                     $('#imageError').text('');
