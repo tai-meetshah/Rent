@@ -112,6 +112,7 @@ exports.getProducts = async (req, res, next) => {
         } = req.body;
 
         const filter = {
+            // _id :'693fd26bb1ac30f78a989e19',
             isDeleted: false,
             isActive: true,
             user: { $ne: req.user.id },
@@ -279,6 +280,7 @@ exports.getProducts = async (req, res, next) => {
         const stockData = await Product.getAvailableStockForProducts(
             productIds
         );
+            // console.log('stockData: ', stockData);
 
         // 📝 Get all reviews for these products
         const reviews = await Review.find({
@@ -430,6 +432,7 @@ exports.getAllFeatureProduct = async (req, res, next) => {
         const stockData = await Product.getAvailableStockForProducts(
             productIds
         );
+            // console.log('stockData: ', stockData);
 
         // 📝 Get all reviews for these products
         const reviews = await Review.find({
@@ -476,6 +479,7 @@ exports.getAllFeatureProduct = async (req, res, next) => {
                 reviews: productReviews,
             };
         });
+        // console.log('data: ', data);
 
         res.json({ success: true, data });
     } catch (error) {

@@ -43,10 +43,7 @@ const socketHandler = io => {
 
                 // ✅ Give this user the list of currently online users
                 const allOnline = Array.from(onlineUsers.keys());
-                console.log('onlineUsers: ', onlineUsers);
-                console.log('-----------------------------');
-                console.log('allOnline: ', allOnline);
-                console.log("-----------------------------");
+                
                 socket.emit('onlineUsers', allOnline);
             } catch (error) {
                 console.error('❌ Invalid token in join:', error.message);

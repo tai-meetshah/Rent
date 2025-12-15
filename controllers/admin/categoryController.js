@@ -7,7 +7,7 @@ const userModel = require('../../models/userModel');
 
 exports.getCategories = async (req, res) => {
     try {
-        const categories = await Category.find({ isDeleted: false });
+        const categories = await Category.find({ isDeleted: false }).sort('-_id');
 
         res.render('category', { categories });
     } catch (error) {

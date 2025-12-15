@@ -187,7 +187,6 @@ exports.createBooking = async (req, res, next) => {
             totalPrice,
             notes,
         } = req.body;
-        console.log(req.body);
         let { bookedDates, address } = req.body;
         // Accept bookedDates as JSON string or array
         if (typeof bookedDates === 'string') {
@@ -217,6 +216,50 @@ exports.createBooking = async (req, res, next) => {
             return res
                 .status(404)
                 .json({ success: false, message: 'Product not found.' });
+
+        if (product.allDaysAvailable) {
+            const normalizeDate = d => {
+                const date = new Date(d);
+                date.setUTCHours(0, 0, 0, 0);
+                return date.toISOString().split('T')[0];
+            };
+
+            const requestedDates = bookedDates.map(d => normalizeDate(d.date));
+
+            const existingBookings = await Booking.find({
+                product: productId,
+                status: { $nin: ['cancelled', 'completed'] },
+                'bookedDates.date': {
+                    $in: requestedDates.map(d => new Date(d)),
+                },
+            }).select('bookedDates');
+
+            const dateCounts = {};
+
+            existingBookings.forEach(booking => {
+                booking.bookedDates.forEach(d => {
+                    const dateStr = normalizeDate(d.date);
+                    if (!dateCounts[dateStr]) dateCounts[dateStr] = 0;
+                    dateCounts[dateStr]++;
+                });
+            });
+            console.log("=====================");
+            console.log('dateCounts: ', dateCounts);
+
+            const totalStock = parseInt(product.stockQuantity) || 0;
+            console.log('totalStock: ', totalStock);
+            console.log('=====================');
+
+            for (const date of requestedDates) {
+                if ((dateCounts[date] || 0) >= totalStock) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Product is fully booked on ${date}`,
+                        data:[]
+                    });
+                }
+            }
+        }
 
         const verificationImagePath = req.file
             ? `/${req.file.filename}`
@@ -532,6 +575,11 @@ exports.cancelBooking = async (req, res, next) => {
             await sendNotificationsToTokens('Booking Cancelled', message, [
                 booking.user.fcmToken,
             ]);
+            await userNotificationModel.create({
+                sentTo: [booking.user._id],
+                title: `Booking Cancelled`,
+                body: message,
+            });
         }
 
         if (product.user?.fcmToken) {
@@ -544,6 +592,15 @@ exports.cancelBooking = async (req, res, next) => {
                 )}.`,
                 [product.user.fcmToken]
             );
+            await userNotificationModel.create({
+                sentTo: [product.user._id],
+                title: `Booking Cancelled`,
+                body: `Booking for ${
+                    product.title
+                } cancelled. Cancellation fee: AUD $${cancellationCharge.toFixed(
+                    2
+                )}.`,
+            });
         }
 
         // -------------------------------------------
@@ -631,7 +688,7 @@ exports.updateStatus = async (req, res, next) => {
                         paymentId: payment._id.toString(),
                     },
                 });
-                    // console.log('refund: ', refund);
+                // console.log('refund: ', refund);
 
                 // Update payment record
                 payment.refundAmount = refundAmount;
@@ -1007,9 +1064,9 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                             day: 'numeric',
                         });
 
-                        const totalPayoutAmount =
-                            Number(payment.ownerPayoutAmount || 0) +
-                            Number(payment.deliveryCharge || 0);
+                    const totalPayoutAmount =
+                        Number(payment.ownerPayoutAmount || 0) +
+                        Number(payment.deliveryCharge || 0);
 
                     await sendNotificationsToTokens(
                         'Payout Scheduled',

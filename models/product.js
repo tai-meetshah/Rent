@@ -190,6 +190,7 @@ ProductSchema.methods.getAvailableStock = async function () {
             const bookings = await Booking.find({
                 product: this._id,
                 status: { $nin: ['cancelled', 'completed'] },
+                paymentStatus: 'paid',
             }).select('bookedDates');
 
             const dateBookingCounts = {};
@@ -317,6 +318,7 @@ ProductSchema.statics.getAvailableStockForProducts = async function (
         // 3️⃣ Get active bookings
         const bookings = await Booking.find({
             product: { $in: productIds },
+            paymentStatus: 'paid',
             status: { $nin: ['cancelled', 'completed'] },
         }).select('product bookedDates');
 
@@ -353,6 +355,7 @@ ProductSchema.statics.getAvailableStockForProducts = async function (
             // If allDaysAvailable, ignore selectDate
             if (product.allDaysAvailable) {
                 const allDateCounts = productDateCounts[productIdStr] || {};
+                console.log('allDateCounts: ', allDateCounts);
                 const maxBooked = Object.values(allDateCounts).length
                     ? Math.max(...Object.values(allDateCounts))
                     : 0;
@@ -375,6 +378,8 @@ ProductSchema.statics.getAvailableStockForProducts = async function (
                 .filter(
                     dateStr => new Date(dateStr + 'T00:00:00Z') >= todayUTC
                 );
+            console.log('selectDateSet: ', selectDateSet);
+console.log('productDateCounts: ', productDateCounts);
 
             // If no relevant dates, mark all stock as rented
             if (
@@ -398,11 +403,15 @@ ProductSchema.statics.getAvailableStockForProducts = async function (
                         selectDateSet.includes(date)
                 )
                 .map(d => allDateCounts[d]);
+            console.log('relevantCounts: ', relevantCounts);
 
             const maxBooked = relevantCounts.length
                 ? Math.max(...relevantCounts)
                 : 0;
+console.log('--------------------------------');
 
+console.log('productDateCounts: ', productDateCounts);
+console.log('--------------------------------');
             result[productIdStr] = {
                 totalStock,
                 rentedStock: maxBooked,
@@ -432,6 +441,7 @@ ProductSchema.statics.getTotalRentalCountForProducts = async function (
                     status: {
                         $in: ['pending', 'confirmed', 'ongoing', 'completed'],
                     },
+                    // paymentStatus: 'paid',
                 },
             },
             {
@@ -563,6 +573,5 @@ ProductSchema.statics.computeAvailableStockFromData = function (
 
     return result;
 };
-
 
 module.exports = new mongoose.model('Product', ProductSchema);

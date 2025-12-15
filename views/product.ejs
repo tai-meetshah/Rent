@@ -9,6 +9,13 @@
   <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/extensions/responsive/css/responsive.dataTables.min.css">
   <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/select.dataTables.min.css">
   <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+       <style>
+         /* Hide sorting arrows for non-sortable columns */
+         table.dataTable thead th.no-sort::before,
+         table.dataTable thead th.no-sort::after {
+           display: none !important;
+         }
+       </style>
 </head>
 <!-- END: Head-->
 
@@ -51,7 +58,7 @@
                           <thead>
                             <tr>
                               <th>Sr</th>
-                              <th>Image</th>
+                              <th class="no-sort">Image</th>
                               <th>User Name</th>
                               <th>Title</th>
                               <th>Category</th>
@@ -193,10 +200,9 @@
             [10, 25, 50, -1],
             [10, 25, 50, "All"]
           ],
-          columnDefs: [{
-            orderable: false,
-            targets: [6, 7]
-          }]
+          columnDefs: [
+                                            { orderable: false, targets: 'no-sort' }
+          ]
         });
       }
 
