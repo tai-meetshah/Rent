@@ -734,7 +734,7 @@ exports.updateStatus = async (req, res, next) => {
 A full refund of AUD $${refundAmount.toFixed(
                     2
                 )} will be processed in 5–10 business days.
-Reason:- ${bookingRejectionReason}. `;
+Reason: ${bookingRejectionReason}. `;
             } else {
                 bodyMsg = `Your booking for ${booking.product.title} status updated to: ${status}.`;
             }
