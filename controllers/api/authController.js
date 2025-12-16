@@ -348,6 +348,9 @@ exports.login = async (req, res, next) => {
 
         if (!user) return next(createError.BadRequest('auth.credentialsemail'));
 
+        if(user.googleId || user.facebookId || user.appleId) {
+            return next(createError.BadRequest('Login with social account.'));
+        }
         if (user.isActive == false)
             return next(createError.BadRequest('auth.blocked'));
 
