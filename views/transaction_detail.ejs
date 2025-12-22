@@ -244,6 +244,26 @@
                                 </div>
                                 <% } %>
 
+                                 <% if (transaction.product.oCancellationCharges && transaction.product.oCancellationCharges.length > 0) { %>
+                                 <div class="detail-row">
+                                   <div class="detail-label">Cancellation Charges:</div>
+                                   <div class="detail-value">
+                                     <div class="amount-breakdown">
+                                       <% transaction.product.oCancellationCharges.forEach(function(item){ %>
+                                       <div class="amount-row">
+                                         <span>
+                                           Cancelled <strong><%= item.hoursBefore %></strong> hrs before
+                                         </span>
+                                         <strong class="red-text">
+                                           $<%= Number(item.chargeAmount).toFixed(2) %>
+                                         </strong>
+                                       </div>
+                                       <% }) %>
+                                     </div>
+                                   </div>
+                                 </div>
+                                 <% } %>
+
                                 <% if (transaction.refundedAt) { %>
                                 <div class="detail-row">
                                     <div class="detail-label">Refunded At:</div>
@@ -289,10 +309,27 @@
                                       </div>
                                     <% } %>
 
-                                    <div class="amount-row total">
+                                        <% if (transaction.refundAmount && transaction.refundAmount > 0) { %>
+                                        <div class="amount-row">
+                                            <span>Refund Amount:</span>
+                                            <strong class="red-text">
+                                                - $<%= transaction.refundAmount.toFixed(2) %>
+                                            </strong>
+                                        </div>
+                                        <% } %>
+
+                                    <!-- <div class="amount-row total">
                                         <span>Total Amount:</span>
                                         <strong>$<%= transaction.totalAmount.toFixed(2) %></strong>
+                                    </div> -->
+
+                                    <div class="amount-row total">
+                                      <span>Net Paid Amount:</span>
+                                      <strong>
+                                        $<%= (transaction.totalAmount - (transaction.refundAmount || 0)).toFixed(2) %>
+                                      </strong>
                                     </div>
+
                                 </div>
                             </div>
 

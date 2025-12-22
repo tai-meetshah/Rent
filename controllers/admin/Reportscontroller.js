@@ -253,7 +253,10 @@ exports.getTransactionDetail = async (req, res) => {
             .populate('booking')
             .populate('renter', 'name email photo')
             .populate('owner', 'name email photo')
-            .populate('product', 'title images description');
+            .populate(
+                'product',
+                'title images description oCancellationCharges'
+            );
 
         if (!transaction) {
             req.flash('red', 'Transaction not found');

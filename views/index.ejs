@@ -1,113 +1,467 @@
 <!DOCTYPE html>
 <html class="loading" lang="en" data-textdirection="ltr">
-<!-- BEGIN: Head-->
 
 <head>
   <%- include('_layouts/head') %>
   <title>Dashboard | <%= title %></title>
-  <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+  <style>
+    .stat-card {
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      color: white;
+    }
+
+    .stat-card h5 {
+      font-size: 14px;
+      margin: 0 0 10px 0;
+      opacity: 0.9;
+    }
+
+    .stat-card h3 {
+      font-size: 32px;
+      margin: 0;
+      font-weight: bold;
+    }
+
+    .stat-card.users {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .stat-card.products {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .stat-card.bookings {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .stat-card.revenue {
+      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 350px;
+      margin-bottom: 20px;
+    }
+
+    .data-table {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    .product-img {
+      width: 50px;
+      height: 50px;
+      border-radius: 4px;
+      object-fit: cover;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    table.compact-table {
+      font-size: 13px;
+    }
+
+    table.compact-table td,
+    table.compact-table th {
+      padding: 8px 5px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .section-header h6 {
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .view-all-btn {
+      font-size: 12px;
+      padding: 5px 15px;
+    }
+  </style>
 </head>
-<!-- END: Head-->
 
 <body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
 
   <%- include('_layouts/sidenavbar') %>
 
-  <!-- BEGIN: Page Main-->
-  <div id="main ">
-    <div class="row dashboard">
-      <div class="col s12">
+  <div id="main">
+    <div class="row">
+      <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
         <div class="container">
-          <div class="section">
-            <!--card stats start-->
-            <div id="card-stats" class="pt-0">
-              <div class="row">
-              </div>
-              <%- include('messages', { messages: messages }) %>
-              <div class="row mt-2">
+          <div class="row">
+            <%- include('messages', { messages: messages }) %>
+            <!-- <div class="col s12 m6 l6">
+                            <h6 class="breadcrumbs-title"><span>Dashboard</span></h6>
+                        </div> -->
+            <!-- <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+                            <ol class="breadcrumbs mb-0">
+                                <li class="breadcrumb-item active">Dashboard</li>
+                            </ol>
+                        </div> -->
+          </div>
+        </div>
+      </div>
 
-                <div class="col m3 s12" style="padding: 10px;">
-                  <div style="background-color: #1A9CFF;border-radius: 20px;padding: 10px 10px 20px 30px;">
-                    <a href="/admin/user">
-                      <h4 style="font-size: 40px;color: #FFFFFF;font-weight: 900;" class="counter" data-target="<%= data.user %>">
-                      </h4>
-                      <span style="font-size: 22px;color: #FFFFFF">Users</span>
-                    </a>
+      <div class="col s12 mt-1">
+        <div class="container">
+
+          <!-- Stats Cards -->
+          <div class="row">
+
+            <!-- Total Users -->
+            <div class="col s12 m6 l3" style="padding:12px;">
+              <a href="/admin/user" style="text-decoration:none;">
+                <div style="
+        background: linear-gradient(135deg, #1A9CFF, #147EDB);
+        border-radius:22px;
+        padding:18px 18px 16px 24px;
+        box-shadow:0 8px 20px rgba(0,0,0,0.15);
+      ">
+                  <h4 style="
+          font-size:42px;
+          color:#FFFFFF;
+          font-weight:900;
+          margin:0;
+          line-height:1.1;
+        ">
+                    <%= stats.totalUsers || 0 %>
+                  </h4>
+
+                  <span style="
+          font-size:20px;
+          color:#FFFFFF;
+          opacity:0.9;
+        ">
+                    Total Users
+                  </span>
+
+                  <div style="
+          margin-top:10px;
+          padding-top:8px;
+          border-top:1px solid rgba(255,255,255,0.3);
+        ">
+                    <span style="
+            font-size:14px;
+            color:#FFFFFF;
+            opacity:0.85;
+          ">
+                      +<%= stats.todayUsers || 0 %> today
+                    </span>
                   </div>
                 </div>
+              </a>
+            </div>
 
-                <div class="col m3 s12" style="padding: 10px;">
-                  <div style="background-color: #31B411;border-radius: 20px;padding: 10px 10px 20px 30px;">
-                    <a href="/admin/category">
-                      <h4 style="font-size: 40px;color: #FFFFFF;font-weight: 900;" class="counter" data-target="<%= data.category %>">
-                      </h4>
-                      <span style="font-size: 22px;color: #FFFFFF">Categories</span>
-                    </a>
+            <!-- Total Products -->
+            <div class="col s12 m6 l3" style="padding:12px;">
+              <a href="/admin/product" style="text-decoration:none;">
+                <div style="
+        background: linear-gradient(135deg, #5139DB, #3925B7);
+        border-radius:22px;
+        padding:18px 18px 16px 24px;
+        box-shadow:0 8px 20px rgba(0,0,0,0.15);
+      ">
+                  <h4 style="
+          font-size:42px;
+          color:#FFFFFF;
+          font-weight:900;
+          margin:0;
+          line-height:1.1;
+        ">
+                    <%= stats.totalProducts || 0 %>
+                  </h4>
+
+                  <span style="
+          font-size:20px;
+          color:#FFFFFF;
+          opacity:0.9;
+        ">
+                    Total Products
+                  </span>
+
+                  <div style="
+          margin-top:10px;
+          padding-top:8px;
+          border-top:1px solid rgba(255,255,255,0.3);
+        ">
+                    <span style="
+            font-size:14px;
+            color:#FFFFFF;
+            opacity:0.85;
+          ">
+                      +<%= stats.todayProducts || 0 %> today
+                    </span>
                   </div>
                 </div>
+              </a>
+            </div>
 
-                <div class="col m3 s12" style="padding: 10px;">
-                  <div style="background-color: #5139DB;border-radius: 20px;padding: 10px 10px 20px 30px;">
-                    <a href="/admin/product">
-                      <h4 style="font-size: 40px;color: #FFFFFF;font-weight: 900;" class="counter" data-target="<%= data.product %>">
-                      </h4>
-                      <span style="font-size: 22px;color: #FFFFFF">Products</span>
-                    </a>
+            <!-- Total Revenue -->
+            <div class="col s12 m6 l3" style="padding:12px;">
+              <a href="/admin/reports" style="text-decoration:none;">
+                <div style="
+        background: linear-gradient(135deg, #31B411, #24940C);
+        border-radius:22px;
+        padding:18px 18px 16px 24px;
+        box-shadow:0 8px 20px rgba(0,0,0,0.15);
+      ">
+                  <h4 style="
+          font-size:40px;
+          color:#FFFFFF;
+          font-weight:900;
+          margin:0;
+          line-height:1.1;
+        ">
+                    $<%= (stats.totalRevenue || 0).toFixed(2) %>
+                  </h4>
+
+                  <span style="
+          font-size:20px;
+          color:#FFFFFF;
+          opacity:0.9;
+        ">
+                    Total Revenue
+                  </span>
+
+                  <div style="
+          margin-top:10px;
+          padding-top:8px;
+          border-top:1px solid rgba(255,255,255,0.3);
+        ">
+                    <span style="
+            font-size:14px;
+            color:#FFFFFF;
+            opacity:0.85;
+          ">
+                      +$<%= (stats.todayRevenue || 0).toFixed(2) %> today
+                    </span>
                   </div>
                 </div>
+              </a>
+            </div>
+
+          </div>
 
 
 
-              <!--   <div class="col m3 s12" style="padding: 10px;">
-                  <div style="background-color: #FF531A;border-radius: 20px;padding: 10px 10px 20px 30px;">
-                    <a href="/user">
-                      <h4 style="font-size: 40px;color: #FFFFFF;font-weight: 900;" class="counter" data-target="<%= data.retailer %>">
-                      </h4>
-                      <span style="font-size: 22px;color: #FFFFFF">Total Redeem Point</span>
-                    </a>
+
+          <!-- Revenue Graph -->
+          <div class="row">
+            <div class="col s12">
+              <div class="card">
+                <div class="card-content">
+                  <div class="section-header">
+                    <h6><i class="material-icons left">trending_up</i>Revenue Trend (Last 30 Days)</h6>
                   </div>
-                </div> -->
-
+                  <div class="chart-container">
+                    <canvas id="revenueTrendChart"></canvas>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <!--end container-->
+
+          <!-- Today's Products and Users -->
+          <div class="row">
+            <!-- Today's Products -->
+            <div class="col s12 l6">
+              <div class="data-table">
+                <div class="section-header">
+                  <h6><i class="material-icons left">shopping_bag</i>Today's Products (Top 10)</h6>
+                  <a href="/admin/product" class="btn-small waves-effect view-all-btn">View All</a>
+                </div>
+                <% if (todayProducts && todayProducts.length > 0) { %>
+                <table class="striped compact-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Owner</th>
+                      <th>Price</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% todayProducts.slice(0, 10).forEach(product => { %>
+                    <tr>
+                      <td>
+                        <img src="<%= product.images && product.images.length > 0 ? process.env.IMAGE_URL + product.images[0] : '/images/default.png' %>" alt="Product" class="product-img">
+                        <span><%= product.title %></span>
+                      </td>
+                      <td><%= product.user?.name || 'N/A' %></td>
+                      <td>$<%= (product.price || 0).toFixed(2) %></td>
+                      <td><%= new Date(product.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %></td>
+                    </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+                <% } else { %>
+                <p class="center-align grey-text">No products added today</p>
+                <% } %>
+              </div>
+            </div>
+
+            <!-- Today's Users -->
+            <div class="col s12 l6">
+              <div class="data-table">
+                <div class="section-header">
+                  <h6><i class="material-icons left">people</i>Today's Users (Top 10)</h6>
+                  <a href="/admin/user" class="btn-small waves-effect view-all-btn">View All</a>
+                </div>
+                <% if (todayUsers && todayUsers.length > 0) { %>
+                <table class="striped compact-table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>City</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% todayUsers.slice(0, 10).forEach(user => { %>
+                    <tr>
+                      <td>
+                        <img src="<%= user.photo ? process.env.IMAGE_URL + user.photo : '/img/avatar.png' %>" alt="User" class="user-avatar">
+                        <span><%= user.name %></span>
+                      </td>
+                      <td><%= user.email %></td>
+                      <td><%= user.city || '-' %></td>
+                      <td><%= new Date(user.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %></td>
+                    </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+                <% } else { %>
+                <p class="center-align grey-text">No users registered today</p>
+                <% } %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity Section -->
+          <div class="row">
+            <div class="col s12">
+              <div class="data-table">
+                <div class="section-header">
+                  <h6><i class="material-icons left">access_time</i>Recent Activity</h6>
+                </div>
+                <div class="row">
+                  <div class="col s12 m4">
+                    <div class="center-align">
+                      <h6>Pending Approvals</h6>
+                      <h4><%= stats.pendingApprovals || 0 %></h4>
+                      <a href="/admin/product" class="btn-small waves-effect orange">Review</a>
+                    </div>
+                  </div>
+                  <div class="col s12 m4">
+                    <div class="center-align">
+                      <h6>Active Products</h6>
+                      <h4><%= stats.activeProducts || 0 %></h4>
+                      <a href="/admin/product" class="btn-small waves-effect green">View</a>
+                    </div>
+                  </div>
+                  <div class="col s12 m4">
+                    <div class="center-align">
+                      <h6>Active Users</h6>
+                      <h4><%= stats.activeUsers || 0 %></h4>
+                      <a href="/admin/user" class="btn-small waves-effect blue">View</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
   </div>
-  </div>
-  <!-- END: Page Main-->
+
   <%- include('_layouts/commonJs') %>
 
   <script>
-    jQuery(document).ready(function($) {
-      $(".clickable-row").click(function() {
-        window.location = $(this).data("href");
+    // Revenue Trend Chart
+    const revenueTrendData = <%- JSON.stringify(revenueTrend || []) %>;
+
+    // Prepare data for last 30 days
+    const labels = revenueTrendData.map(d => {
+      const date = new Date(d.date);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
       });
     });
+    const revenueData = revenueTrendData.map(d => d.revenue);
 
-    // script.js
-    document.addEventListener('DOMContentLoaded', () => {
-      const counters = document.querySelectorAll('.counter');
-
-      counters.forEach(counter => {
-        const updateCounter = () => {
-          const target = +counter.getAttribute('data-target');
-          let count = 0;
-          const interval = setInterval(() => {
-            count += Math.ceil(target / 100);
-            if (count >= target) {
-              count = target;
-              clearInterval(interval);
+    new Chart(document.getElementById('revenueTrendChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Revenue ($)',
+          data: revenueData,
+          borderColor: '#43e97b',
+          backgroundColor: 'rgba(67, 233, 123, 0.1)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#43e97b',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return 'Revenue: $' + context.parsed.y.toFixed(2);
+              }
             }
-            counter.textContent = count;
-          }, 60);
-        };
-        updateCounter();
-      });
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return '$' + value;
+              }
+            }
+          }
+        }
+      }
     });
   </script>
+
 </body>
 
 </html>

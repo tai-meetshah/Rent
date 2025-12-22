@@ -96,229 +96,233 @@ exports.checkPermission = (moduleKey, action) => {
     };
 };
 
-exports.getDashboard = async (req, res) => {
-    var data = {};
-    data.user = await User.find({ isDelete: false }).count();
-    data.category = await Category.find({ isDeleted: false }).count();
-    data.product = await Product.find({ isDeleted: false }).count();
+// exports.getDashboard = async (req, res) => {
+//     var data = {};
+//     data.user = await User.find({ isDelete: false }).count();
+//     data.category = await Category.find({ isDeleted: false }).count();
+//     data.product = await Product.find({ isDeleted: false }).count();
 
-    res.render('index', { data });
-};
+//     res.render('index', { data });
+// };
 
 // Dashboard Controller
 // Add this to your admin dashboard route handler
 
-// exports.getDashboard = async (req, res) => {
-//     try {
-//         // Get today's start and end times
-//         const today = new Date();
-//         today.setHours(0, 0, 0, 0);
-//         const tomorrow = new Date(today);
-//         tomorrow.setDate(tomorrow.getDate() + 1);
+exports.getDashboard = async (req, res) => {
+    try {
+        // Today (UTC start)
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
 
-//         // Get 30 days ago for revenue trend
-//         const thirtyDaysAgo = new Date();
-//         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-//         thirtyDaysAgo.setHours(0, 0, 0, 0);
+        // Tomorrow (UTC)
+        const tomorrow = new Date(today);
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-//         // Parallel queries for better performance
-//         const [
-//             totalUsers,
-//             todayUsers,
-//             todayUsersList,
-//             totalProducts,
-//             todayProducts,
-//             todayProductsList,
-//             totalBookings,
-//             pendingBookings,
-//             pendingApprovals,
-//             activeProducts,
-//             activeUsers,
-//             revenueStats,
-//             revenueTrendData,
-//             totalCategory,
-//         ] = await Promise.all([
-//             // Total users count
-//             User.countDocuments({ isActive: true }),
+        // 30 days ago (UTC start)
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
 
-//             // Today's users count
-//             User.countDocuments({
-//                 createdAt: { $gte: today, $lt: tomorrow },
-//             }),
+        // Parallel queries for better performance
+        const [
+            totalUsers,
+            todayUsers,
+            todayUsersList,
+            totalProducts,
+            todayProducts,
+            todayProductsList,
+            totalBookings,
+            pendingBookings,
+            pendingApprovals,
+            activeProducts,
+            activeUsers,
+            revenueStats,
+            revenueTrendData,
+            totalCategory,
+        ] = await Promise.all([
+            // Total users count
+            User.countDocuments({ isActive: true }),
 
-//             // Today's users list (top 10)
-//             User.find({
-//                 createdAt: { $gte: today, $lt: tomorrow },
-//             })
-//                 .sort({ createdAt: -1 })
-//                 .limit(10)
-//                 .select('name email city photo createdAt'),
+            // Today's users count
+            User.countDocuments({
+                createdAt: { $gte: today, $lt: tomorrow },
+            }),
 
-//             // Total products count
-//             Product.countDocuments({ isActive: true, isDeleted: false }),
+            // Today's users list (top 10)
+            User.find({
+                createdAt: { $gte: today, $lt: tomorrow },
+            })
+                .sort({ createdAt: -1 })
+                .limit(10)
+                .select('name email city photo createdAt'),
 
-//             // Today's products count
-//             Product.countDocuments({
-//                 createdAt: { $gte: today, $lt: tomorrow },
-//                 isActive: true,
-//                 isDeleted: false,
-//             }),
+            // Total products count
+            Product.countDocuments({ isActive: true, isDeleted: false }),
 
-//             // Today's products list (top 10)
-//             Product.find({
-//                 createdAt: { $gte: today, $lt: tomorrow },
-//                 isActive: true,
-//                 isDeleted: false,
-//             })
-//                 .populate('user', 'name email')
-//                 .sort({ createdAt: -1 })
-//                 .limit(10)
-//                 .select('title images price user createdAt'),
+            // Today's products count
+            Product.countDocuments({
+                createdAt: { $gte: today, $lt: tomorrow },
+                isActive: true,
+                isDeleted: false,
+            }),
 
-//             // Total bookings count
-//             Booking.countDocuments(),
+            // Today's products list (top 10)
+            Product.find({
+                createdAt: { $gte: today, $lt: tomorrow },
+                isActive: true,
+                isDeleted: false,
+            })
+                .populate('user', 'name email')
+                .sort({ createdAt: -1 })
+                .limit(10)
+                .select('title images price user createdAt'),
 
-//             // Pending bookings count
-//             Booking.countDocuments({ status: 'pending' }),
+            // Total bookings count
+            Booking.countDocuments(),
 
-//             // Pending approvals count
-//             Product.countDocuments({
-//                 approvalStatus: 'pending',
-//                 isActive: true,
-//                 isDeleted: false,
-//             }),
+            // Pending bookings count
+            Booking.countDocuments({ status: 'pending' }),
 
-//             // Active products count
-//             Product.countDocuments({
-//                 isDeleted: false,
-//                 isActive: true,
-//                 approvalStatus: 'approved',
-//             }),
+            // Pending approvals count
+            Product.countDocuments({
+                approvalStatus: 'pending',
+                isActive: true,
+                isDeleted: false,
+            }),
 
-//             // Active users count
-//             User.countDocuments({ isActive: true }),
+            // Active products count
+            Product.countDocuments({
+                isDeleted: false,
+                isActive: true,
+                approvalStatus: 'approved',
+            }),
 
-//             // Revenue statistics
-//             Transaction.aggregate([
-//                 {
-//                     $match: {
-//                         paymentStatus: 'paid',
-//                     },
-//                 },
-//                 {
-//                     $group: {
-//                         _id: null,
-//                         totalRevenue: { $sum: '$totalAmount' },
-//                         todayRevenue: {
-//                             $sum: {
-//                                 $cond: [
-//                                     {
-//                                         $and: [
-//                                             { $gte: ['$createdAt', today] },
-//                                             { $lt: ['$createdAt', tomorrow] },
-//                                         ],
-//                                     },
-//                                     '$totalAmount',
-//                                     0,
-//                                 ],
-//                             },
-//                         },
-//                     },
-//                 },
-//             ]),
+            // Active users count
+            User.countDocuments({ isActive: true }),
 
-//             // Revenue trend for last 30 days
-//             Transaction.aggregate([
-//                 {
-//                     $match: {
-//                         paymentStatus: 'paid',
-//                         createdAt: { $gte: thirtyDaysAgo },
-//                     },
-//                 },
-//                 {
-//                     $group: {
-//                         _id: {
-//                             $dateToString: {
-//                                 format: '%Y-%m-%d',
-//                                 date: '$createdAt',
-//                             },
-//                         },
-//                         revenue: { $sum: '$totalAmount' },
-//                     },
-//                 },
-//                 {
-//                     $sort: { _id: 1 },
-//                 },
-//                 {
-//                     $project: {
-//                         _id: 0,
-//                         date: '$_id',
-//                         revenue: 1,
-//                     },
-//                 },
-//             ]),
+            // Revenue statistics
+            Transaction.aggregate([
+                {
+                    $match: {
+                        paymentStatus: 'paid',
+                    },
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalRevenue: { $sum: '$totalAmount' },
+                        todayRevenue: {
+                            $sum: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $gte: ['$createdAt', today] },
+                                            { $lt: ['$createdAt', tomorrow] },
+                                        ],
+                                    },
+                                    '$totalAmount',
+                                    0,
+                                ],
+                            },
+                        },
+                    },
+                },
+            ]),
 
-//             Category.countDocuments({
-//                 isDeleted: false,
-//                 isActive: true,
-//             }),
-//         ]);
+            // Revenue trend for last 30 days
+            Transaction.aggregate([
+                {
+                    $match: {
+                        paymentStatus: 'paid',
+                        createdAt: { $gte: thirtyDaysAgo },
+                    },
+                },
+                {
+                    $group: {
+                        _id: {
+                            $dateToString: {
+                                format: '%Y-%m-%d',
+                                date: '$createdAt',
+                            },
+                        },
+                        revenue: { $sum: '$totalAmount' },
+                    },
+                },
+                {
+                    $sort: { _id: 1 },
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        date: '$_id',
+                        revenue: 1,
+                    },
+                },
+            ]),
 
-//         // Fill in missing days in revenue trend with 0
-//         const revenueTrend = [];
-//         const currentDate = new Date(thirtyDaysAgo);
-//         const revenueMap = new Map(
-//             revenueTrendData.map(d => [d.date, d.revenue])
-//         );
+            Category.countDocuments({
+                isDeleted: false,
+                isActive: true,
+            }),
+        ]);
 
-//         while (currentDate < today) {
-//             const dateStr = currentDate.toISOString().split('T')[0];
-//             revenueTrend.push({
-//                 date: dateStr,
-//                 revenue: revenueMap.get(dateStr) || 0,
-//             });
-//             currentDate.setDate(currentDate.getDate() + 1);
-//         }
+        // Fill in missing days in revenue trend with 0
+        const revenueTrend = [];
+        const currentDate = new Date(thirtyDaysAgo);
 
-//         // Prepare stats object
-//         const stats = {
-//             totalUsers,
-//             todayUsers,
-//             totalProducts,
-//             todayProducts,
-//             totalBookings,
-//             pendingBookings,
-//             pendingApprovals,
-//             activeProducts,
-//             activeUsers,
-//             totalRevenue: revenueStats[0]?.totalRevenue || 0,
-//             todayRevenue: revenueStats[0]?.todayRevenue || 0,
-//         };
+        const revenueMap = new Map(
+            revenueTrendData.map(d => [d.date, d.revenue])
+        );
 
-//         // Render dashboard with all data
-//         res.render('index', {
-//             title: 'Admin Dashboard',
-//             url: req.url,
-//             stats,
-//             todayUsers: todayUsersList,
-//             todayProducts: todayProductsList,
-//             revenueTrend,
-//             messages: req.flash(),
-//         });
-//     } catch (error) {
-//         console.error('Dashboard error:', error);
-//         req.flash('error', 'Error loading dashboard data');
-//         res.render('index', {
-//             title: 'Admin Dashboard',
-//             url: req.url,
-//             stats: {},
-//             todayUsers: [],
-//             todayProducts: [],
-//             revenueTrend: [],
-//             messages: req.flash(),
-//         });
-//     }
-// };
+        while (currentDate <= today) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+
+            revenueTrend.push({
+                date: dateStr,
+                revenue: revenueMap.get(dateStr) || 0,
+            });
+
+            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+        }
+
+        // Prepare stats object
+        const stats = {
+            totalUsers,
+            todayUsers,
+            totalProducts,
+            todayProducts,
+            totalBookings,
+            pendingBookings,
+            pendingApprovals,
+            activeProducts,
+            activeUsers,
+            totalRevenue: revenueStats[0]?.totalRevenue || 0,
+            todayRevenue: revenueStats[0]?.todayRevenue || 0,
+        };
+
+        // Render dashboard with all data
+        res.render('index', {
+            title: 'Admin Dashboard',
+            url: req.url,
+            stats,
+            todayUsers: todayUsersList,
+            todayProducts: todayProductsList,
+            revenueTrend,
+            messages: req.flash(),
+        });
+    } catch (error) {
+        console.error('Dashboard error:', error);
+        req.flash('error', 'Error loading dashboard data');
+        res.render('index', {
+            title: 'Admin Dashboard',
+            url: req.url,
+            stats: {},
+            todayUsers: [],
+            todayProducts: [],
+            revenueTrend: [],
+            messages: req.flash(),
+        });
+    }
+};
 
 // ==========================================
 // Example route setup (in your routes file):
