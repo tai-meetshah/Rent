@@ -9,6 +9,12 @@ const Subscription = require('../../models/subscriptionModel');
 const createError = require('http-errors');
 const { sendNotificationsToTokens } = require('../../utils/sendNotification');
 const userNotificationModel = require('../../models/userNotificationModel');
+const {
+    getStripePaymentFees,
+    getStripeRefundFees,
+    getStripeTransferFees,
+    createChargeBreakdown,
+} = require('../../utils/stripeFeesCalculator');
 
 // Calculate cancellation charges based on time before booking
 const calculateCancellationCharges = (booking, product) => {
@@ -249,7 +255,7 @@ exports.createPaymentIntent = async (req, res, next) => {
                 enabled: true,
             },
         });
-        console.log('paymentIntent: ', JSON.stringify(paymentIntent, null, 2));
+        // console.log('paymentIntent: ', JSON.stringify(paymentIntent, null, 2));
 
         // Create payment record
         const payment = await Payment.create({
@@ -359,12 +365,42 @@ exports.confirmPayment = async (req, res, next) => {
             return next(createError.NotFound('Payment record not found.'));
         }
 
+        const paymentFees = await getStripePaymentFees(paymentIntentId);
+        console.log('-----------------------------------');
+
+        console.log('paymentFees: ', paymentFees);
+        console.log('-----------------------------------');
         // Update payment status
         payment.paymentStatus = 'paid';
         payment.paidAt = new Date();
         payment.stripeChargeId = paymentIntent.latest_charge;
 
+        // Store actual stripe charges
+        if (!payment.stripeCharges) {
+            payment.stripeCharges = {
+                chargesBreakdown: [],
+            };
+        }
+
+        payment.stripeCharges.paymentProcessingFee = paymentFees.percentageFee;
+        payment.stripeCharges.paymentFixedFee = paymentFees.fixedFee;
+        payment.stripeCharges.paymentTotalFee = paymentFees.totalFee;
+        payment.stripeCharges.totalStripeCharges = paymentFees.totalFee;
+
+        // Add to breakdown with actual Stripe data
+        payment.stripeCharges.chargesBreakdown.push(
+            createChargeBreakdown(
+                'payment',
+                paymentFees.amount,
+                paymentFees.totalFee,
+                paymentFees.chargeId,
+                `Payment processing fee (Balance Transaction: ${paymentFees.balanceTransactionId})`,
+                paymentFees.feeDetails
+            )
+        );
+
         await payment.save();
+        console.log('payment: ', payment);
 
         // Update booking payment status
         const booking = payment.booking;
@@ -383,7 +419,7 @@ exports.confirmPayment = async (req, res, next) => {
                 body: `Your booking request for ${payment.product.title} has been sent.`,
             });
         }
-        // Send notification to owner
+
         if (payment.owner && payment.owner.fcmToken) {
             await sendNotificationsToTokens(
                 'Payment Received',
@@ -409,6 +445,12 @@ exports.confirmPayment = async (req, res, next) => {
             success: true,
             message: 'Payment confirmed successfully.',
             payment,
+            // stripeCharges: {
+            //     amount: paymentFees.amount,
+            //     fee: paymentFees.totalFee,
+            //     net: paymentFees.netAmount,
+            //     breakdown: paymentFees.feeDetails
+            // }
         });
     } catch (error) {
         console.error('Error confirming payment:', error);

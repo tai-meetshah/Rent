@@ -109,6 +109,44 @@ const paymentSchema = new mongoose.Schema(
         depositRefundId: String,
         depositRefunded: Boolean,
         depositRefundedAt: Date,
+
+        stripeCharges: {
+            // Initial payment charges
+            paymentProcessingFee: { type: Number, default: 0 },
+            paymentFixedFee: { type: Number, default: 0 },
+            paymentTotalFee: { type: Number, default: 0 },
+
+            // Refund charges (if applicable)
+            refundProcessingFee: { type: Number, default: 0 },
+            refundFixedFee: { type: Number, default: 0 },
+            refundTotalFee: { type: Number, default: 0 },
+
+            // Transfer charges (payout to owner)
+            transferFee: { type: Number, default: 0 },
+
+            // Total stripe charges across all operations
+            totalStripeCharges: { type: Number, default: 0 },
+
+            // Breakdown by operation
+            chargesBreakdown: [
+                {
+                    operation: {
+                        type: String,
+                        enum: [
+                            'payment',
+                            'refund',
+                            'transfer',
+                            'deposit_refund',
+                        ],
+                    },
+                    amount: { type: Number },
+                    fee: { type: Number },
+                    timestamp: { type: Date, default: Date.now },
+                    stripeId: { type: String }, // charge/refund/transfer ID
+                    description: { type: String },
+                },
+            ],
+        },
     },
     { timestamps: true }
 );

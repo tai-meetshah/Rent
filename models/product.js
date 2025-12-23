@@ -355,7 +355,7 @@ ProductSchema.statics.getAvailableStockForProducts = async function (
             // If allDaysAvailable, ignore selectDate
             if (product.allDaysAvailable) {
                 const allDateCounts = productDateCounts[productIdStr] || {};
-                console.log('allDateCounts: ', allDateCounts);
+                // console.log('allDateCounts: ', allDateCounts);
                 const maxBooked = Object.values(allDateCounts).length
                     ? Math.max(...Object.values(allDateCounts))
                     : 0;
@@ -378,8 +378,8 @@ ProductSchema.statics.getAvailableStockForProducts = async function (
                 .filter(
                     dateStr => new Date(dateStr + 'T00:00:00Z') >= todayUTC
                 );
-            console.log('selectDateSet: ', selectDateSet);
-console.log('productDateCounts: ', productDateCounts);
+            // console.log('selectDateSet: ', selectDateSet);
+// console.log('productDateCounts: ', productDateCounts);
 
             // If no relevant dates, mark all stock as rented
             if (
@@ -403,16 +403,13 @@ console.log('productDateCounts: ', productDateCounts);
                         selectDateSet.includes(date)
                 )
                 .map(d => allDateCounts[d]);
-            console.log('relevantCounts: ', relevantCounts);
+            // console.log('relevantCounts: ', relevantCounts);
 
             const maxBooked = relevantCounts.length
                 ? Math.max(...relevantCounts)
                 : 0;
-console.log('--------------------------------');
 
-console.log('productDateCounts: ', productDateCounts);
-console.log('--------------------------------');
-            result[productIdStr] = {
+                result[productIdStr] = {
                 totalStock,
                 rentedStock: maxBooked,
                 availableStock: Math.max(0, totalStock - maxBooked),

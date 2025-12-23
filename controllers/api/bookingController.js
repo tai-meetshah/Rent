@@ -8,6 +8,12 @@ const enquiryModel = require('../../models/enquiryModel');
 const userNotificationModel = require('../../models/userNotificationModel');
 const { sendNotificationsToTokens } = require('../../utils/sendNotification');
 const stripe = require('../../config/stripe');
+const {
+    getStripePaymentFees,
+    getStripeRefundFees,
+    getStripeTransferFees,
+    createChargeBreakdown,
+} = require('../../utils/stripeFeesCalculator');
 
 // Helpers
 async function hasOverlappingBooking(productId, dates) {
@@ -509,11 +515,40 @@ exports.cancelBooking = async (req, res, next) => {
             });
             console.log('refund: ', refund);
 
+            // ✅ Get ACTUAL refund fees from Stripe API
+            const refundFees = await getStripeRefundFees(refund.id);
+
             payment.stripeRefundId = refund.id;
             payment.refundAmount = totalRefund;
             payment.refundedAt = new Date();
             payment.paymentStatus =
                 totalRefund < totalPaid ? 'partially_refunded' : 'refunded';
+
+            // Store actual refund charges
+            if (!payment.stripeCharges) {
+                payment.stripeCharges = {
+                    chargesBreakdown: [],
+                };
+            }
+
+            payment.stripeCharges.refundProcessingFee =
+                refundFees.originalFee || refundFees.fee || 0;
+            payment.stripeCharges.refundTotalFee =
+                refundFees.nonRefundableFee || refundFees.fee || 0;
+            payment.stripeCharges.totalStripeCharges +=
+                refundFees.nonRefundableFee || refundFees.fee || 0;
+
+            // Add to breakdown with actual Stripe data
+            payment.stripeCharges.chargesBreakdown.push(
+                createChargeBreakdown(
+                    'refund',
+                    refundFees.refundAmount,
+                    refundFees.nonRefundableFee || refundFees.fee || 0,
+                    refund.id,
+                    refundFees.description,
+                    refundFees.feeDetails || []
+                )
+            );
         }
 
         // -------------------------------------------
@@ -666,13 +701,15 @@ exports.updateStatus = async (req, res, next) => {
         let refundAmount = 0;
         let payment = await Payment.findOne({ booking: booking._id });
 
+        // controllers/api/bookingController.js - updateStatus function
+
+        // In the seller cancellation section:
         if (
             status === 'cancelled' &&
             payment &&
             payment.paymentStatus === 'paid'
         ) {
             try {
-                // Full refund = rentalAmount + depositAmount
                 refundAmount =
                     Number(payment.rentalAmount || 0) +
                     Number(payment.deliveryCharge || 0) +
@@ -688,9 +725,11 @@ exports.updateStatus = async (req, res, next) => {
                         paymentId: payment._id.toString(),
                     },
                 });
-                // console.log('refund: ', refund);
 
-                // Update payment record
+                // ✅ Get ACTUAL refund fees from Stripe API
+                const refundFees = await getStripeRefundFees(refund.id);
+                console.log('refundFees: ', refundFees);
+
                 payment.refundAmount = refundAmount;
                 payment.stripeRefundId = refund.id;
                 payment.refundedAt = new Date();
@@ -698,7 +737,38 @@ exports.updateStatus = async (req, res, next) => {
                 payment.cancellationCharges = 0;
                 payment.cancellationAdminCommission = 0;
                 payment.cancellationVendorAmount = 0;
+
+                // Store actual refund charges
+                if (!payment.stripeCharges) {
+                    payment.stripeCharges = {
+                        chargesBreakdown: [],
+                    };
+                }
+
+                // Update total charges if there's a non-refundable fee
+                if (
+                    refundFees.nonRefundableFee &&
+                    refundFees.nonRefundableFee > 0
+                ) {
+                    payment.stripeCharges.refundTotalFee =
+                        refundFees.nonRefundableFee;
+                    payment.stripeCharges.totalStripeCharges +=
+                        refundFees.nonRefundableFee;
+                }
+
+                payment.stripeCharges.chargesBreakdown.push(
+                    createChargeBreakdown(
+                        'refund',
+                        refundFees.refundAmount,
+                        refundFees.nonRefundableFee || refundFees.fee || 0,
+                        refund.id,
+                        `Seller cancellation: ${refundFees.description}`,
+                        refundFees.feeDetails || []
+                    )
+                );
+
                 await payment.save();
+                console.log('payment: ', JSON.stringify(payment, null, 2));
             } catch (err) {
                 console.error('Stripe refund error:', err);
                 return res.status(400).json({
@@ -984,13 +1054,36 @@ exports.reviewReturnPhoto = async (req, res, next) => {
                             } - AUD $${(depositRefund.amount / 100).toFixed(2)}`
                         );
 
+                        // ✅ Get ACTUAL deposit refund fees from Stripe API
+                        const depositRefundFees = await getStripeRefundFees(
+                            depositRefund.id
+                        );
+
                         payment.depositRefundId = depositRefund.id;
                         payment.depositRefundedAt = new Date();
                         depositRefunded = true;
+
+                        // Add deposit refund to charges breakdown
+                        if (!payment.stripeCharges) {
+                            payment.stripeCharges = {
+                                chargesBreakdown: [],
+                            };
+                        }
+
+                        payment.stripeCharges.chargesBreakdown.push(
+                            createChargeBreakdown(
+                                'deposit_refund',
+                                depositRefundFees.refundAmount,
+                                depositRefundFees.fee || 0,
+                                depositRefund.id,
+                                depositRefundFees.description,
+                                depositRefundFees.feeDetails || []
+                            )
+                        );
+
                         await payment.save();
 
                         // Note: Deposit refund notification will be sent by the webhook handler
-                        // when Stripe confirms the refund has succeeded (refund.updated event)
                         console.log(
                             `Deposit refund initiated: ${
                                 depositRefund.id
