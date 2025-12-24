@@ -43,7 +43,7 @@ const socketHandler = io => {
 
                 // ✅ Give this user the list of currently online users
                 const allOnline = Array.from(onlineUsers.keys());
-                
+
                 socket.emit('onlineUsers', allOnline);
             } catch (error) {
                 console.error('❌ Invalid token in join:', error.message);
@@ -765,9 +765,9 @@ const socketHandler = io => {
                             lastSeen,
                         });
 
-                        console.log(
-                            `🔴 User ${userId} disconnected at ${lastSeen}`
-                        );
+                        // console.log(
+                        //     `🔴 User ${userId} disconnected at ${lastSeen}`
+                        // );
                     }
                     break;
                 }

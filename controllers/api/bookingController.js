@@ -249,12 +249,8 @@ exports.createBooking = async (req, res, next) => {
                     dateCounts[dateStr]++;
                 });
             });
-            console.log("=====================");
-            console.log('dateCounts: ', dateCounts);
 
             const totalStock = parseInt(product.stockQuantity) || 0;
-            console.log('totalStock: ', totalStock);
-            console.log('=====================');
 
             for (const date of requestedDates) {
                 if ((dateCounts[date] || 0) >= totalStock) {
@@ -435,14 +431,11 @@ exports.cancelBooking = async (req, res, next) => {
             if (bookingStartDate) {
                 const hoursDifference =
                     (bookingStartDate - now) / (1000 * 60 * 60);
-                console.log('now: ', now);
-                console.log('hoursDifference: ', hoursDifference);
 
                 const sortedCharges = [...product.oCancellationCharges].sort(
                     (a, b) =>
                         parseFloat(a.hoursBefore) - parseFloat(b.hoursBefore) // ascending
                 );
-                console.log('sortedCharges: ', sortedCharges);
 
                 for (const c of sortedCharges) {
                     if (hoursDifference <= parseFloat(c.hoursBefore)) {
@@ -513,7 +506,6 @@ exports.cancelBooking = async (req, res, next) => {
                     cancellation: true,
                 },
             });
-            console.log('refund: ', refund);
 
             // ✅ Get ACTUAL refund fees from Stripe API
             const refundFees = await getStripeRefundFees(refund.id);
@@ -728,7 +720,6 @@ exports.updateStatus = async (req, res, next) => {
 
                 // ✅ Get ACTUAL refund fees from Stripe API
                 const refundFees = await getStripeRefundFees(refund.id);
-                console.log('refundFees: ', refundFees);
 
                 payment.refundAmount = refundAmount;
                 payment.stripeRefundId = refund.id;
@@ -768,7 +759,6 @@ exports.updateStatus = async (req, res, next) => {
                 );
 
                 await payment.save();
-                console.log('payment: ', JSON.stringify(payment, null, 2));
             } catch (err) {
                 console.error('Stripe refund error:', err);
                 return res.status(400).json({

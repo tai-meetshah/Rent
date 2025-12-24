@@ -1825,13 +1825,6 @@ exports.processBatchPayouts = async (req, res, next) => {
                     }`,
                 });
 
-                console.log(
-                    `Transfer successful for owner ${ownerId}:`,
-                    transfer.id,
-                    'Amount:',
-                    totalPayout
-                );
-
                 // Update all payments for this owner
                 for (const payment of payments) {
                     payment.stripeTransferId = transfer.id;

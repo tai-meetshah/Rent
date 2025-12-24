@@ -27,13 +27,10 @@ const getStripePaymentFees = async paymentIntentId => {
         const charge = await stripe.charges.retrieve(
             paymentIntent.latest_charge
         );
-        console.log('charge: ', charge);
-
         // Get balance transaction to see actual fees charged by Stripe
         const balanceTransaction = await stripe.balanceTransactions.retrieve(
             charge.balance_transaction
         );
-        console.log('balanceTransaction: ', balanceTransaction);
 
         // Stripe returns fee in cents, convert to dollars
         const totalFee = balanceTransaction.fee / 100;
