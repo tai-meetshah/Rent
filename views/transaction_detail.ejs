@@ -1,173 +1,191 @@
 <!DOCTYPE html>
 <html class="loading" lang="en" data-textdirection="ltr">
+
 <head>
-    <%- include('_layouts/head') %>
-    <title>Transaction Details | <%= title %></title>
-    <style>
-        .detail-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .detail-row {
-            display: flex;
-            padding: 12px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .detail-label {
-            font-weight: 600;
-            width: 200px;
-            color: #666;
-        }
-        .detail-value {
-            flex: 1;
-            color: #333;
-        }
-        .status-badge {
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-            display: inline-block;
-        }
-        .status-paid { background: #e8f5e9; color: #2e7d32; }
-        .status-pending { background: #fff3e0; color: #f57c00; }
-        .status-refunded { background: #ffebee; color: #c62828; }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .user-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-        .amount-breakdown {
-            background: #f5f5f5;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-        .amount-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-        }
-        .amount-row.total {
-            border-top: 2px solid #333;
-            margin-top: 10px;
-            padding-top: 15px;
-            font-weight: bold;
-            font-size: 18px;
-        }
-    </style>
+  <%- include('_layouts/head') %>
+  <title>Transaction Details | <%= title %></title>
+  <style>
+    .detail-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .detail-row {
+      display: flex;
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      width: 200px;
+      color: #666;
+    }
+
+    .detail-value {
+      flex: 1;
+      color: #333;
+    }
+
+    .status-badge {
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      display: inline-block;
+    }
+
+    .status-paid {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .status-pending {
+      background: #fff3e0;
+      color: #f57c00;
+    }
+
+    .status-refunded {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .user-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .amount-breakdown {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    .amount-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+
+    .amount-row.total {
+      border-top: 2px solid #333;
+      margin-top: 10px;
+      padding-top: 15px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+  </style>
 </head>
 
-<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns"
-      data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
+<body class="vertical-layout page-header-light vertical-menu-collapsible vertical-dark-menu preload-transitions 2-columns" data-open="click" data-menu="vertical-dark-menu" data-col="2-columns">
 
-    <%- include('_layouts/sidenavbar') %>
+  <%- include('_layouts/sidenavbar') %>
 
-    <div id="main">
-        <div class="row">
-            <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
-                <div class="container">
-                    <div class="row">
-                        <%- include('messages', { messages: messages }) %>
-                        <div class="col s12 m6 l6">
-                            <h6 class="breadcrumbs-title"><span>Transaction Details</span></h6>
-                        </div>
-                        <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
-                            <ol class="breadcrumbs mb-0">
-                                <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
-                                <li class="breadcrumb-item"><a href="/admin/reports">Reports</a></li>
-                                <li class="breadcrumb-item"><a href="/admin/reports/transactions">Transactions</a></li>
-                                <li class="breadcrumb-item active">Detail</li>
-                            </ol>
-                        </div>
-                    </div>
-                </div>
+  <div id="main">
+    <div class="row">
+      <div class="pt-1 pb-0" id="breadcrumbs-wrapper">
+        <div class="container">
+          <div class="row">
+            <%- include('messages', { messages: messages }) %>
+            <div class="col s12 m6 l6">
+              <h6 class="breadcrumbs-title"><span>Transaction Details</span></h6>
             </div>
+            <div class="col s12 m6 l6 right-align-md" style="margin-top: -10px;">
+              <ol class="breadcrumbs mb-0">
+                <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/admin/reports">Reports</a></li>
+                <li class="breadcrumb-item"><a href="/admin/reports/transactions">Transactions</a></li>
+                <li class="breadcrumb-item active">Detail</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            <div class="col s12">
-                <div class="container">
+      <div class="col s12">
+        <div class="container">
 
-                    <!-- Transaction Header -->
-                    <div class="detail-card">
-                        <div class="row">
-                            <div class="col s12 m8">
-                                <h5>Transaction #<%= transaction._id.toString().slice(-12) %></h5>
-                                <p><%= new Date(transaction.createdAt).toLocaleString() %></p>
-                            </div>
-                            <div class="col s12 m4 right-align">
-                                <span class="status-badge status-<%= transaction.paymentStatus %>">
-                                    <%= transaction.paymentStatus %>
-                                </span>
-                            </div>
-                        </div>
+          <!-- Transaction Header -->
+          <div class="detail-card">
+            <div class="row">
+              <div class="col s12 m8">
+                <h5>Transaction #<%= transaction._id.toString().slice(-12) %></h5>
+                <p><%= new Date(transaction.createdAt).toLocaleString() %></p>
+              </div>
+              <div class="col s12 m4 right-align">
+                <span class="status-badge status-<%= transaction.paymentStatus %>">
+                  <%= transaction.paymentStatus %>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <!-- Left Column -->
+            <div class="col s12 l8">
+
+              <!-- Parties Involved -->
+              <div class="detail-card">
+                <h6><i class="material-icons left">people</i>Parties Involved</h6>
+
+                <div class="detail-row">
+                  <div class="detail-label">Renter:</div>
+                  <div class="detail-value">
+                    <div class="user-info">
+                      <img src="<%= transaction.renter?.photo ? process.env.IMAGE_URL + transaction.renter.photo : '/img/avatar.png' %>" alt="Renter" class="user-avatar">
+                      <div>
+                        <strong><%= transaction.renter?.name || 'N/A' %></strong><br>
+                        <small><%= transaction.renter?.email || '' %></small>
+                      </div>
                     </div>
+                  </div>
+                </div>
 
-                    <div class="row">
-                        <!-- Left Column -->
-                        <div class="col s12 l8">
+                <div class="detail-row">
+                  <div class="detail-label">Owner:</div>
+                  <div class="detail-value">
+                    <div class="user-info">
+                      <img src="<%= transaction.owner?.photo ? process.env.IMAGE_URL + transaction.owner.photo : '/img/avatar.png' %>" alt="Owner" class="user-avatar">
+                      <div>
+                        <strong><%= transaction.owner?.name || 'N/A' %></strong><br>
+                        <small><%= transaction.owner?.email || '' %></small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                            <!-- Parties Involved -->
-                            <div class="detail-card">
-                                <h6><i class="material-icons left">people</i>Parties Involved</h6>
+              <!-- Product Details -->
+              <div class="detail-card">
+                <h6><i class="material-icons left">shopping_bag</i>Product Details</h6>
 
-                                <div class="detail-row">
-                                    <div class="detail-label">Renter:</div>
-                                    <div class="detail-value">
-                                        <div class="user-info">
-                                            <img src="<%= transaction.renter?.photo ? process.env.IMAGE_URL + transaction.renter.photo : '/img/avatar.png' %>"
-                                                 alt="Renter" class="user-avatar">
-                                            <div>
-                                                <strong><%= transaction.renter?.name || 'N/A' %></strong><br>
-                                                <small><%= transaction.renter?.email || '' %></small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                <div class="detail-row">
+                  <div class="detail-label">Product:</div>
+                  <div class="detail-value">
+                    <div class="user-info">
+                      <% if (transaction.product?.images && transaction.product.images.length > 0) { %>
+                      <img src="<%= process.env.IMAGE_URL + transaction.product.images[0] %>" alt="Product" style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover;">
+                      <% } %>
+                      <div>
+                        <strong><%= transaction.product?.title || 'N/A' %></strong><br>
+                        <small><%= transaction.product?.description?.substring(0, 100) %>...</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                                <div class="detail-row">
-                                    <div class="detail-label">Owner:</div>
-                                    <div class="detail-value">
-                                        <div class="user-info">
-                                            <img src="<%= transaction.owner?.photo ? process.env.IMAGE_URL + transaction.owner.photo : '/img/avatar.png' %>"
-                                                 alt="Owner" class="user-avatar">
-                                            <div>
-                                                <strong><%= transaction.owner?.name || 'N/A' %></strong><br>
-                                                <small><%= transaction.owner?.email || '' %></small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Product Details -->
-                            <div class="detail-card">
-                                <h6><i class="material-icons left">shopping_bag</i>Product Details</h6>
-
-                                <div class="detail-row">
-                                    <div class="detail-label">Product:</div>
-                                    <div class="detail-value">
-                                        <div class="user-info">
-                                            <% if (transaction.product?.images && transaction.product.images.length > 0) { %>
-                                            <img src="<%= process.env.IMAGE_URL + transaction.product.images[0] %>"
-                                                 alt="Product" style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover;">
-                                            <% } %>
-                                            <div>
-                                                <strong><%= transaction.product?.title || 'N/A' %></strong><br>
-                                                <small><%= transaction.product?.description?.substring(0, 100) %>...</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- <div class="detail-row">
+                <!-- <div class="detail-row">
                                     <div class="detail-label">Booking ID:</div>
                                     <div class="detail-value">
                                         <a href="/admin/bookings/<%= transaction.booking?._id %>" target="_blank">
@@ -175,222 +193,358 @@
                                         </a>
                                     </div>
                                 </div> -->
-                            </div>
+              </div>
 
-                            <!-- Payment Information -->
-                            <div class="detail-card">
-                                <h6><i class="material-icons left">payment</i>Payment Information</h6>
+              <!-- Payment Information -->
+              <div class="detail-card">
+                <h6><i class="material-icons left">payment</i>Payment Information</h6>
 
-                                <div class="detail-row">
-                                    <div class="detail-label">Payment Intent ID:</div>
-                                    <div class="detail-value"><%= transaction.stripePaymentIntentId || 'N/A' %></div>
-                                </div>
+                <div class="detail-row">
+                  <div class="detail-label">Payment Intent ID:</div>
+                  <div class="detail-value"><%= transaction.stripePaymentIntentId || 'N/A' %></div>
+                </div>
 
-                                <div class="detail-row">
-                                    <div class="detail-label">Charge ID:</div>
-                                    <div class="detail-value"><%= transaction.stripeChargeId || 'N/A' %></div>
-                                </div>
+                <div class="detail-row">
+                  <div class="detail-label">Charge ID:</div>
+                  <div class="detail-value"><%= transaction.stripeChargeId || 'N/A' %></div>
+                </div>
 
-                                <% if (transaction.stripeTransferId) { %>
-                                <div class="detail-row">
-                                    <div class="detail-label">Transfer ID:</div>
-                                    <div class="detail-value"><%= transaction.stripeTransferId %></div>
-                                </div>
-                                <% } %>
+                <% if (transaction.stripeTransferId) { %>
+                <div class="detail-row">
+                  <div class="detail-label">Transfer ID:</div>
+                  <div class="detail-value"><%= transaction.stripeTransferId %></div>
+                </div>
+                <% } %>
 
-                                <div class="detail-row">
-                                    <div class="detail-label">Payment Status:</div>
-                                    <div class="detail-value">
-                                        <span class="status-badge status-<%= transaction.paymentStatus %>">
-                                            <%= transaction.paymentStatus %>
-                                        </span>
-                                    </div>
-                                </div>
+                <div class="detail-row">
+                  <div class="detail-label">Payment Status:</div>
+                  <div class="detail-value">
+                    <span class="status-badge status-<%= transaction.paymentStatus %>">
+                      <%= transaction.paymentStatus %>
+                    </span>
+                  </div>
+                </div>
 
-                                <div class="detail-row">
-                                    <div class="detail-label">Payout Status:</div>
-                                    <div class="detail-value"><%= transaction.payoutStatus %></div>
-                                </div>
+                <div class="detail-row">
+                  <div class="detail-label">Payout Status:</div>
+                  <div class="detail-value"><%= transaction.payoutStatus %></div>
+                </div>
 
-                                <% if (transaction.paidAt) { %>
-                                <div class="detail-row">
-                                    <div class="detail-label">Paid At:</div>
-                                    <div class="detail-value"><%= new Date(transaction.paidAt).toLocaleString() %></div>
-                                </div>
-                                <% } %>
+                <% if (transaction.paidAt) { %>
+                <div class="detail-row">
+                  <div class="detail-label">Paid At:</div>
+                  <div class="detail-value"><%= new Date(transaction.paidAt).toLocaleString() %></div>
+                </div>
+                <% } %>
 
-                                <% if (transaction.payoutAt) { %>
-                                <div class="detail-row">
-                                    <div class="detail-label">Payout At:</div>
-                                    <div class="detail-value"><%= new Date(transaction.payoutAt).toLocaleString() %></div>
-                                </div>
-                                <% } %>
-                            </div>
+                <% if (transaction.payoutAt) { %>
+                <div class="detail-row">
+                  <div class="detail-label">Payout At:</div>
+                  <div class="detail-value"><%= new Date(transaction.payoutAt).toLocaleString() %></div>
+                </div>
+                <% } %>
+              </div>
 
-                            <!-- Refund Information -->
-                            <% if (transaction.refundAmount > 0) { %>
-                            <div class="detail-card">
-                                <h6><i class="material-icons left red-text">money_off</i>Refund Information</h6>
+              <!-- Refund Information -->
+              <% if (transaction.refundAmount > 0) { %>
+              <div class="detail-card">
+                <h6><i class="material-icons left red-text">money_off</i>Refund Information</h6>
 
-                                <div class="detail-row">
-                                    <div class="detail-label">Refund Amount:</div>
-                                    <div class="detail-value red-text">$<%= transaction.refundAmount.toFixed(2) %></div>
-                                </div>
+                <div class="detail-row">
+                  <div class="detail-label">Refund Amount:</div>
+                  <div class="detail-value red-text">$<%= transaction.refundAmount.toFixed(2) %></div>
+                </div>
 
-                                <% if (transaction.refundReason) { %>
-                                <div class="detail-row">
-                                    <div class="detail-label">Reason:</div>
-                                    <div class="detail-value"><%= transaction.refundReason %></div>
-                                </div>
-                                <% } %>
+                <% if (transaction.refundReason) { %>
+                <div class="detail-row">
+                  <div class="detail-label">Reason:</div>
+                  <div class="detail-value"><%= transaction.refundReason %></div>
+                </div>
+                <% } %>
 
-                                 <% if (transaction.product.oCancellationCharges && transaction.product.oCancellationCharges.length > 0) { %>
-                                 <div class="detail-row">
-                                   <div class="detail-label">Cancellation Charges:</div>
-                                   <div class="detail-value">
-                                     <div class="amount-breakdown">
-                                       <% transaction.product.oCancellationCharges.forEach(function(item){ %>
-                                       <div class="amount-row">
-                                         <span>
-                                           Cancelled <strong><%= item.hoursBefore %></strong> hrs before
-                                         </span>
-                                         <strong class="red-text">
-                                           $<%= Number(item.chargeAmount).toFixed(2) %>
-                                         </strong>
-                                       </div>
-                                       <% }) %>
-                                     </div>
-                                   </div>
-                                 </div>
-                                 <% } %>
+                <% if (transaction.product.oCancellationCharges && transaction.product.oCancellationCharges.length > 0) { %>
+                <div class="detail-row">
+                  <div class="detail-label">Cancellation Charges:</div>
+                  <div class="detail-value">
+                    <div class="amount-breakdown">
+                      <% transaction.product.oCancellationCharges.forEach(function(item){ %>
+                      <div class="amount-row">
+                        <span>
+                          Cancelled <strong><%= item.hoursBefore %></strong> hrs before
+                        </span>
+                        <strong class="red-text">
+                          $<%= Number(item.chargeAmount).toFixed(2) %>
+                        </strong>
+                      </div>
+                      <% }) %>
+                    </div>
+                  </div>
+                </div>
+                <% } %>
 
-                                <% if (transaction.refundedAt) { %>
-                                <div class="detail-row">
-                                    <div class="detail-label">Refunded At:</div>
-                                    <div class="detail-value"><%= new Date(transaction.refundedAt).toLocaleString() %></div>
-                                </div>
-                                <% } %>
+                <% if (transaction.refundedAt) { %>
+                <div class="detail-row">
+                  <div class="detail-label">Refunded At:</div>
+                  <div class="detail-value"><%= new Date(transaction.refundedAt).toLocaleString() %></div>
+                </div>
+                <% } %>
 
-                                <% if (transaction.stripeRefundId) { %>
-                                <div class="detail-row">
-                                    <div class="detail-label">Refund ID:</div>
-                                    <div class="detail-value"><%= transaction.stripeRefundId %></div>
-                                </div>
-                                <% } %>
-                            </div>
-                            <% } %>
+                <% if (transaction.stripeRefundId) { %>
+                <div class="detail-row">
+                  <div class="detail-label">Refund ID:</div>
+                  <div class="detail-value"><%= transaction.stripeRefundId %></div>
+                </div>
+                <% } %>
+              </div>
+              <% } %>
 
+
+              <!-- views/transaction_detail.ejs -->
+
+              <!-- Replace the Stripe Charges section with this enhanced version -->
+
+              <!-- Stripe Charges Breakdown -->
+              <div class="detail-card">
+                <h6><i class="material-icons left">credit_card</i>Stripe Charges (Actual)</h6>
+
+                <div class="amount-breakdown">
+                  <% if (transaction.stripeCharges && transaction.stripeCharges.chargesBreakdown && transaction.stripeCharges.chargesBreakdown.length > 0) { %>
+
+                  <!-- Summary -->
+                  <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <div class="amount-row" style="border-bottom: none;">
+                      <span style="font-size: 16px;">Total Stripe Charges:</span>
+                      <strong class="red-text" style="font-size: 20px;">
+                        $<%= transaction.stripeCharges.totalStripeCharges.toFixed(2) %>
+                      </strong>
+                    </div>
+                    <!-- <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                    Based on actual Stripe Balance Transactions
+                </div> -->
+                  </div>
+
+                  <!-- Detailed Breakdown by Operation -->
+                  <strong style="display: block; margin-bottom: 15px; font-size: 15px;">
+                    <i class="material-icons tiny">receipt</i> Operation History:
+                  </strong>
+
+                  <% transaction.stripeCharges.chargesBreakdown.forEach(function(charge, index) { %>
+                  <div class="operation-item" style="padding: 12px; background: <%= index % 2 === 0 ? '#f9f9f9' : '#fff' %>; border-left: 4px solid <%=
+                charge.operation === 'payment' ? '#4CAF50' :
+                charge.operation === 'refund' ? '#f44336' :
+                charge.operation === 'transfer' ? '#2196F3' :
+                '#FF9800'
+            %>; margin-bottom: 12px; border-radius: 4px;">
+
+                    <!-- Operation Header -->
+                    <div class="operation-header">
+                      <span style="text-transform: capitalize; font-weight: 600; color: <%=
+                        charge.operation === 'payment' ? '#4CAF50' :
+                        charge.operation === 'refund' ? '#f44336' :
+                        charge.operation === 'transfer' ? '#2196F3' :
+                        '#FF9800'
+                    %>;">
+                        <i class="material-icons tiny" style="vertical-align: middle;">
+                          <%=
+                                charge.operation === 'payment' ? 'payment' :
+                                charge.operation === 'refund' ? 'money_off' :
+                                charge.operation === 'transfer' ? 'send' :
+                                'receipt'
+                            %>
+                        </i>
+                        <%= charge.operation.replace(/_/g, ' ').toUpperCase() %>
+                      </span>
+                      <span class="red-text" style="font-weight: 700; font-size: 16px;">
+                        $<%= charge.fee.toFixed(2) %>
+                      </span>
+                    </div>
+
+                    <!-- Operation Details -->
+                    <div class="operation-details" style="margin-top: 10px; padding-left: 24px;">
+                      <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 4px;">
+                        <strong>Amount:</strong>
+                        <span>$<%= charge.amount.toFixed(2) %></span>
+
+                        <strong>Fee:</strong>
+                        <span class="red-text">$<%= charge.fee.toFixed(2) %></span>
+
+                        <strong>Description:</strong>
+                        <span><%= charge.description %></span>
+
+                        <strong>Stripe ID:</strong>
+                        <span class="stripe-id" style="font-family: monospace; background: #e3f2fd; padding: 2px 8px; border-radius: 4px; font-size: 11px; display: inline-block;">
+                          <%= charge.stripeId %>
+                        </span>
+
+                        <strong>Timestamp:</strong>
+                        <span><%= new Date(charge.timestamp).toLocaleString('en-AU', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                        }) %></span>
+                      </div>
+
+                      <!-- Fee Details from Stripe (if available) -->
+                      <% if (charge.feeDetails && charge.feeDetails.length > 0) { %>
+                      <div style="margin-top: 12px; padding: 8px; background: #fff; border-radius: 4px; border: 1px solid #e0e0e0;">
+                        <strong style="font-size: 11px; color: #666; display: block; margin-bottom: 6px;">
+                          STRIPE FEE BREAKDOWN:
+                        </strong>
+                        <% charge.feeDetails.forEach(function(detail) { %>
+                        <div style="font-size: 11px; display: flex; justify-content: space-between; padding: 2px 0;">
+                          <span><%= detail.description || detail.type %>:</span>
+                          <span class="red-text">
+                            <%= detail.currency.toUpperCase() %> $<%= detail.amount.toFixed(2) %>
+                          </span>
                         </div>
+                        <% }) %>
+                      </div>
+                      <% } %>
+                    </div>
+                  </div>
+                  <% }) %>
 
-                        <!-- Right Column -->
-                        <div class="col s12 l4">
+                  <!-- Net Impact Analysis -->
+                  <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white;">
+                    <div style="font-size: 14px; margin-bottom: 10px; opacity: 0.9;">
+                      Stripe Charges Impact
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                      <div>
+                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">Gross Amount</div>
+                        <div style="font-size: 18px; font-weight: 600;">
+                          $<%= transaction.totalAmount.toFixed(2) %>
+                        </div>
+                      </div>
+                      <div>
+                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">Total Stripe Fees</div>
+                        <div style="font-size: 18px; font-weight: 600;">
+                          $<%= transaction.stripeCharges.totalStripeCharges.toFixed(2) %>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                            <!-- Amount Breakdown -->
-                            <div class="detail-card">
-                                <h6><i class="material-icons left">account_balance_wallet</i>Amount Breakdown</h6>
+                  <% } else { %>
+                  <div style="text-align: center; padding: 40px 20px; color: #999;">
+                    <i class="material-icons" style="font-size: 48px; opacity: 0.3;">receipt_long</i>
+                    <p style="margin-top: 10px;">No Stripe charges recorded</p>
+                    <!-- <p style="font-size: 12px;">Charges will appear after payment processing</p> -->
+                  </div>
+                  <% } %>
+                </div>
+              </div>
+            </div>
 
-                                <div class="amount-breakdown">
-                                    <div class="amount-row">
-                                        <span>Rental Amount:</span>
-                                        <strong>$<%= transaction.rentalAmount.toFixed(2) %></strong>
-                                    </div>
+            <!-- Right Column -->
+            <div class="col s12 l4">
 
-                                    <% if (transaction.depositAmount > 0) { %>
-                                    <div class="amount-row">
-                                        <span>Deposit Amount:</span>
-                                        <strong>$<%= transaction.depositAmount.toFixed(2) %></strong>
-                                    </div>
-                                    <% } %>
+              <!-- Amount Breakdown -->
+              <div class="detail-card">
+                <h6><i class="material-icons left">account_balance_wallet</i>Amount Breakdown</h6>
 
-                                    <% if (transaction.deliveryCharge > 0) { %>
-                                      <div class="amount-row">
-                                        <span>Distance Delivery Charge:</span>
-                                        <strong>$<%= transaction.deliveryCharge.toFixed(2) %></strong>
-                                      </div>
-                                    <% } %>
+                <div class="amount-breakdown">
+                  <div class="amount-row">
+                    <span>Rental Amount:</span>
+                    <strong>$<%= transaction.rentalAmount.toFixed(2) %></strong>
+                  </div>
 
-                                        <% if (transaction.refundAmount && transaction.refundAmount > 0) { %>
-                                        <div class="amount-row">
-                                            <span>Refund Amount:</span>
-                                            <strong class="red-text">
-                                                - $<%= transaction.refundAmount.toFixed(2) %>
-                                            </strong>
-                                        </div>
-                                        <% } %>
+                  <% if (transaction.depositAmount > 0) { %>
+                  <div class="amount-row">
+                    <span>Deposit Amount:</span>
+                    <strong>$<%= transaction.depositAmount.toFixed(2) %></strong>
+                  </div>
+                  <% } %>
 
-                                    <!-- <div class="amount-row total">
+                  <% if (transaction.deliveryCharge > 0) { %>
+                  <div class="amount-row">
+                    <span>Distance Delivery Charge:</span>
+                    <strong>$<%= transaction.deliveryCharge.toFixed(2) %></strong>
+                  </div>
+                  <% } %>
+
+                  <% if (transaction.refundAmount && transaction.refundAmount > 0) { %>
+                  <div class="amount-row">
+                    <span>Refund Amount:</span>
+                    <strong class="red-text">
+                      - $<%= transaction.refundAmount.toFixed(2) %>
+                    </strong>
+                  </div>
+                  <% } %>
+
+                  <!-- <div class="amount-row total">
                                         <span>Total Amount:</span>
                                         <strong>$<%= transaction.totalAmount.toFixed(2) %></strong>
                                     </div> -->
 
-                                    <div class="amount-row total">
-                                      <span>Net Paid Amount:</span>
-                                      <strong>
-                                        $<%= (transaction.totalAmount - (transaction.refundAmount || 0)).toFixed(2) %>
-                                      </strong>
-                                    </div>
-
-                                </div>
-                            </div>
-
-                            <!-- Commission Breakdown -->
-                            <div class="detail-card">
-                                <h6><i class="material-icons left">trending_up</i>Commission Details</h6>
-
-                                <div class="amount-breakdown">
-                                    <div class="amount-row">
-                                        <span>Commission Type:</span>
-                                        <strong><%= transaction.commissionType %></strong>
-                                    </div>
-
-                                    <% if (transaction.commissionType === 'percentage') { %>
-                                    <div class="amount-row">
-                                        <span>Commission Rate:</span>
-                                        <strong><%= transaction.commissionPercentage %>%</strong>
-                                    </div>
-                                    <% } %>
-
-                                    <% if (transaction.commissionType === 'fixed') { %>
-                                    <div class="amount-row">
-                                        <span>Fixed Amount:</span>
-                                        <strong>$<%= transaction.commissionFixedAmount.toFixed(2) %></strong>
-                                    </div>
-                                    <% } %>
-
-                                    <div class="amount-row total">
-                                        <span>Admin Commission:</span>
-                                        <strong class="green-text">$<%= transaction.commissionAmount.toFixed(2) %></strong>
-                                    </div>
-
-                                    <div class="amount-row total">
-                                        <span>Owner Payout:</span>
-                                        <strong class="blue-text">$<%= transaction.ownerPayoutAmount.toFixed(2) %></strong>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Currency -->
-                            <div class="detail-card">
-                                <h6><i class="material-icons left">attach_money</i>Currency</h6>
-                                <p><strong><%= transaction.currency %></strong></p>
-                            </div>
-
-                            <!-- Actions -->
-                            <div class="detail-card">
-                                <a href="/admin/reports/transactions" class="btn waves-effect" style="width: 100%;">
-                                    <i class="material-icons left">arrow_back</i>Back to Transactions
-                                </a>
-                            </div>
-
-                        </div>
-                    </div>
+                  <div class="amount-row total">
+                    <span>Net Paid Amount:</span>
+                    <strong>
+                      $<%= (transaction.totalAmount - (transaction.refundAmount || 0)).toFixed(2) %>
+                    </strong>
+                  </div>
 
                 </div>
-            </div>
-        </div>
-    </div>
+              </div>
 
-    <%- include('_layouts/commonJs') %>
+              <!-- Commission Breakdown -->
+              <div class="detail-card">
+                <h6><i class="material-icons left">trending_up</i>Commission Details</h6>
+
+                <div class="amount-breakdown">
+                  <div class="amount-row">
+                    <span>Commission Type:</span>
+                    <strong><%= transaction.commissionType %></strong>
+                  </div>
+
+                  <% if (transaction.commissionType === 'percentage') { %>
+                  <div class="amount-row">
+                    <span>Commission Rate:</span>
+                    <strong><%= transaction.commissionPercentage %>%</strong>
+                  </div>
+                  <% } %>
+
+                  <% if (transaction.commissionType === 'fixed') { %>
+                  <div class="amount-row">
+                    <span>Fixed Amount:</span>
+                    <strong>$<%= transaction.commissionFixedAmount.toFixed(2) %></strong>
+                  </div>
+                  <% } %>
+
+                  <div class="amount-row total">
+                    <span>Admin Commission:</span>
+                    <strong class="green-text">$<%= transaction.commissionAmount.toFixed(2) %></strong>
+                  </div>
+
+                  <div class="amount-row total">
+                    <span>Owner Payout:</span>
+                    <strong class="blue-text">$<%= transaction.ownerPayoutAmount.toFixed(2) %></strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Currency -->
+              <div class="detail-card">
+                <h6><i class="material-icons left">attach_money</i>Currency</h6>
+                <p><strong><%= transaction.currency %></strong></p>
+              </div>
+
+              <!-- Actions -->
+              <div class="detail-card">
+                <a href="/admin/reports/transactions" class="btn waves-effect" style="width: 100%;">
+                  <i class="material-icons left">arrow_back</i>Back to Transactions
+                </a>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('_layouts/commonJs') %>
 
 </body>
+
 </html>
