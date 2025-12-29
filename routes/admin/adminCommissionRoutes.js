@@ -16,12 +16,18 @@ router.get('/commission', async (req, res) => {
 // 🔹 Create Commission Setting
 router.post('/commission', async (req, res) => {
     try {
-        const { commissionType, fixedAmount, percentage, subscriptionAmount } =
-            req.body;
+        const {
+            commissionType,
+            firstUserDiscount,
+            fixedAmount,
+            percentage,
+            subscriptionAmount,
+        } = req.body;
 
         let commission = await AdminCommission.findOne();
         if (commission) {
             // update existing
+            commission.firstUserDiscount = firstUserDiscount;
             commission.commissionType = commissionType;
             commission.fixedAmount = fixedAmount;
             commission.percentage = percentage;
@@ -34,6 +40,7 @@ router.post('/commission', async (req, res) => {
                 fixedAmount,
                 percentage,
                 subscriptionAmount,
+                firstUserDiscount,
             });
             await commission.save();
         }
@@ -77,12 +84,14 @@ router.put('/:id', async (req, res) => {
             percentage,
             isActive,
             subscriptionAmount,
+            firstUserDiscount,
         } = req.body;
         const updated = await AdminCommission.findByIdAndUpdate(
             req.params.id,
             {
                 commissionType,
                 fixedAmount,
+                firstUserDiscount,
                 percentage,
                 isActive,
                 subscriptionAmount,

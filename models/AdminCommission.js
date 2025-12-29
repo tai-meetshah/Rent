@@ -10,6 +10,9 @@ const adminCommissionSchema = new mongoose.Schema(
         fixedAmount: {
             type: Number,
         },
+        firstUserDiscount: {
+            type: Number,
+        },
         percentage: {
             type: Number,
         },

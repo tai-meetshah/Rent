@@ -74,11 +74,19 @@
 
                   <div class="divider" style="margin: 20px 0;"></div>
 
+                  <!-- First User Discount -->
+                  <div class="input-field col s12">
+                    <label for="firstUserDiscount"><b>First Time User Discount (%)</b></label>
+                    <input class="validate" id="firstUserDiscount" name="firstUserDiscount" type="number" min="0" max="100" step="0.01" value="<%= commission && commission.firstUserDiscount ? commission.firstUserDiscount : '' %>">
+                    <div class="error-message" id="discountError"></div>
+                  </div>
+
+                  <div class="divider" style="margin: 20px 0;"></div>
+
                   <!-- Subscription Amount -->
                   <div class="input-field col s12">
                     <label for="subscriptionAmount"><b>Admin Fee ($)</b></label>
                     <input class="validate" id="subscriptionAmount" name="subscriptionAmount" type="number" min="1" step="0.01" required value="<%= commission && commission.subscriptionAmount ? commission.subscriptionAmount : 99 %>">
-                    <!-- <span class="helper-text">This is the monthly subscription price for unlimited chat access</span> -->
                     <div class="error-message" id="subscriptionError"></div>
                   </div>
 
@@ -112,6 +120,19 @@
                 <div style="margin-top: 15px;">
                   <p><b>Admin Fee:(Taken from the buyer)</b></p>
                   <p>Price: $<%= commission.subscriptionAmount %></p>
+                </div>
+
+                <div class="divider" style="margin: 10px 0;"></div>
+
+                <div style="margin-top: 15px;">
+                  <p><b>First Time User Discount:</b></p>
+                  <p>
+                    <% if (commission.firstUserDiscount) { %>
+                    <%= commission.firstUserDiscount %>%
+                    <% } else { %>
+                    No discount set
+                    <% } %>
+                  </p>
                 </div>
               </div>
               <% } %>
@@ -150,6 +171,7 @@
         const fixed = $('#fixedAmount').val().trim();
         const percent = $('#percentage').val().trim();
         const subscription = $('#subscriptionAmount').val().trim();
+        const discount = $('#firstUserDiscount').val().trim();
 
         $('.error-message').text('');
 
@@ -163,6 +185,11 @@
         }
         if (!subscription || parseFloat(subscription) <= 0) {
           $('#subscriptionError').text('Please enter a valid amount greater than 0.');
+          valid = false;
+        }
+
+        if (discount && (parseFloat(discount) < 0 || parseFloat(discount) > 100)) {
+          $('#discountError').text('Discount must be between 0 and 100.');
           valid = false;
         }
 
