@@ -41,6 +41,18 @@ const paymentSchema = new mongoose.Schema(
 
         ownerPayoutAmount: { type: Number, required: true },
 
+        firstUserDiscount: {
+            type: Number,
+            default: 0,
+        },
+        firstUserDiscountPercentage: {
+            type: Number,
+            default: 0,
+        },
+        isFirstTimeUser: {
+            type: Boolean,
+            default: false,
+        },
         // Stripe fees
         stripeProcessingFee: { type: Number, default: 0 },
         stripeTransferFee: { type: Number, default: 0 },
