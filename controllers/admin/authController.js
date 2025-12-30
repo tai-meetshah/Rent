@@ -302,7 +302,7 @@ exports.getDashboard = async (req, res) => {
         // Render dashboard with all data
         res.render('index', {
             title: 'Admin Dashboard',
-            url: req.url,
+            url: req.originalUrl || req.url,
             stats,
             todayUsers: todayUsersList,
             todayProducts: todayProductsList,
@@ -314,7 +314,7 @@ exports.getDashboard = async (req, res) => {
         req.flash('error', 'Error loading dashboard data');
         res.render('index', {
             title: 'Admin Dashboard',
-            url: req.url,
+            url: req.originalUrl || req.url,
             stats: {},
             todayUsers: [],
             todayProducts: [],

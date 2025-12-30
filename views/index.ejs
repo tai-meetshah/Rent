@@ -93,6 +93,21 @@
     .section-header h6 {
       margin: 0;
       font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      /* gap doesn't apply to text nodes reliably, so use icon margin instead */
+    }
+
+    /* Ensure material icons used as left icons don't float and have consistent spacing */
+    .section-header h6 i.material-icons,
+    .section-header h6 i.left {
+      float: none !important;
+      margin: 0 8px 0 0 !important;
+      /* 8px gap between icon and text */
+      display: inline-block;
+      vertical-align: middle;
+      font-size: 18px;
+      line-height: 1;
     }
 
     .view-all-btn {
@@ -100,26 +115,31 @@
       padding: 2px 15px;
     }
 
-.stats-center-row {
-display: flex;
-justify-content: center; /* center group */
-gap: 24px; /* space between cards */
-  max-width: 1050px; /* 🔥 THIS fixes the visual issue */
-  margin: 0 auto; /* 🔥 true center */
-flex-wrap: wrap;
-}
+    .stats-center-row {
+      display: flex;
+      justify-content: center;
+      /* center group */
+      gap: 24px;
+      /* space between cards */
+      max-width: 1050px;
+      /* 🔥 THIS fixes the visual issue */
+      margin: 0 auto;
+      /* 🔥 true center */
+      flex-wrap: wrap;
+    }
 
-.stats-center-row > .col {
-float: none !important; /* 🔥 kill Materialize float */
-  flex: 0 0 auto;
-}
+    .stats-center-row>.col {
+      float: none !important;
+      /* 🔥 kill Materialize float */
+      flex: 0 0 auto;
+    }
 
-.stat-box {
-width: 320px; /* 👈 FIXES THE ISSUE */
-flex-shrink: 0; /* 👈 prevents shrinking */
-}
-
-
+    .stat-box {
+      width: 320px;
+      /* 👈 FIXES THE ISSUE */
+      flex-shrink: 0;
+      /* 👈 prevents shrinking */
+    }
   </style>
 </head>
 
@@ -145,283 +165,283 @@ flex-shrink: 0; /* 👈 prevents shrinking */
         </div>
       </div>
 
-      <div class="col s12 mt-1">
+      <div class="col s12 mt-2">
         <div class="container">
 
           <!-- Stats Cards -->
           <div class="row">
- <div class="stats-center-row">
-            <!-- Total Users -->
-            <div class="stat-box">
-              <a href="/admin/user" style="text-decoration:none;">
-                <div style="
+            <div class="stats-center-row">
+              <!-- Total Users -->
+              <div class="stat-box">
+                <a href="/admin/user" style="text-decoration:none;">
+                  <div style="
         background: linear-gradient(135deg, #1A9CFF, #147EDB);
         border-radius:22px;
         padding:18px 18px 16px 24px;
         box-shadow:0 8px 20px rgba(0,0,0,0.15);
       ">
-                  <h4 style="
+                    <h4 style="
           font-size:42px;
           color:#FFFFFF;
           font-weight:900;
           margin:0;
           line-height:1.1;
         ">
-                    <%= stats.totalUsers || 0 %>
-                  </h4>
+                      <%= stats.totalUsers || 0 %>
+                    </h4>
 
-                  <span style="
+                    <span style="
           font-size:20px;
           color:#FFFFFF;
           opacity:0.9;
         ">
-                    Total Users
-                  </span>
+                      Total Users
+                    </span>
 
-                  <div style="
+                    <div style="
           margin-top:10px;
           padding-top:8px;
           border-top:1px solid rgba(255,255,255,0.3);
         ">
-                    <span style="
+                      <span style="
             font-size:14px;
             color:#FFFFFF;
             opacity:0.85;
           ">
-                      +<%= stats.todayUsers || 0 %> Today
-                    </span>
+                        +<%= stats.todayUsers || 0 %> Today
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </a>
-            </div>
+                </a>
+              </div>
 
-            <!-- Total Products -->
-             <div class="stat-box">
-              <a href="/admin/product" style="text-decoration:none;">
-                <div style="
+              <!-- Total Products -->
+              <div class="stat-box">
+                <a href="/admin/product" style="text-decoration:none;">
+                  <div style="
         background: linear-gradient(135deg, #5139DB, #3925B7);
         border-radius:22px;
         padding:18px 18px 16px 24px;
         box-shadow:0 8px 20px rgba(0,0,0,0.15);
       ">
-                  <h4 style="
+                    <h4 style="
           font-size:42px;
           color:#FFFFFF;
           font-weight:900;
           margin:0;
           line-height:1.1;
         ">
-                    <%= stats.totalProducts || 0 %>
-                  </h4>
+                      <%= stats.totalProducts || 0 %>
+                    </h4>
 
-                  <span style="
+                    <span style="
           font-size:20px;
           color:#FFFFFF;
           opacity:0.9;
         ">
-                    Total Products
-                  </span>
+                      Total Products
+                    </span>
 
-                  <div style="
+                    <div style="
           margin-top:10px;
           padding-top:8px;
           border-top:1px solid rgba(255,255,255,0.3);
         ">
-                    <span style="
+                      <span style="
             font-size:14px;
             color:#FFFFFF;
             opacity:0.85;
           ">
-                      +<%= stats.todayProducts || 0 %> Today
-                    </span>
+                        +<%= stats.todayProducts || 0 %> Today
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </a>
-            </div>
+                </a>
+              </div>
 
-            <!-- Total Revenue -->
-             <div class="stat-box">
-              <a href="/admin/reports" style="text-decoration:none;">
-                <div style="
+              <!-- Total Revenue -->
+              <div class="stat-box">
+                <a href="/admin/reports" style="text-decoration:none;">
+                  <div style="
         background: linear-gradient(135deg, #31B411, #24940C);
         border-radius:22px;
         padding:18px 18px 16px 24px;
         box-shadow:0 8px 20px rgba(0,0,0,0.15);
       ">
-                  <h4 style="
+                    <h4 style="
           font-size:40px;
           color:#FFFFFF;
           font-weight:900;
           margin:0;
           line-height:1.1;
         ">
-                    $<%= (stats.totalRevenue || 0).toFixed(2) %>
-                  </h4>
+                      $<%= (stats.totalRevenue || 0).toFixed(2) %>
+                    </h4>
 
-                  <span style="
+                    <span style="
           font-size:20px;
           color:#FFFFFF;
           opacity:0.9;
         ">
-                    Total Revenue
-                  </span>
+                      Total Revenue
+                    </span>
 
-                  <div style="
+                    <div style="
           margin-top:10px;
           padding-top:8px;
           border-top:1px solid rgba(255,255,255,0.3);
         ">
-                    <span style="
+                      <span style="
             font-size:14px;
             color:#FFFFFF;
             opacity:0.85;
           ">
-                      +$<%= (stats.todayRevenue || 0).toFixed(2) %> Today
-                    </span>
-                  </div>
-                </div>
-              </a>
-            </div>
-            </div>
-
-          </div>
-
-          </div>
-
-
-
-
-          <!-- Revenue Graph -->
-          <div class="row">
-            <div class="col s12">
-              <div class="card">
-                <div class="card-content">
-                  <div class="section-header">
-                    <h6><i class="material-icons left">trending_up</i>Revenue Trend (Last 30 Days)</h6>
-                  </div>
-                  <div class="chart-container">
-                    <canvas id="revenueTrendChart"></canvas>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Today's Products and Users -->
-          <div class="row">
-            <!-- Today's Products -->
-            <div class="col s12 l6">
-              <div class="data-table">
-                <div class="section-header">
-                  <h6><i class="material-icons left">shopping_bag</i>Today's Products (Top 10)</h6>
-                  <a href="/admin/product" class="btn-small waves-effect view-all-btn">View All</a>
-                </div>
-                <% if (todayProducts && todayProducts.length > 0) { %>
-                <table class="striped compact-table">
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th>Owner</th>
-                      <th>Price</th>
-                      <th>Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <% todayProducts.slice(0, 10).forEach(product => { %>
-                    <tr>
-                      <td>
-                        <img src="<%= product.images && product.images.length > 0 ? process.env.IMAGE_URL + product.images[0] : '/images/default.png' %>" alt="Product" class="product-img">
-                        <span><%= product.title %></span>
-                      </td>
-                      <td><%= product.user?.name || 'N/A' %></td>
-                      <td>$<%= (product.price || 0).toFixed(2) %></td>
-                      <td><%= new Date(product.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %></td>
-                    </tr>
-                    <% }); %>
-                  </tbody>
-                </table>
-                <% } else { %>
-                <p class="center-align grey-text">No products added today</p>
-                <% } %>
-              </div>
-            </div>
-
-            <!-- Today's Users -->
-            <div class="col s12 l6">
-              <div class="data-table">
-                <div class="section-header">
-                  <h6><i class="material-icons left">people</i>Today's Users (Top 10)</h6>
-                  <a href="/admin/user" class="btn-small waves-effect view-all-btn">View All</a>
-                </div>
-                <% if (todayUsers && todayUsers.length > 0) { %>
-                <table class="striped compact-table">
-                  <thead>
-                    <tr>
-                      <th>User</th>
-                      <th>Email</th>
-                      <th>City</th>
-                      <th>Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <% todayUsers.slice(0, 10).forEach(user => { %>
-                    <tr>
-                      <td>
-                        <img src="<%= user.photo ? process.env.IMAGE_URL + user.photo : '/img/avatar.png' %>" alt="User" class="user-avatar">
-                        <span><%= user.name %></span>
-                      </td>
-                      <td><%= user.email %></td>
-                      <td><%= user.city || '-' %></td>
-                      <td><%= new Date(user.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %></td>
-                    </tr>
-                    <% }); %>
-                  </tbody>
-                </table>
-                <% } else { %>
-                <p class="center-align grey-text">No users registered today</p>
-                <% } %>
-              </div>
-            </div>
-          </div>
-
-          <!-- Recent Activity Section -->
-          <div class="row">
-            <div class="col s12">
-              <div class="data-table">
-                <div class="section-header">
-                  <h6><i class="material-icons left">access_time</i>Recent Activity</h6>
-                </div>
-                <div class="row">
-
-                   <div class="col s12 m4">
-                     <div class="center-align">
-                       <h6>Active Users</h6>
-                       <h4><%= stats.activeUsers || 0 %></h4>
-                       <a href="/admin/user" class="btn-small waves-effect blue">View</a>
-                     </div>
-                   </div>
-                  <div class="col s12 m4">
-                    <div class="center-align">
-                      <h6>Active Products</h6>
-                      <h4><%= stats.activeProducts || 0 %></h4>
-                      <a href="/admin/product" class="btn-small waves-effect green">View</a>
+                        +$<%= (stats.todayRevenue || 0).toFixed(2) %> Today
+                      </span>
                     </div>
                   </div>
-<div class="col s12 m4">
-  <div class="center-align">
-    <h6>Pending Approvals</h6>
-    <h4><%= stats.pendingApprovals || 0 %></h4>
-    <a href="/admin/product" class="btn-small waves-effect orange">Review</a>
-  </div>
-</div>
-                </div>
+                </a>
               </div>
             </div>
+
           </div>
 
         </div>
+
+
+
+
+        <!-- Revenue Graph -->
+        <div class="row mt-1">
+          <div class="col s12">
+            <div class="card">
+              <div class="card-content">
+                <div class="section-header">
+                  <h6><i class="material-icons left">trending_up</i>Revenue Trend (Last 30 Days)</h6>
+                </div>
+                <div class="chart-container">
+                  <canvas id="revenueTrendChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Today's Products and Users -->
+        <div class="row">
+          <!-- Today's Products -->
+          <div class="col s12 l6">
+            <div class="data-table">
+              <div class="section-header">
+                <h6><i class="material-icons-outlined left">shopping_bag</i>Today's Products (Top 10)</h6>
+                <a href="/admin/product" class="btn-small waves-effect view-all-btn">View All</a>
+              </div>
+              <% if (todayProducts && todayProducts.length > 0) { %>
+              <table class="striped compact-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Owner</th>
+                    <th>Price</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% todayProducts.slice(0, 10).forEach(product => { %>
+                  <tr>
+                    <td>
+                      <img src="<%= product.images && product.images.length > 0 ? process.env.IMAGE_URL + product.images[0] : '/images/default.png' %>" alt="Product" class="product-img">
+                      <span><%= product.title %></span>
+                    </td>
+                    <td><%= product.user?.name || 'N/A' %></td>
+                    <td>$<%= (product.price || 0).toFixed(2) %></td>
+                    <td><%= new Date(product.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %></td>
+                  </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+              <% } else { %>
+              <p class="center-align grey-text">No products added today</p>
+              <% } %>
+            </div>
+          </div>
+
+          <!-- Today's Users -->
+          <div class="col s12 l6">
+            <div class="data-table">
+              <div class="section-header">
+                <h6><i class="material-icons left">people</i>Today's Users (Top 10)</h6>
+                <a href="/admin/user" class="btn-small waves-effect view-all-btn">View All</a>
+              </div>
+              <% if (todayUsers && todayUsers.length > 0) { %>
+              <table class="striped compact-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>City</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% todayUsers.slice(0, 10).forEach(user => { %>
+                  <tr>
+                    <td>
+                      <img src="<%= user.photo ? process.env.IMAGE_URL + user.photo : '/img/avatar.png' %>" alt="User" class="user-avatar">
+                      <span><%= user.name %></span>
+                    </td>
+                    <td><%= user.email %></td>
+                    <td><%= user.city || '-' %></td>
+                    <td><%= new Date(user.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %></td>
+                  </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+              <% } else { %>
+              <p class="center-align grey-text">No users registered today</p>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity Section -->
+        <div class="row">
+          <div class="col s12">
+            <div class="data-table">
+              <div class="section-header">
+                <h6><i class="material-icons left">access_time</i>Recent Activity</h6>
+              </div>
+              <div class="row">
+
+                <div class="col s12 m4">
+                  <div class="center-align">
+                    <h6>Active Users</h6>
+                    <h4><%= stats.activeUsers || 0 %></h4>
+                    <a href="/admin/user" class="btn-small waves-effect blue">View</a>
+                  </div>
+                </div>
+                <div class="col s12 m4">
+                  <div class="center-align">
+                    <h6>Active Products</h6>
+                    <h4><%= stats.activeProducts || 0 %></h4>
+                    <a href="/admin/product" class="btn-small waves-effect green">View</a>
+                  </div>
+                </div>
+                <div class="col s12 m4">
+                  <div class="center-align">
+                    <h6>Pending Approvals</h6>
+                    <h4><%= stats.pendingApprovals || 0 %></h4>
+                    <a href="/admin/product" class="btn-small waves-effect orange">Review</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
+  </div>
   </div>
 
   <%- include('_layouts/commonJs') %>
