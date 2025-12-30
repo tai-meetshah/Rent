@@ -9,7 +9,12 @@
     <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/extensions/responsive/css/responsive.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="/app-assets/vendors/data-tables/css/select.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="/app-assets/css/pages/data-tables.css">
+<style>
+    .hide-enquiry-column {
+    display: none !important;
+    }
 
+</style>
 </head>
 <!-- END: Head-->
 
@@ -53,7 +58,7 @@
                                                     <thead>
                                                         <tr>
                                                             <th>Sr</th>
-                                                            <th>Enquiry Number</th>
+                                                            <th class="hide-enquiry-column">Enquiry Number</th>
                                                             <th>Name</th>
                                                             <th>Email</th>
                                                             <!-- <th>Contact No.</th> -->
@@ -64,7 +69,7 @@
                                                         <% for( let i=0; i < data.length; i++ ) { %>
                                                         <tr>
                                                             <td><%= i+1 %></td>
-                                                            <td><b>#<%= data[i].enquiryNumber %></b></td>
+                                                            <td class="hide-enquiry-column"><b>#<%= data[i].enquiryNumber %></b></td>
                                                             <td><b><%= data[i].user && data[i].user.name %></b></td>
                                                             <td><%= data[i].user && data[i].user.email %></td>
                                                             <td>

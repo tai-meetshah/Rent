@@ -16,6 +16,10 @@
             background-color: rgb(231, 231, 231);
             font-weight: bold;
         }
+        .hide-enquiry-column {
+        display: none !important;
+        }
+
         .modal {
             display: none; /* Hidden by default */
             position: fixed;
@@ -77,8 +81,8 @@
                                                     <div class="row" style="width: 100%;">
                                                         <div class="col s9">
                                                             <i class="material-icons" style="margin-top: 0;cursor: pointer;" onclick="history.back()">arrow_back</i>
-                                                            <p class="m-0 blue-grey-text text-darken-4 font-weight-700">
-                                                                Enquiry Number: #<%= data.enquiryNumber %></p>
+                                                            <!-- <p class="m-0 blue-grey-text text-darken-4 font-weight-700">
+                                                                Enquiry Number: #<%= data.enquiryNumber %></p> -->
                                                             <p class="m-0 chat-text"><%= data.user.name %> | <a href="mailto:<%= data.email %>"><%= data.user.email %> </a></p>
                                                         </div>
                                                         <% if(data.isEnded == false){ %>
