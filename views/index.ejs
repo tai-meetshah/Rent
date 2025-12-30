@@ -99,6 +99,27 @@
       font-size: 12px;
       padding: 2px 15px;
     }
+
+.stats-center-row {
+display: flex;
+justify-content: center; /* center group */
+gap: 24px; /* space between cards */
+  max-width: 1050px; /* 🔥 THIS fixes the visual issue */
+  margin: 0 auto; /* 🔥 true center */
+flex-wrap: wrap;
+}
+
+.stats-center-row > .col {
+float: none !important; /* 🔥 kill Materialize float */
+  flex: 0 0 auto;
+}
+
+.stat-box {
+width: 320px; /* 👈 FIXES THE ISSUE */
+flex-shrink: 0; /* 👈 prevents shrinking */
+}
+
+
   </style>
 </head>
 
@@ -129,9 +150,9 @@
 
           <!-- Stats Cards -->
           <div class="row">
-
+ <div class="stats-center-row">
             <!-- Total Users -->
-            <div class="col s12 m6 l3" style="padding:12px;">
+            <div class="stat-box">
               <a href="/admin/user" style="text-decoration:none;">
                 <div style="
         background: linear-gradient(135deg, #1A9CFF, #147EDB);
@@ -175,7 +196,7 @@
             </div>
 
             <!-- Total Products -->
-            <div class="col s12 m6 l3" style="padding:12px;">
+             <div class="stat-box">
               <a href="/admin/product" style="text-decoration:none;">
                 <div style="
         background: linear-gradient(135deg, #5139DB, #3925B7);
@@ -219,7 +240,7 @@
             </div>
 
             <!-- Total Revenue -->
-            <div class="col s12 m6 l3" style="padding:12px;">
+             <div class="stat-box">
               <a href="/admin/reports" style="text-decoration:none;">
                 <div style="
         background: linear-gradient(135deg, #31B411, #24940C);
@@ -261,6 +282,9 @@
                 </div>
               </a>
             </div>
+            </div>
+
+          </div>
 
           </div>
 
