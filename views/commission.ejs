@@ -90,6 +90,15 @@
                     <div class="error-message" id="subscriptionError"></div>
                   </div>
 
+                  <div class="divider" style="margin: 20px 0;"></div>
+
+                  <!-- Advertisement Price Per Day -->
+                  <div class="input-field col s12">
+                    <label for="advertisementPricePerDay"><b>Ad Price Per Day ($)</b></label>
+                    <input class="validate" id="advertisementPricePerDay" name="advertisementPricePerDay" type="number" min="0" step="0.01" required value="<%= commission && commission.advertisementPricePerDay ? commission.advertisementPricePerDay : 5 %>">
+                    <div class="error-message" id="adPriceError"></div>
+                  </div>
+
                   <div class="row">
                     <div class="col s12 display-flex justify-content-end">
                       <button class="btn btn-edit" type="submit" name="action">
@@ -134,6 +143,14 @@
                     <% } %>
                   </p>
                 </div>
+
+                <div class="divider" style="margin: 10px 0;"></div>
+
+                <div style="margin-top: 15px;">
+                  <p><b>Advertisement Price Per Day:</b></p>
+                  <p>$<%= commission.advertisementPricePerDay %></p>
+                </div>
+
               </div>
               <% } %>
 
@@ -172,8 +189,13 @@
         const percent = $('#percentage').val().trim();
         const subscription = $('#subscriptionAmount').val().trim();
         const discount = $('#firstUserDiscount').val().trim();
-
+        const adPrice = $('#advertisementPricePerDay').val().trim();
         $('.error-message').text('');
+
+        if (!adPrice || parseFloat(adPrice) < 1) {
+          $('#adPriceError').text('Please enter a valid ad price (1 or above).');
+          valid = false;
+        }
 
         if (type === "fixed" && !fixed) {
           $('#fixedError').text('Please enter a fixed commission amount.');

@@ -22,11 +22,13 @@ router.post('/commission', async (req, res) => {
             fixedAmount,
             percentage,
             subscriptionAmount,
+            advertisementPricePerDay,
         } = req.body;
 
         let commission = await AdminCommission.findOne();
         if (commission) {
-            // update existing
+            // update existing advertisementPricePerDay
+            commission.advertisementPricePerDay = advertisementPricePerDay;
             commission.firstUserDiscount = firstUserDiscount;
             commission.commissionType = commissionType;
             commission.fixedAmount = fixedAmount;
@@ -85,6 +87,7 @@ router.put('/:id', async (req, res) => {
             isActive,
             subscriptionAmount,
             firstUserDiscount,
+            advertisementPricePerDay,
         } = req.body;
         const updated = await AdminCommission.findByIdAndUpdate(
             req.params.id,
@@ -92,6 +95,7 @@ router.put('/:id', async (req, res) => {
                 commissionType,
                 fixedAmount,
                 firstUserDiscount,
+                advertisementPricePerDay,
                 percentage,
                 isActive,
                 subscriptionAmount,

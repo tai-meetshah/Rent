@@ -21,6 +21,11 @@ const adminCommissionSchema = new mongoose.Schema(
             default: 2.5,
             required: true,
         },
+        advertisementPricePerDay: {
+            type: Number,
+            default: 5.0, // AUD $5 per day
+            required: true,
+        },
         isActive: {
             type: Boolean,
             default: true,

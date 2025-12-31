@@ -115,6 +115,7 @@ app.use('/api/book', require('./routes/api/book'));
 app.use('/api/review', require('./routes/api/reviewRoutes'));
 app.use('/api/payment', require('./routes/api/paymentRoutes'));
 // app.use('/api/branch', require('./routes/api/branchRoutes'));
+app.use('/api/advertisement', require('./routes/api/advertisementRoutes.js')); // NEW
 
 // 404 api
 app.use('/api', (req, res, next) => {
@@ -143,6 +144,7 @@ app.use('/admin/', require('./routes/admin/productRoutes'));
 app.use('/admin/cms', require('./routes/admin/cmsRoutes'));
 app.use('/admin/reports', require('./routes/admin/Reportsroutes'));
 app.use('/admin', require('./routes/admin/adminCommissionRoutes'));
+app.use('/admin/advertisement', require('./routes/admin/advertisementRoutes')); // NEW
 
 // 404 admin
 app.all('/*', (req, res) => res.status(404).render('404'));

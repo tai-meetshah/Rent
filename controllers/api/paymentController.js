@@ -597,10 +597,10 @@ exports.confirmPayment = async (req, res, next) => {
         }
 
         const paymentFees = await getStripePaymentFees(paymentIntentId);
-        console.log('-----------------------------------');
+        // console.log('-----------------------------------');
 
-        console.log('paymentFees: ', paymentFees);
-        console.log('-----------------------------------');
+        // console.log('paymentFees: ', paymentFees);
+        // console.log('-----------------------------------');
         // Update payment status
         payment.paymentStatus = 'paid';
         payment.paidAt = new Date();
@@ -631,7 +631,7 @@ exports.confirmPayment = async (req, res, next) => {
         );
 
         await payment.save();
-        console.log('payment: ', payment);
+        // console.log('payment: ', payment);
 
         // Update booking payment status
         const booking = payment.booking;
@@ -676,12 +676,6 @@ exports.confirmPayment = async (req, res, next) => {
             success: true,
             message: 'Payment confirmed successfully.',
             payment,
-            // stripeCharges: {
-            //     amount: paymentFees.amount,
-            //     fee: paymentFees.totalFee,
-            //     net: paymentFees.netAmount,
-            //     breakdown: paymentFees.feeDetails
-            // }
         });
     } catch (error) {
         console.error('Error confirming payment:', error);
