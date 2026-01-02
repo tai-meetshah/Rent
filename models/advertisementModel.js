@@ -94,14 +94,14 @@ const advertisementSchema = new mongoose.Schema(
         //     ref: 'admin',
         // },
         // Analytics
-        views: {
-            type: Number,
-            default: 0,
-        },
-        clicks: {
-            type: Number,
-            default: 0,
-        },
+        // views: {
+        //     type: Number,
+        //     default: 0,
+        // },
+        // clicks: {
+        //     type: Number,
+        //     default: 0,
+        // },
         // Refund details
         // refundAmount: {
         //     type: Number,

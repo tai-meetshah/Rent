@@ -179,7 +179,7 @@ exports.confirmAdvertisementPayment = async (req, res, next) => {
         advertisement.paymentStatus = 'paid';
         advertisement.paidAt = new Date();
         advertisement.stripeChargeId = paymentIntent.latest_charge;
-        advertisement.approvalStatus = 'pending'; // Awaiting admin approval
+        advertisement.approvalStatus = 'approved'; // Awaiting admin approval
         await advertisement.save();
 
         // Send notification to seller
@@ -188,7 +188,7 @@ exports.confirmAdvertisementPayment = async (req, res, next) => {
                 'Advertisement Payment Successful',
                 `Your advertisement for ${
                     advertisement.product.title
-                } has been submitted for approval. It will go live on ${advertisement.startDate.toLocaleDateString()}.`,
+                } has been submitted. It will go live on ${advertisement.startDate.toLocaleDateString()}.`,
                 [advertisement.seller.fcmToken]
             );
             await userNotificationModel.create({
@@ -196,7 +196,7 @@ exports.confirmAdvertisementPayment = async (req, res, next) => {
                 title: 'Advertisement Payment Successful',
                 body: `Your advertisement payment of AUD $${advertisement.totalAmount.toFixed(
                     2
-                )} has been processed. Awaiting admin approval.`,
+                )} has been processed.`,
             });
         }
 
