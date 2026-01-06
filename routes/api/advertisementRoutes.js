@@ -8,7 +8,6 @@ const fileUpload = require('express-fileupload');
 // Get advertisement pricing
 router.get(
     '/pricing',
-    checkUser,
     advertisementController.getAdvertisementPricing
 );
 

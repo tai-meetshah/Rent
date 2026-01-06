@@ -5,6 +5,7 @@ const SearchHistory = require('../../models/SearchHistory');
 const userModel = require('../../models/userModel');
 const Booking = require('../../models/Booking');
 const Review = require('../../models/reviewModel');
+const Advertisement = require('../../models/advertisementModel');
 
 exports.getAllCategories = async (req, res, next) => {
     try {
@@ -64,6 +65,30 @@ exports.getAllProduct = async (req, res, next) => {
             reviewsByProduct[productId].push(review);
         });
 
+        const advertisements = await Advertisement.find({
+            product: { $in: productIds },
+            status: { $in: ['pending', 'active'] },
+            paymentStatus: { $in: ['pending', 'paid'] },
+            isActive: true,
+        })
+            .select(
+                '_id product title image startDate endDate status paymentStatus numberOfDays totalAmount'
+            )
+            .lean();
+
+        const adsByProduct = {};
+        const now = new Date();
+        advertisements.forEach(ad => {
+            const pid = ad.product.toString();
+            if (!adsByProduct[pid]) adsByProduct[pid] = [];
+            ad.isRunning =
+                ad.status === 'active' &&
+                ad.paymentStatus === 'paid' &&
+                new Date(ad.startDate) <= now &&
+                new Date(ad.endDate) >= now;
+            adsByProduct[pid].push(ad);
+        });
+
         const data = products.map(p => {
             const filteredDates = (p.selectDate || []).filter(date => {
                 const d = new Date(date);
@@ -83,6 +108,8 @@ exports.getAllProduct = async (req, res, next) => {
                     availableStock: parseInt(p.stockQuantity) || 0,
                 },
                 reviews: productReviews,
+                // advertisements: adsByProduct[p._id.toString()] || [],
+                isAdvertised: (adsByProduct[p._id.toString()] || []).length > 0,
             };
         });
 
@@ -122,8 +149,8 @@ exports.getProducts = async (req, res, next) => {
 
         // ⭐
         if (rating) {
-                const ratingNum = Number(rating);
-           filter.avgRating = { $gte: ratingNum, $lte: 5 };
+            const ratingNum = Number(rating);
+            filter.avgRating = { $gte: ratingNum, $lte: 5 };
         }
 
         // 🔍 Search filter
@@ -280,7 +307,7 @@ exports.getProducts = async (req, res, next) => {
         const stockData = await Product.getAvailableStockForProducts(
             productIds
         );
-            // console.log('stockData: ', stockData);
+        // console.log('stockData: ', stockData);
 
         // 📝 Get all reviews for these products
         const reviews = await Review.find({
@@ -301,6 +328,31 @@ exports.getProducts = async (req, res, next) => {
                 reviewsByProduct[productId] = [];
             }
             reviewsByProduct[productId].push(review);
+        });
+
+        // 📰 Get active/pending advertisements for these products
+        const advertisements = await Advertisement.find({
+            product: { $in: productIds },
+            status: { $in: ['pending', 'active'] },
+            paymentStatus: { $in: ['pending', 'paid'] },
+            isActive: true,
+        })
+            .select(
+                '_id product title image startDate endDate status paymentStatus numberOfDays totalAmount'
+            )
+            .lean();
+
+        const adsByProduct = {};
+        const now = new Date();
+        advertisements.forEach(ad => {
+            const pid = ad.product.toString();
+            if (!adsByProduct[pid]) adsByProduct[pid] = [];
+            ad.isRunning =
+                ad.status === 'active' &&
+                ad.paymentStatus === 'paid' &&
+                new Date(ad.startDate) <= now &&
+                new Date(ad.endDate) >= now;
+            adsByProduct[pid].push(ad);
         });
 
         // 🧡 Favourites
@@ -327,6 +379,8 @@ exports.getProducts = async (req, res, next) => {
                 stockInfo,
                 totalRentals: 0,
                 reviews: productReviews,
+                advertisements: adsByProduct[p._id.toString()] || [],
+                isAdvertised: (adsByProduct[p._id.toString()] || []).length > 0,
             };
         });
 
@@ -432,7 +486,7 @@ exports.getAllFeatureProduct = async (req, res, next) => {
         const stockData = await Product.getAvailableStockForProducts(
             productIds
         );
-            // console.log('stockData: ', stockData);
+        // console.log('stockData: ', stockData);
 
         // 📝 Get all reviews for these products
         const reviews = await Review.find({
@@ -453,6 +507,31 @@ exports.getAllFeatureProduct = async (req, res, next) => {
                 reviewsByProduct[productId] = [];
             }
             reviewsByProduct[productId].push(review);
+        });
+
+        // 📰 Get active/pending advertisements for these products
+        const advertisements = await Advertisement.find({
+            product: { $in: productIds },
+            status: { $in: ['pending', 'active'] },
+            paymentStatus: { $in: ['pending', 'paid'] },
+            isActive: true,
+        })
+            .select(
+                '_id product title image startDate endDate status paymentStatus numberOfDays totalAmount'
+            )
+            .lean();
+
+        const adsByProduct = {};
+        const now = new Date();
+        advertisements.forEach(ad => {
+            const pid = ad.product.toString();
+            if (!adsByProduct[pid]) adsByProduct[pid] = [];
+            ad.isRunning =
+                ad.status === 'active' &&
+                ad.paymentStatus === 'paid' &&
+                new Date(ad.startDate) <= now &&
+                new Date(ad.endDate) >= now;
+            adsByProduct[pid].push(ad);
         });
 
         // 💚 Favourite products
@@ -477,6 +556,8 @@ exports.getAllFeatureProduct = async (req, res, next) => {
                 isFavourite: favouriteSet.has(p._id.toString()),
                 stockInfo,
                 reviews: productReviews,
+                advertisements: adsByProduct[p._id.toString()] || [],
+                isAdvertised: (adsByProduct[p._id.toString()] || []).length > 0,
             };
         });
         // console.log('data: ', data);
@@ -496,7 +577,7 @@ exports.getFeatureProductById = async (req, res, next) => {
             publish: true,
             isActive: true,
             approvalStatus: 'approved',
-            user: { $ne: req.user.id },
+            // user: { $ne: req.user.id },
         })
             .populate('category subcategory')
             .select('-__v -isDeleted -step');
@@ -516,13 +597,38 @@ exports.getFeatureProductById = async (req, res, next) => {
                 id => id.toString()
             )
         );
+
+        // 📰 Get any active/pending advertisements for this product
+        const advertisements = await Advertisement.find({
+            product: product._id,
+            status: { $in: ['pending', 'active'] },
+            paymentStatus: { $in: ['pending', 'paid'] },
+            isActive: true,
+        })
+            .select(
+                '_id product title image startDate endDate status paymentStatus numberOfDays totalAmount'
+            )
+            .lean();
+
+        const now = new Date();
+        const productAds = advertisements.map(ad => ({
+            ...ad,
+            isRunning:
+                ad.status === 'active' &&
+                ad.paymentStatus === 'paid' &&
+                new Date(ad.startDate) <= now &&
+                new Date(ad.endDate) >= now,
+        }));
+
         const data = {
             ...product.toObject(),
             isFavourite: favouriteSet.has(product._id.toString()),
             stockInfo,
+            advertisements: productAds,
+            isAdvertised: productAds.length > 0,
         };
 
-        res.json({ success: true, data });
+        res.json({ success: true, data: [data] });
     } catch (error) {
         next(error);
     }
@@ -1202,7 +1308,7 @@ exports.getFavouriteProducts = async (req, res, next) => {
         const products = await Product.find({
             _id: { $in: user.favourites },
             approvalStatus: 'approved',
-            isDeleted: false
+            isDeleted: false,
         })
             .populate('category subcategory')
             .select('-__v -isDeleted');
@@ -1240,6 +1346,31 @@ exports.getFavouriteProducts = async (req, res, next) => {
             reviewsByProduct[productId].push(review);
         });
 
+        // 📰 Get active/pending advertisements for these products
+        const advertisements = await Advertisement.find({
+            product: { $in: productIds },
+            status: { $in: ['pending', 'active'] },
+            paymentStatus: { $in: ['pending', 'paid'] },
+            isActive: true,
+        })
+            .select(
+                '_id product title image startDate endDate status paymentStatus numberOfDays totalAmount'
+            )
+            .lean();
+
+        const adsByProduct = {};
+        const now = new Date();
+        advertisements.forEach(ad => {
+            const pid = ad.product.toString();
+            if (!adsByProduct[pid]) adsByProduct[pid] = [];
+            ad.isRunning =
+                ad.status === 'active' &&
+                ad.paymentStatus === 'paid' &&
+                new Date(ad.startDate) <= now &&
+                new Date(ad.endDate) >= now;
+            adsByProduct[pid].push(ad);
+        });
+
         // Map products with stock info and reviews
         const data = products.map(p => {
             const productReviews = reviewsByProduct[p._id.toString()] || [];
@@ -1252,6 +1383,8 @@ exports.getFavouriteProducts = async (req, res, next) => {
                     availableStock: parseInt(p.stockQuantity) || 0,
                 },
                 reviews: productReviews,
+                advertisements: adsByProduct[p._id.toString()] || [],
+                isAdvertised: (adsByProduct[p._id.toString()] || []).length > 0,
             };
         });
 
@@ -1298,19 +1431,20 @@ exports.getProductApprovalStatus = async (req, res, next) => {
         if (!productId) {
             return res.status(400).json({
                 success: false,
-                message: 'Product ID is required.'
+                message: 'Product ID is required.',
             });
         }
 
         const product = await Product.findOne({
             _id: productId,
-            user: req.user.id
+            user: req.user.id,
         }).select('approvalStatus approvalReason approvalDate publish');
 
         if (!product) {
             return res.status(404).json({
                 success: false,
-                message: 'Product not found or you do not have permission to view it.'
+                message:
+                    'Product not found or you do not have permission to view it.',
             });
         }
 
@@ -1321,8 +1455,8 @@ exports.getProductApprovalStatus = async (req, res, next) => {
                 approvalStatus: product.approvalStatus,
                 approvalReason: product.approvalReason,
                 approvalDate: product.approvalDate,
-                publish: product.publish
-            }
+                publish: product.publish,
+            },
         });
     } catch (error) {
         next(error);
