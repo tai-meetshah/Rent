@@ -253,6 +253,7 @@ exports.getMyAdvertisements = async (req, res, next) => {
     }
 };
 
+
 // Get active advertisements (for displaying on home screen)
 exports.getActiveAdvertisements = async (req, res, next) => {
     try {
