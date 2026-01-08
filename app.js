@@ -12,8 +12,8 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const { socketHandler } = require('./socket.server');
 
-const { triggerManualPayout } = require('./jobs/payoutScheduler');
-// triggerManualPayout();
+const { triggerManualCheck } = require('./jobs/advertisementScheduler.js');
+triggerManualCheck();
 
 // Start express app
 const app = express();

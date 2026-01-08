@@ -154,9 +154,9 @@ exports.createPaymentIntent = async (req, res, next) => {
             return next(createError.NotFound('Booking not found.'));
         }
 
-        // if (booking.user._id.toString() !== req.user.id.toString()) {
-        //     return next(createError.Forbidden('Unauthorized access.'));
-        // }
+        if (booking.user._id.toString() !== req.user.id.toString()) {
+            return next(createError.Forbidden('Unauthorized access.'));
+        }
 
         const product = booking.product;
 
@@ -178,6 +178,7 @@ exports.createPaymentIntent = async (req, res, next) => {
         if (booking.deliveryType == 'self-pickup') {
             deliveryCharge = 0;
         }
+
         // Determine rental days
         let rentalDays = 1;
         if (
@@ -207,7 +208,7 @@ exports.createPaymentIntent = async (req, res, next) => {
             : 0;
 
         // Total amount = rental price (for all days) + deposit
-        const totalAmount = rentalPrice + depositAmount + deliveryCharge;
+        let totalAmount = rentalPrice + depositAmount + deliveryCharge;
 
         if (!totalAmount || totalAmount <= 0) {
             return next(createError.BadRequest('Invalid payment amount.'));
@@ -215,6 +216,32 @@ exports.createPaymentIntent = async (req, res, next) => {
 
         // Get active commission settings
         const commissionSettings = await getActiveCommission();
+
+        // Check if this is user's first booking (first time discount)
+        const previousBookingsCount = await Booking.countDocuments({
+            user: booking.user._id,
+            paymentStatus: 'paid', // Only count paid bookings
+        });
+
+        const isFirstTimeUser = previousBookingsCount === 0;
+        let firstUserDiscountAmount = 0;
+        let firstUserDiscountPercentage = 0;
+
+        // Apply first user discount if applicable
+        if (isFirstTimeUser && commissionSettings.firstUserDiscount) {
+            firstUserDiscountPercentage = Number(
+                commissionSettings.firstUserDiscount
+            );
+            firstUserDiscountAmount =
+                (totalAmount * firstUserDiscountPercentage) / 100;
+            totalAmount = totalAmount - firstUserDiscountAmount;
+
+            console.log(
+                `First time user discount applied: ${firstUserDiscountPercentage}% (AUD $${firstUserDiscountAmount.toFixed(
+                    2
+                )})`
+            );
+        }
 
         // Commission is calculated ONLY on rental price, NOT on deposit
         const commissionAmount = calculateCommission(
@@ -231,9 +258,6 @@ exports.createPaymentIntent = async (req, res, next) => {
         const ownerPayoutAmount = rentalPrice - commissionAmount;
 
         // Net owner payout after Stripe fees (if platform doesn't absorb fees)
-        // Option 1: Deduct from owner's payout
-        // const netOwnerPayout = ownerPayoutAmount - stripeTotalFee;
-
         // Option 2: Platform absorbs Stripe fees (recommended)
         const netOwnerPayout = ownerPayoutAmount;
 
@@ -249,13 +273,16 @@ exports.createPaymentIntent = async (req, res, next) => {
                 rentalAmount: rentalPrice.toString(),
                 rentalDays: rentalDays.toString(),
                 depositAmount: depositAmount.toString(),
+                firstUserDiscount: firstUserDiscountAmount.toString(),
+                isFirstTimeUser: isFirstTimeUser.toString(),
             },
-            description: `Rental payment for ${product.title}`,
+            description: `Rental payment for ${product.title}${
+                isFirstTimeUser ? ' (First User Discount Applied)' : ''
+            }`,
             automatic_payment_methods: {
                 enabled: true,
             },
         });
-        // console.log('paymentIntent: ', JSON.stringify(paymentIntent, null, 2));
 
         // Create payment record
         const payment = await Payment.create({
@@ -283,6 +310,9 @@ exports.createPaymentIntent = async (req, res, next) => {
             stripeTransferFee,
             stripeTotalFee,
             netOwnerPayout,
+            firstUserDiscount: firstUserDiscountAmount,
+            firstUserDiscountPercentage: firstUserDiscountPercentage,
+            isFirstTimeUser,
             currency: 'AUD',
             stripePaymentIntentId: paymentIntent.id,
             paymentStatus: 'pending',
@@ -292,14 +322,28 @@ exports.createPaymentIntent = async (req, res, next) => {
         booking.payment = payment._id;
         await booking.save();
 
+        const originalAmount = rentalPrice + depositAmount + deliveryCharge;
+
         res.status(200).json({
             success: true,
             clientSecret: paymentIntent.client_secret,
             paymentIntentId: paymentIntent.id,
             amount: totalAmount,
+            originalAmount: isFirstTimeUser ? originalAmount : undefined,
             rentalAmount: rentalPrice,
             depositAmount: depositAmount,
+            deliveryCharge: deliveryCharge,
             currency: 'AUD',
+            firstUserDiscount: isFirstTimeUser
+                ? {
+                      applied: true,
+                      percentage: firstUserDiscountPercentage,
+                      amount: firstUserDiscountAmount,
+                      savedAmount: firstUserDiscountAmount,
+                  }
+                : {
+                      applied: false,
+                  },
             commission: {
                 type: commissionSettings.commissionType,
                 amount: commissionAmount,
@@ -325,13 +369,29 @@ exports.createPaymentIntent = async (req, res, next) => {
                 stripeFees: stripeTotalFee,
                 finalPayout: netOwnerPayout,
             },
-            message: `Total payment: AUD $${totalAmount.toFixed(
-                2
-            )} (Rental: $${rentalPrice.toFixed(
-                2
-            )} + Deposit: $${depositAmount.toFixed(
-                2
-            )}). Deposit will be refunded after return verification.`,
+            message: isFirstTimeUser
+                ? `First time user discount: ${firstUserDiscountPercentage}% OFF! Original: AUD $${originalAmount.toFixed(
+                      2
+                  )}, You pay: AUD $${totalAmount.toFixed(
+                      2
+                  )} (Saved: AUD $${firstUserDiscountAmount.toFixed(
+                      2
+                  )}). Includes Rental: $${rentalPrice.toFixed(
+                      2
+                  )}, Deposit: $${depositAmount.toFixed(
+                      2
+                  )}, Delivery: $${deliveryCharge.toFixed(
+                      2
+                  )}. Deposit will be refunded after return verification.`
+                : `Total payment: AUD $${totalAmount.toFixed(
+                      2
+                  )} (Rental: $${rentalPrice.toFixed(
+                      2
+                  )} + Deposit: $${depositAmount.toFixed(
+                      2
+                  )} + Delivery: $${deliveryCharge.toFixed(
+                      2
+                  )}). Deposit will be refunded after return verification.`,
             payment,
         });
     } catch (error) {
@@ -339,238 +399,6 @@ exports.createPaymentIntent = async (req, res, next) => {
         next(error);
     }
 };
-
-// exports.createPaymentIntent = async (req, res, next) => {
-//     try {
-//         const { bookingId } = req.body;
-//         const { latitude, longitude } = req.body;
-
-//         if (!latitude || !longitude) {
-//             return next(
-//                 createError.BadRequest(
-//                     'User location required for delivery cost.'
-//                 )
-//             );
-//         }
-
-//         const booking = await Booking.findById(bookingId)
-//             .populate('product')
-//             .populate('user', 'name email');
-
-//         if (!booking) {
-//             return next(createError.NotFound('Booking not found.'));
-//         }
-
-//         const product = booking.product;
-
-//         const userLat = Number(latitude);
-//         const userLng = Number(longitude);
-
-//         const ownerLat = Number(product.oCoordinates.coordinates[1]);
-//         const ownerLng = Number(product.oCoordinates.coordinates[0]);
-
-//         const distanceKm = calculateDistanceKm(
-//             userLat,
-//             userLng,
-//             ownerLat,
-//             ownerLng
-//         );
-
-//         let deliveryCharge = getDeliverySlabAmount(product.slabs, distanceKm);
-
-//         if (booking.deliveryType == 'self-pickup') {
-//             deliveryCharge = 0;
-//         }
-
-//         // Determine rental days
-//         let rentalDays = 1;
-//         if (
-//             Array.isArray(booking.bookedDates) &&
-//             booking.bookedDates.length > 0
-//         ) {
-//             rentalDays = booking.bookedDates.length;
-//         } else if (booking.startDate && booking.endDate) {
-//             try {
-//                 const start = new Date(booking.startDate);
-//                 const end = new Date(booking.endDate);
-//                 const diffMs = Math.abs(end - start);
-//                 const msPerDay = 1000 * 60 * 60 * 24;
-//                 rentalDays = Math.max(1, Math.ceil(diffMs / msPerDay));
-//             } catch (err) {
-//                 rentalDays = 1;
-//             }
-//         }
-
-//         // Base price per day
-//         const basePricePerDay = Number(product.price || 0);
-//         // Total rental amount for the booking (price * days)
-//         const rentalPrice = basePricePerDay * rentalDays;
-
-//         const depositAmount = product.deposit
-//             ? Number(product.depositAmount || 0)
-//             : 0;
-
-//         // Total amount = rental price (for all days) + deposit
-//         let totalAmount = rentalPrice + depositAmount + deliveryCharge;
-
-//         if (!totalAmount || totalAmount <= 0) {
-//             return next(createError.BadRequest('Invalid payment amount.'));
-//         }
-
-//         // Get active commission settings
-//         const commissionSettings = await getActiveCommission();
-
-//         // Check if this is user's first booking (first time discount)
-//         const previousBookingsCount = await Booking.countDocuments({
-//             user: booking.user._id,
-//             paymentStatus: 'paid' // Only count paid bookings
-//         });
-
-//         const isFirstTimeUser = previousBookingsCount === 0;
-//         let firstUserDiscountAmount = 0;
-//         let firstUserDiscountPercentage = 0;
-
-//         // Apply first user discount if applicable
-//         if (isFirstTimeUser && commissionSettings.firstUserDiscount) {
-//             firstUserDiscountPercentage = Number(commissionSettings.firstUserDiscount);
-//             firstUserDiscountAmount = (totalAmount * firstUserDiscountPercentage) / 100;
-//             totalAmount = totalAmount - firstUserDiscountAmount;
-
-//             console.log(`First time user discount applied: ${firstUserDiscountPercentage}% (AUD $${firstUserDiscountAmount.toFixed(2)})`);
-//         }
-
-//         // Commission is calculated ONLY on rental price, NOT on deposit
-//         const commissionAmount = calculateCommission(
-//             rentalPrice,
-//             commissionSettings
-//         );
-
-//         // Calculate Stripe fees
-//         const stripeProcessingFee = calculateStripeProcessingFee(totalAmount);
-//         const stripeTransferFee = calculateStripeTransferFee(rentalPrice);
-//         const stripeTotalFee = stripeProcessingFee + stripeTransferFee;
-
-//         // Owner receives: rental price - commission (deposit is held separately)
-//         const ownerPayoutAmount = rentalPrice - commissionAmount;
-
-//         // Net owner payout after Stripe fees (if platform doesn't absorb fees)
-//         // Option 2: Platform absorbs Stripe fees (recommended)
-//         const netOwnerPayout = ownerPayoutAmount;
-
-//         // Create payment intent with Stripe (in AUD)
-//         const paymentIntent = await stripe.paymentIntents.create({
-//             amount: Math.round(totalAmount * 100), // Convert to cents
-//             currency: 'aud',
-//             metadata: {
-//                 bookingId: booking._id.toString(),
-//                 renterId: booking.user._id.toString(),
-//                 ownerId: product.user.toString(),
-//                 productId: product._id.toString(),
-//                 rentalAmount: rentalPrice.toString(),
-//                 rentalDays: rentalDays.toString(),
-//                 depositAmount: depositAmount.toString(),
-//                 firstUserDiscount: firstUserDiscountAmount.toString(),
-//                 isFirstTimeUser: isFirstTimeUser.toString(),
-//             },
-//             description: `Rental payment for ${product.title}${isFirstTimeUser ? ' (First User Discount Applied)' : ''}`,
-//             automatic_payment_methods: {
-//                 enabled: true,
-//             },
-//         });
-
-//         // Create payment record
-//         const payment = await Payment.create({
-//             booking: booking._id,
-//             renter: booking.user._id,
-//             owner: product.user,
-//             product: product._id,
-//             totalAmount,
-//             depositAmount: depositAmount,
-//             rentalAmount: rentalPrice,
-//             deliveryCharge: deliveryCharge,
-//             rentalDays,
-//             commissionType: commissionSettings.commissionType,
-//             commissionPercentage:
-//                 commissionSettings.commissionType === 'percentage'
-//                     ? commissionSettings.percentage
-//                     : null,
-//             commissionFixedAmount:
-//                 commissionSettings.commissionType === 'fixed'
-//                     ? commissionSettings.fixedAmount
-//                     : null,
-//             commissionAmount,
-//             ownerPayoutAmount,
-//             stripeProcessingFee,
-//             stripeTransferFee,
-//             stripeTotalFee,
-//             netOwnerPayout,
-//             firstUserDiscount: firstUserDiscountAmount,
-//             firstUserDiscountPercentage: firstUserDiscountPercentage,
-//             isFirstTimeUser,
-//             currency: 'AUD',
-//             stripePaymentIntentId: paymentIntent.id,
-//             paymentStatus: 'pending',
-//         });
-
-//         // Update booking with payment reference
-//         booking.payment = payment._id;
-//         await booking.save();
-
-//         const originalAmount = rentalPrice + depositAmount + deliveryCharge;
-
-//         res.status(200).json({
-//             success: true,
-//             clientSecret: paymentIntent.client_secret,
-//             paymentIntentId: paymentIntent.id,
-//             amount: totalAmount,
-//             originalAmount: isFirstTimeUser ? originalAmount : undefined,
-//             rentalAmount: rentalPrice,
-//             depositAmount: depositAmount,
-//             deliveryCharge: deliveryCharge,
-//             currency: 'AUD',
-//             firstUserDiscount: isFirstTimeUser ? {
-//                 applied: true,
-//                 percentage: firstUserDiscountPercentage,
-//                 amount: firstUserDiscountAmount,
-//                 savedAmount: firstUserDiscountAmount
-//             } : {
-//                 applied: false
-//             },
-//             commission: {
-//                 type: commissionSettings.commissionType,
-//                 amount: commissionAmount,
-//                 percentage:
-//                     commissionSettings.commissionType === 'percentage'
-//                         ? commissionSettings.percentage
-//                         : null,
-//                 fixedAmount:
-//                     commissionSettings.commissionType === 'fixed'
-//                         ? commissionSettings.fixedAmount
-//                         : null,
-//             },
-//             fees: {
-//                 stripeProcessingFee,
-//                 stripeTransferFee,
-//                 stripeTotalFee,
-//             },
-//             ownerPayoutAmount,
-//             netOwnerPayout,
-//             payoutBreakdown: {
-//                 rentalAmount: rentalPrice,
-//                 adminCommission: commissionAmount,
-//                 stripeFees: stripeTotalFee,
-//                 finalPayout: netOwnerPayout,
-//             },
-//             message: isFirstTimeUser
-//                 ? `First time user discount: ${firstUserDiscountPercentage}% OFF! Original: AUD $${originalAmount.toFixed(2)}, You pay: AUD $${totalAmount.toFixed(2)} (Saved: AUD $${firstUserDiscountAmount.toFixed(2)}). Includes Rental: $${rentalPrice.toFixed(2)}, Deposit: $${depositAmount.toFixed(2)}, Delivery: $${deliveryCharge.toFixed(2)}. Deposit will be refunded after return verification.`
-//                 : `Total payment: AUD $${totalAmount.toFixed(2)} (Rental: $${rentalPrice.toFixed(2)} + Deposit: $${depositAmount.toFixed(2)} + Delivery: $${deliveryCharge.toFixed(2)}). Deposit will be refunded after return verification.`,
-//             payment,
-//         });
-//     } catch (error) {
-//         console.error('Error creating payment intent:', error);
-//         next(error);
-//     }
-// };
 // Confirm payment after successful Stripe payment
 exports.confirmPayment = async (req, res, next) => {
     try {
